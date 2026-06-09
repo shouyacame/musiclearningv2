@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>三味線学習システム - 生徒ログイン</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
+    <script src="supabase-config.js"></script>
+    <style>
+        .login-container { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height: 100vh; }
+        .login-form { backdrop-filter: blur(10px); background: rgba(255,255,255,0.95); }
+        select:disabled { background-color: #f9fafb; color: #9ca3af; cursor: not-allowed; }
+        .input-group { display: flex; gap: 12px; }
+        .input-group > div { flex: 1; }
+    </style>
+</head>
+<body>
+    <div class="login-container flex items-center justify-center p-6">
+        <div class="login-form max-w-lg w-full p-8 rounded-2xl shadow-2xl">
+            <div class="text-center mb-8">
+                <div class="text-6xl mb-4">🎵</div>
+                <h1 class="text-3xl font-bold text-gray-800 mb-2">三味線 学習システム</h1>
+                <p class="text-lg text-blue-600 font-semibold">生徒ログイン</p>
+            </div>
+
+            <div id="form-loading" class="text-center py-8 text-gray-400">
+                <i class="fas fa-spinner fa-spin text-2xl mb-2"></i>
+                <p class="text-sm">読み込み中...</p>
+            </div>
+
+            <div id="login-form-wrapper" class="hidden space-y-5">
+                <!-- お知らせバナー -->
+                <div id="announcement-banner" class="hidden bg-blue-50 border border-blue-200 rounded-lg px-4 py-3 text-sm text-blue-800">
+                    <i class="fas fa-bullhorn mr-2"></i>
+                    <span id="announcement-text"></span>
+                </div>
+
+                <form onsubmit="studentLogin(event)" class="space-y-5">
+                    <div class="input-group">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">学年</label>
+                            <select id="grade"
+                                class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-lg"
+                                required onchange="onGradeChange()">
+                                <option value="">選択</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">組</label>
+                            <select id="class"
+                                class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-lg"
+                                required disabled>
+                                <option value="">--</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">出席番号</label>
+                            <input type="number" id="number" min="1" max="99"
+                                class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-lg"
+                                placeholder="番号" required>
+                        </div>
+                    </div>
+
+                    <button type="submit"
+                        class="w-full bg-gradient-to-r from-blue-600 to-purple-600 text-white py-4 px-6 rounded-lg hover:shadow-lg transform hover:-translate-y-1 transition-all duration-300 text-lg font-semibold">
+                        <i class="fas fa-user-graduate mr-3"></i>学習を開始する
+                    </button>
+                </form>
+            </div>
+
+            <div id="no-classes-notice" class="hidden text-center py-8">
+                <i class="fas fa-exclamation-triangle text-yellow-400 text-4xl mb-3"></i>
+                <p class="text-gray-600 font-semibold mb-1">クラスが設定されていません</p>
+                <p class="text-sm text-gray-400">先生に確認してください</p>
+            </div>
+
+            <div class="mt-8 text-center">
+                <a href="teacher-login.html" class="text-blue-600 hover:text-blue-800 text-sm underline">
+                    <i class="fas fa-chalkboard-teacher mr-2"></i>先生の方はこちら
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let classesData = {}; // { '1': ['A','B'], '2': ['A'] }
+
+        async function loadClasses() {
+            const { data, error } = await db
+                .from('classes')
+                .select('grade, class_name')
+                .eq('is_active', true)
+                .order('grade')
+                .order('class_name');
+
+            document.getElementById('form-loading').classList.add('hidden');
+
+            if (error || !data?.length) {
+                document.getElementById('no-classes-notice').classList.remove('hidden');
+                return;
+            }
+
+            data.forEach(row => {
+                if (!classesData[row.grade]) classesData[row.grade] = [];
+                classesData[row.grade].push(row.class_name);
+            });
+
+            const gradeSelect = document.getElementById('grade');
+            Object.keys(classesData).sort().forEach(g => {
+                const opt = document.createElement('option');
+                opt.value = g;
+                opt.textContent = `${g}年`;
+                gradeSelect.appendChild(opt);
+            });
+
+            document.getElementById('login-form-wrapper').classList.remove('hidden');
+        }
+
+        async function loadAnnouncement() {
+            const { data } = await db
+                .from('announcements')
+                .select('title, content')
+                .eq('is_active', true)
+                .order('is_pinned', { ascending: false })
+                .order('created_at', { ascending: false })
+                .limit(1);
+
+            if (data?.length) {
+                const text = data[0].content
+                    ? `${data[0].title}：${data[0].content}`
+                    : data[0].title;
+                document.getElementById('announcement-text').textContent = text;
+                document.getElementById('announcement-banner').classList.remove('hidden');
+            }
+        }
+
+        function onGradeChange() {
+            const grade = document.getElementById('grade').value;
+            const classSelect = document.getElementById('class');
+            classSelect.innerHTML = '<option value="">選択</option>';
+            if (!grade || !classesData[grade]) {
+                classSelect.disabled = true;
+                return;
+            }
+            classesData[grade].forEach(cls => {
+                const opt = document.createElement('option');
+                opt.value = cls;
+                opt.textContent = `${cls}組`;
+                classSelect.appendChild(opt);
+            });
+            classSelect.disabled = false;
+        }
+
+        function studentLogin(event) {
+            event.preventDefault();
+            const grade    = document.getElementById('grade').value;
+            const classVal = document.getElementById('class').value;
+            const number   = document.getElementById('number').value;
+            if (!grade || !classVal || !number) {
+                alert('すべての項目を入力してください。');
+                return;
+            }
+            const studentInfo = {
+                grade, class: classVal,
+                number: parseInt(number),
+                id: `${grade}${classVal}${String(number).padStart(2, '0')}`,
+                displayName: `${grade}年${classVal}組${number}番`,
+                type: 'student'
+            };
+            localStorage.setItem('currentUser', JSON.stringify(studentInfo));
+            localStorage.setItem('userType', 'student');
+            window.location.href = 'student.html';
+        }
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            localStorage.removeItem('currentUser');
+            localStorage.removeItem('userType');
+            await Promise.all([loadClasses(), loadAnnouncement()]);
+        });
+    </script>
+</body>
+</html>
