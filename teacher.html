@@ -170,7 +170,13 @@
       <div class="grid md:grid-cols-2 gap-4">
         <!-- 基礎課題 -->
         <div class="card p-4">
-          <div class="section-title"><i class="fas fa-list-check text-red-500"></i>基礎課題</div>
+          <div class="flex items-center justify-between mb-3">
+            <div class="section-title mb-0"><i class="fas fa-list-check text-red-500"></i>基礎課題</div>
+            <button class="btn-gray text-xs" onclick="document.getElementById('koto-csv-input').click()">
+              <i class="fas fa-file-import mr-1"></i>CSVインポート
+            </button>
+            <input type="file" id="koto-csv-input" accept=".csv" class="hidden" onchange="onKotoCSVSelected(event)">
+          </div>
           <div id="koto-task-list" class="space-y-2 mb-3"></div>
           <form onsubmit="addKotoTask(event)" class="flex gap-2">
             <input type="text" id="koto-title" class="inp flex-1" placeholder="課題タイトルを入力" required>
@@ -695,6 +701,49 @@
     if (error) { toast('削除失敗', 'error'); return; }
     await loadKotoTasks();
     toast('削除しました', 'success');
+  }
+
+  function onKotoCSVSelected(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = async ev => {
+      const lines = ev.target.result.replace(/\r/g, '').split('\n').filter(l => l.trim());
+      if (lines.length < 2) { toast('データが見つかりません', 'error'); return; }
+
+      const headers = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g, ''));
+      const numIdx  = headers.findIndex(h => /番号|No|number|順番/.test(h));
+      const titleIdx = headers.findIndex(h => /課題名|タイトル|title/.test(h));
+      const descIdx  = headers.findIndex(h => /達成基準|基準|説明|description/.test(h));
+
+      if (titleIdx < 0) { toast('「課題名」列が見つかりません', 'error'); return; }
+
+      const rows = lines.slice(1).map((line, i) => {
+        const vals = line.split(',').map(v => v.trim().replace(/^"|"$/g, ''));
+        return {
+          order_num:   numIdx >= 0 ? (parseInt(vals[numIdx]) || i + 1) : i + 1,
+          title:       vals[titleIdx] || '',
+          description: descIdx >= 0 ? (vals[descIdx] || '') : ''
+        };
+      }).filter(r => r.title);
+
+      if (!rows.length) { toast('有効なデータがありません', 'error'); return; }
+      if (!confirm(`${rows.length}件の課題をインポートします。既存の課題はそのまま残ります。`)) return;
+
+      let ok = 0;
+      for (const row of rows) {
+        const { error } = await db.from('koto_tasks').insert({
+          school_id: T.school_id, title: row.title,
+          description: row.description, order_num: row.order_num
+        });
+        if (!error) ok++;
+      }
+
+      await loadKotoTasks();
+      toast(`${ok}件の課題をインポートしました`, 'success');
+    };
+    reader.readAsText(file, 'UTF-8');
+    e.target.value = '';
   }
 
   async function loadSongsManage() {
