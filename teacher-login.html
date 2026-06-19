@@ -1,131 +1,300 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>三味線学習システム - 先生ログイン</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
-    <script src="supabase-config.js"></script>
-    <style>
-        .login-container { background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); min-height: 100vh; }
-        .login-form { backdrop-filter: blur(10px); background: rgba(255,255,255,0.95); }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>三線学習システム - 先生ログイン</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
+  <script src="supabase-config.js"></script>
+  <style>
+    body { font-family: 'Noto Sans JP', sans-serif; }
+    .bg-hero {
+      background: linear-gradient(135deg, #1a0a00 0%, #8B1A1A 50%, #C84B31 100%);
+      min-height: 100vh;
+    }
+    .card {
+      background: #fff;
+      border-radius: 20px;
+      box-shadow: 0 25px 60px rgba(0,0,0,0.2);
+    }
+    .tab-active {
+      background: #C84B31;
+      color: #fff;
+    }
+    .tab-inactive {
+      color: #666;
+    }
+    .tab-inactive:hover { background: #f5f5f5; }
+    .inp {
+      width: 100%;
+      padding: 11px 14px;
+      border: 2px solid #e5e7eb;
+      border-radius: 10px;
+      font-size: 14px;
+      font-family: 'Noto Sans JP', sans-serif;
+      transition: border-color .2s;
+    }
+    .inp:focus { outline: none; border-color: #C84B31; }
+    .btn-red {
+      background: linear-gradient(135deg, #C84B31, #e8625a);
+      color: #fff;
+      border: none;
+      border-radius: 12px;
+      padding: 13px 20px;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      width: 100%;
+      font-family: 'Noto Sans JP', sans-serif;
+      transition: all .3s;
+    }
+    .btn-red:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(200,75,49,.4); }
+    .btn-red:disabled { opacity: .65; cursor: not-allowed; }
+    .note-box {
+      background: #FFF8ED;
+      border: 1px solid #F5C842;
+      border-radius: 10px;
+      padding: 12px 14px;
+    }
+  </style>
 </head>
-<body>
-    <div class="login-container flex items-center justify-center p-6">
-        <div class="login-form max-w-md w-full p-8 rounded-2xl shadow-2xl">
-            <div class="text-center mb-8">
-                <div class="text-6xl mb-4">👩‍🏫</div>
-                <h1 class="text-3xl font-bold text-gray-800 mb-2">三味線学習システム</h1>
-                <p class="text-lg text-red-600 font-semibold">先生ログイン</p>
-            </div>
+<body class="bg-hero flex items-center justify-center p-4 min-h-screen">
+  <div class="w-full max-w-md">
 
-            <form id="login-form" onsubmit="teacherLogin(event)" class="space-y-5">
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">メールアドレス</label>
-                    <input type="email" id="email"
-                        class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent text-lg"
-                        placeholder="例: yamada@school.ac.jp" required autocomplete="email">
-                </div>
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">パスワード</label>
-                    <div class="relative">
-                        <input type="password" id="password"
-                            class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent text-lg pr-12"
-                            placeholder="パスワードを入力" required autocomplete="current-password">
-                        <button type="button" onclick="togglePassword()"
-                            class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
-                            <i id="pw-icon" class="fas fa-eye"></i>
-                        </button>
-                    </div>
-                </div>
-
-                <div id="error-msg" class="hidden bg-red-50 border border-red-200 rounded-lg px-4 py-3 text-sm text-red-700">
-                    <i class="fas fa-exclamation-circle mr-2"></i>
-                    <span id="error-text"></span>
-                </div>
-
-                <button type="submit" id="submit-btn"
-                    class="w-full bg-gradient-to-r from-red-600 to-pink-600 text-white py-4 px-6 rounded-lg hover:shadow-lg transform hover:-translate-y-1 transition-all duration-300 text-lg font-semibold">
-                    <i class="fas fa-chalkboard-teacher mr-3"></i>管理画面にログイン
-                </button>
-            </form>
-
-            <div class="mt-8 text-center">
-                <a href="index.html" class="text-red-600 hover:text-red-800 text-sm underline">
-                    <i class="fas fa-user-graduate mr-2"></i>生徒ログインはこちら
-                </a>
-            </div>
-
-            <div class="mt-5 text-center text-xs text-gray-400">
-                <p>アカウントをお持ちでない方は管理者にお問い合わせください</p>
-            </div>
-        </div>
+    <div class="text-center mb-7">
+      <div class="inline-flex items-center justify-center w-20 h-20 rounded-full bg-white/20 backdrop-blur-sm mb-3">
+        <span class="text-4xl">🎵</span>
+      </div>
+      <h1 class="text-3xl font-bold text-white">三線学習システム</h1>
+      <p class="text-white/60 text-sm mt-1">先生管理画面</p>
     </div>
 
-    <script>
-        async function teacherLogin(event) {
-            event.preventDefault();
-            const email    = document.getElementById('email').value.trim();
-            const password = document.getElementById('password').value;
-            const btn      = document.getElementById('submit-btn');
-            const errEl    = document.getElementById('error-msg');
+    <div class="card p-8">
+      <!-- タブ -->
+      <div class="flex gap-1 mb-6 bg-gray-100 p-1 rounded-xl">
+        <button id="tab-login" onclick="showTab('login')"
+          class="tab-active flex-1 py-2 rounded-lg text-sm font-medium transition-all">ログイン</button>
+        <button id="tab-reg" onclick="showTab('reg')"
+          class="tab-inactive flex-1 py-2 rounded-lg text-sm font-medium transition-all">新規登録</button>
+      </div>
 
-            errEl.classList.add('hidden');
-            btn.disabled = true;
-            btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-3"></i>ログイン中...';
+      <!-- ログインパネル -->
+      <div id="panel-login">
+        <form onsubmit="doLogin(event)" class="space-y-4">
+          <div>
+            <label class="block text-xs font-semibold text-gray-600 mb-1">ユーザーID</label>
+            <input type="text" id="l-user" class="inp" placeholder="例: yamada" required autocomplete="username">
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-gray-600 mb-1">パスワード</label>
+            <div class="relative">
+              <input type="password" id="l-pass" class="inp pr-11" placeholder="パスワード" required autocomplete="current-password">
+              <button type="button" onclick="togglePw('l-pass',this)"
+                class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                <i class="fas fa-eye text-sm"></i></button>
+            </div>
+          </div>
+          <div id="l-err" class="hidden text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2"></div>
+          <button type="submit" id="l-btn" class="btn-red">
+            <i class="fas fa-sign-in-alt mr-2"></i>ログイン
+          </button>
+        </form>
+      </div>
 
-            const { data, error } = await db.auth.signInWithPassword({ email, password });
+      <!-- 新規登録パネル -->
+      <div id="panel-reg" class="hidden">
+        <form onsubmit="doRegister(event)" class="space-y-3">
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block text-xs font-semibold text-gray-600 mb-1">ユーザーID <span class="text-red-500">*</span></label>
+              <input type="text" id="r-user" class="inp" placeholder="例: yamada"
+                required pattern="[a-zA-Z0-9_\-]+" title="英数字・_・-のみ">
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-gray-600 mb-1">名前</label>
+              <input type="text" id="r-name" class="inp" placeholder="山田 花子">
+            </div>
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-gray-600 mb-1">メールアドレス <span class="text-red-500">*</span></label>
+            <input type="email" id="r-email" class="inp" placeholder="teacher@school.jp" required autocomplete="email">
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-gray-600 mb-1">パスワード <span class="text-red-500">*</span></label>
+            <div class="relative">
+              <input type="password" id="r-pass" class="inp pr-11" placeholder="8文字以上" required minlength="8" autocomplete="new-password">
+              <button type="button" onclick="togglePw('r-pass',this)"
+                class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                <i class="fas fa-eye text-sm"></i></button>
+            </div>
+          </div>
+          <div class="note-box">
+            <p class="text-xs font-bold text-amber-700 mb-2"><i class="fas fa-school mr-1"></i>学校情報</p>
+            <div class="space-y-2">
+              <div>
+                <label class="block text-xs font-semibold text-gray-600 mb-1">学校ID <span class="text-red-500">*</span></label>
+                <input type="text" id="r-sid" class="inp" placeholder="例: naha-jr-2024" required>
+                <p class="text-xs text-gray-400 mt-0.5">同じ学校の先生は同じIDを使ってください</p>
+              </div>
+              <div>
+                <label class="block text-xs font-semibold text-gray-600 mb-1">学校名</label>
+                <input type="text" id="r-sname" class="inp" placeholder="例: 那覇中学校">
+              </div>
+            </div>
+          </div>
+          <div id="r-err" class="hidden text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2"></div>
+          <div id="r-ok" class="hidden text-sm text-green-700 bg-green-50 border border-green-200 rounded-lg px-3 py-2"></div>
+          <button type="submit" id="r-btn" class="btn-red">
+            <i class="fas fa-user-plus mr-2"></i>アカウントを作成
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
 
-            if (error) {
-                document.getElementById('error-text').textContent =
-                    'メールアドレスまたはパスワードが正しくありません。';
-                errEl.classList.remove('hidden');
-                btn.disabled = false;
-                btn.innerHTML = '<i class="fas fa-chalkboard-teacher mr-3"></i>管理画面にログイン';
-                return;
-            }
+  <script>
+    function showTab(t) {
+      document.getElementById('panel-login').classList.toggle('hidden', t !== 'login');
+      document.getElementById('panel-reg').classList.toggle('hidden', t !== 'reg');
+      document.getElementById('tab-login').className = t === 'login' ? 'tab-active flex-1 py-2 rounded-lg text-sm font-medium transition-all' : 'tab-inactive flex-1 py-2 rounded-lg text-sm font-medium transition-all';
+      document.getElementById('tab-reg').className   = t === 'reg'   ? 'tab-active flex-1 py-2 rounded-lg text-sm font-medium transition-all' : 'tab-inactive flex-1 py-2 rounded-lg text-sm font-medium transition-all';
+    }
 
-            // 先生プロフィールを取得または作成
-            const { data: profile } = await db
-                .from('teacher_profiles')
-                .select('name, department')
-                .eq('id', data.user.id)
-                .single();
+    function togglePw(id, btn) {
+      const inp = document.getElementById(id);
+      const ic  = btn.querySelector('i');
+      inp.type  = inp.type === 'password' ? 'text' : 'password';
+      ic.className = inp.type === 'text' ? 'fas fa-eye-slash text-sm' : 'fas fa-eye text-sm';
+    }
 
-            const teacherInfo = {
-                id:         data.user.id,
-                email:      data.user.email,
-                name:       profile?.name || data.user.email.split('@')[0],
-                department: profile?.department || '音楽科',
-                type:       'teacher'
-            };
-            localStorage.setItem('currentUser', JSON.stringify(teacherInfo));
-            localStorage.setItem('userType', 'teacher');
-            window.location.href = 'teacher.html';
+    async function doLogin(e) {
+      e.preventDefault();
+      const username = document.getElementById('l-user').value.trim();
+      const password = document.getElementById('l-pass').value;
+      const btn = document.getElementById('l-btn');
+      const errEl = document.getElementById('l-err');
+      errEl.classList.add('hidden');
+      btn.disabled = true;
+      btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>ログイン中...';
+
+      const { data: profile, error: le } = await db
+        .from('teacher_profiles')
+        .select('email, name, school_id, school_name, department')
+        .eq('username', username)
+        .single();
+
+      if (le || !profile) {
+        errEl.textContent = 'ユーザーIDが見つかりません。';
+        errEl.classList.remove('hidden');
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-sign-in-alt mr-2"></i>ログイン';
+        return;
+      }
+
+      const { data, error } = await db.auth.signInWithPassword({ email: profile.email, password });
+      if (error) {
+        errEl.textContent = 'パスワードが正しくありません。';
+        errEl.classList.remove('hidden');
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-sign-in-alt mr-2"></i>ログイン';
+        return;
+      }
+
+      localStorage.setItem('currentUser', JSON.stringify({
+        id: data.user.id, email: data.user.email, username,
+        name: profile.name || username,
+        school_id: profile.school_id,
+        school_name: profile.school_name || '',
+        department: profile.department || '音楽科',
+        type: 'teacher'
+      }));
+      localStorage.setItem('userType', 'teacher');
+      window.location.href = 'teacher.html';
+    }
+
+    async function doRegister(e) {
+      e.preventDefault();
+      const username    = document.getElementById('r-user').value.trim();
+      const name        = document.getElementById('r-name').value.trim();
+      const email       = document.getElementById('r-email').value.trim();
+      const password    = document.getElementById('r-pass').value;
+      const school_id   = document.getElementById('r-sid').value.trim();
+      const school_name = document.getElementById('r-sname').value.trim();
+      const btn = document.getElementById('r-btn');
+      const errEl = document.getElementById('r-err');
+      const okEl  = document.getElementById('r-ok');
+      errEl.classList.add('hidden');
+      okEl.classList.add('hidden');
+      btn.disabled = true;
+      btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>作成中...';
+
+      // ユーザーID重複チェック
+      const { data: dup } = await db.from('teacher_profiles').select('id').eq('username', username).maybeSingle();
+      if (dup) {
+        errEl.textContent = 'このユーザーIDは既に使われています。';
+        errEl.classList.remove('hidden');
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-user-plus mr-2"></i>アカウントを作成';
+        return;
+      }
+
+      let userId = null;
+      const { data: signUpData, error: signUpErr } = await db.auth.signUp({ email, password });
+
+      if (signUpErr) {
+        // メール登録済みの場合 → サインインして既存ユーザーに紐付け
+        const { data: siData, error: siErr } = await db.auth.signInWithPassword({ email, password });
+        if (siErr) {
+          errEl.textContent = 'このメールは登録済みです。パスワードを確認してください。';
+          errEl.classList.remove('hidden');
+          btn.disabled = false;
+          btn.innerHTML = '<i class="fas fa-user-plus mr-2"></i>アカウントを作成';
+          return;
         }
+        userId = siData.user.id;
+      } else {
+        userId = signUpData.user?.id;
+      }
 
-        function togglePassword() {
-            const pw = document.getElementById('password');
-            const icon = document.getElementById('pw-icon');
-            if (pw.type === 'password') {
-                pw.type = 'text';
-                icon.className = 'fas fa-eye-slash';
-            } else {
-                pw.type = 'password';
-                icon.className = 'fas fa-eye';
-            }
-        }
+      if (!userId) {
+        errEl.textContent = 'アカウント作成に失敗しました。しばらくしてからお試しください。';
+        errEl.classList.remove('hidden');
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-user-plus mr-2"></i>アカウントを作成';
+        return;
+      }
 
-        // 既にログイン済みなら直接遷移
-        document.addEventListener('DOMContentLoaded', async () => {
-            const { data } = await db.auth.getSession();
-            if (data?.session) {
-                window.location.href = 'teacher.html';
-            }
-        });
-    </script>
+      const { error: pErr } = await db.from('teacher_profiles').insert({
+        id: userId, username, email,
+        name: name || username,
+        school_id, school_name, department: '音楽科'
+      });
+
+      if (pErr) {
+        errEl.textContent = `プロフィール作成エラー: ${pErr.message}`;
+        errEl.classList.remove('hidden');
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-user-plus mr-2"></i>アカウントを作成';
+        return;
+      }
+
+      okEl.innerHTML = '<i class="fas fa-check-circle mr-2"></i>登録完了！ログインタブからログインしてください。';
+      okEl.classList.remove('hidden');
+      btn.disabled = false;
+      btn.innerHTML = '<i class="fas fa-user-plus mr-2"></i>アカウントを作成';
+      setTimeout(() => {
+        document.getElementById('l-user').value = username;
+        showTab('login');
+      }, 1800);
+    }
+
+    document.addEventListener('DOMContentLoaded', async () => {
+      const { data } = await db.auth.getSession();
+      if (data?.session) window.location.href = 'teacher.html';
+    });
+  </script>
 </body>
 </html>

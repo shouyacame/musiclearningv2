@@ -1,1429 +1,1107 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>三味線学習システム - 先生用管理画面</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
-    <script src="supabase-config.js"></script>
-    <style>
-        .main-tab-btn { transition: all 0.2s; border-bottom: 3px solid transparent; }
-        .main-tab-btn.active { border-bottom-color: #10b981; color: #065f46; font-weight: 700; }
-
-        .drop-zone { border: 3px dashed #d1d5db; transition: all 0.3s ease; }
-        .drop-zone.drag-over { border-color: #10b981; background-color: #ecfdf5; }
-
-        .grade-tab-btn { transition: all 0.2s; }
-        .grade-tab-btn.active { background: white; color: #1f2937; box-shadow: 0 2px 8px rgba(0,0,0,0.12); font-weight: 600; }
-
-        .song-tab-btn {
-            transition: all 0.2s; border-radius: 9999px; padding: 6px 18px;
-            font-size: 0.85rem; font-weight: 600; background: #f3f4f6; color: #6b7280; cursor: pointer;
-        }
-        .song-tab-btn.active { background: linear-gradient(135deg, #8b5cf6, #6366f1); color: white; box-shadow: 0 2px 10px rgba(99,102,241,0.3); }
-        .song-tab-btn:hover:not(.active) { background: #e5e7eb; color: #374151; }
-
-        .prog-sub-tab { border-bottom: 2px solid transparent; transition: all 0.2s; }
-        .prog-sub-tab.active { border-bottom-color: #6366f1; color: #4338ca; font-weight: 700; }
-
-        #toast { transition: all 0.4s ease; }
-
-        .toggle-switch { position: relative; display: inline-block; width: 48px; height: 26px; }
-        .toggle-switch input { opacity: 0; width: 0; height: 0; }
-        .toggle-slider { position: absolute; cursor: pointer; top:0; left:0; right:0; bottom:0; background:#d1d5db; border-radius:26px; transition:.3s; }
-        .toggle-slider:before { position:absolute; content:""; height:20px; width:20px; left:3px; bottom:3px; background:white; border-radius:50%; transition:.3s; box-shadow:0 1px 3px rgba(0,0,0,0.2); }
-        input:checked + .toggle-slider { background-color: #10b981; }
-        input:checked + .toggle-slider:before { transform: translateX(22px); }
-
-        .class-tag { display:inline-flex; align-items:center; gap:4px; background:#eff6ff; color:#1d4ed8; border:1px solid #bfdbfe; border-radius:20px; padding:3px 10px; font-size:0.8rem; font-weight:600; }
-        .class-tag .del-btn { cursor:pointer; color:#93c5fd; transition:color 0.2s; }
-        .class-tag .del-btn:hover { color:#ef4444; }
-
-        .modal-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:100; align-items:center; justify-content:center; }
-        .modal-overlay.open { display:flex; }
-
-        .stat-card { background: white; border-radius: 1rem; padding: 1.5rem; box-shadow: 0 4px 20px rgba(0,0,0,0.08); }
-
-        .progress-bar { height: 8px; border-radius: 4px; background: #e5e7eb; overflow: hidden; }
-        .progress-fill { height: 100%; border-radius: 4px; transition: width 0.5s ease; }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>三線学習システム - 先生管理画面</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
+  <script src="supabase-config.js"></script>
+  <style>
+    body { font-family: 'Noto Sans JP', sans-serif; background: #F5EFE8; }
+    .header-grad { background: linear-gradient(135deg, #5C1010 0%, #C84B31 100%); }
+    .nav-bar { background: #fff; border-bottom: 1px solid #e5e7eb; position: sticky; top: 0; z-index: 30; }
+    .tab-btn { padding: 14px 16px; font-size: 13px; font-weight: 500; color: #666; white-space: nowrap; cursor: pointer; border-bottom: 3px solid transparent; transition: all .2s; }
+    .tab-btn:hover { color: #C84B31; background: #fef2f0; }
+    .tab-btn.active { color: #C84B31; border-bottom-color: #C84B31; font-weight: 700; }
+    .card { background: #fff; border-radius: 16px; box-shadow: 0 4px 20px rgba(0,0,0,.06); }
+    .inp { width: 100%; padding: 9px 12px; border: 2px solid #e5e7eb; border-radius: 8px; font-size: 13px; font-family: 'Noto Sans JP', sans-serif; transition: border-color .2s; }
+    .inp:focus { outline: none; border-color: #C84B31; }
+    .btn-red { background: linear-gradient(135deg, #C84B31, #e8625a); color: #fff; border: none; border-radius: 8px; padding: 8px 16px; font-size: 13px; font-weight: 600; cursor: pointer; font-family: 'Noto Sans JP', sans-serif; transition: all .2s; }
+    .btn-red:hover { box-shadow: 0 4px 12px rgba(200,75,49,.4); }
+    .btn-gray { background: #f3f4f6; color: #374151; border: none; border-radius: 8px; padding: 8px 14px; font-size: 13px; cursor: pointer; font-family: 'Noto Sans JP', sans-serif; }
+    .btn-gray:hover { background: #e5e7eb; }
+    .btn-sm { padding: 5px 10px; font-size: 11px; border-radius: 6px; border: none; cursor: pointer; font-family: 'Noto Sans JP', sans-serif; font-weight: 600; }
+    .btn-edit { background: #EBF5FF; color: #2563EB; }
+    .btn-edit:hover { background: #dbeafe; }
+    .btn-del { background: #FEF2F2; color: #DC2626; }
+    .btn-del:hover { background: #fee2e2; }
+    .btn-toggle { background: #F0FDF4; color: #16A34A; }
+    .btn-toggle.off { background: #F9FAFB; color: #9CA3AF; }
+    .badge { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 999px; font-size: 11px; font-weight: 600; }
+    .badge-green { background: #DCFCE7; color: #166534; }
+    .badge-gray { background: #F3F4F6; color: #6B7280; }
+    .badge-amber { background: #FEF3C7; color: #92400E; }
+    table { width: 100%; border-collapse: collapse; }
+    th { background: #FEF2F0; color: #374151; padding: 9px 12px; text-align: left; font-size: 12px; font-weight: 700; }
+    td { padding: 9px 12px; font-size: 13px; border-bottom: 1px solid #f3f4f6; vertical-align: middle; }
+    tr:last-child td { border-bottom: none; }
+    .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.5); display: flex; align-items: center; justify-content: center; z-index: 50; padding: 16px; }
+    .modal-box { background: #fff; border-radius: 16px; padding: 24px; width: 100%; max-width: 460px; box-shadow: 0 20px 60px rgba(0,0,0,.3); max-height: 90vh; overflow-y: auto; }
+    .matrix-cell { width: 32px; height: 32px; border-radius: 6px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 11px; transition: all .15s; }
+    .matrix-cell.done { background: #10B981; color: #fff; }
+    .matrix-cell.todo { background: #F3F4F6; }
+    .matrix-cell.todo:hover { background: #d1fae5; }
+    #toast-area { position: fixed; bottom: 20px; right: 20px; z-index: 100; display: flex; flex-direction: column; gap: 8px; }
+    .toast { padding: 12px 18px; border-radius: 12px; font-size: 13px; font-weight: 600; color: #fff; box-shadow: 0 8px 24px rgba(0,0,0,.2); display: flex; align-items: center; gap-8px; animation: slideIn .3s ease; }
+    @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+    .section-title { font-size: 15px; font-weight: 700; color: #1f2937; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+    select.inp { background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e"); background-repeat: no-repeat; background-position: right 8px center; background-size: 16px; padding-right: 32px; }
+  </style>
 </head>
-<body class="bg-gray-50">
+<body>
 
-<!-- ヘッダー -->
-<header class="bg-white shadow-sm border-b-2 border-green-500 sticky top-0 z-20">
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div class="flex justify-between items-center py-3">
-            <div class="flex items-center gap-3">
-                <div class="text-2xl">🎵</div>
-                <div>
-                    <h1 class="text-xl font-bold text-gray-900">三味線 管理システム</h1>
-                    <p class="text-xs text-gray-500">Teacher Dashboard</p>
-                </div>
-            </div>
-            <div class="flex items-center gap-4">
-                <div class="text-right">
-                    <p class="text-sm font-medium text-gray-900" id="teacher-name">---</p>
-                    <p class="text-xs text-gray-500" id="teacher-dept">音楽科</p>
-                </div>
-                <button onclick="logout()" class="bg-red-500 hover:bg-red-600 text-white px-3 py-2 rounded-lg text-sm transition">
-                    <i class="fas fa-sign-out-alt mr-1"></i>ログアウト
-                </button>
-            </div>
+<!-- 初回セットアップ -->
+<div id="setup-overlay" class="modal-overlay hidden">
+  <div class="modal-box">
+    <div class="text-3xl text-center mb-2">🎵</div>
+    <h2 class="text-xl font-bold text-center text-gray-800 mb-1">プロフィール設定</h2>
+    <p class="text-sm text-center text-gray-400 mb-5">初めてのログインです。情報を入力してください。</p>
+    <form onsubmit="saveSetup(event)" class="space-y-3">
+      <div>
+        <label class="block text-xs font-semibold text-gray-600 mb-1">ユーザーID（ログイン時に使用）<span class="text-red-500">*</span></label>
+        <input type="text" id="setup-username" class="inp" placeholder="例: yamada" required pattern="[a-zA-Z0-9_\-]+">
+      </div>
+      <div>
+        <label class="block text-xs font-semibold text-gray-600 mb-1">名前</label>
+        <input type="text" id="setup-name" class="inp" placeholder="山田 花子">
+      </div>
+      <div class="bg-amber-50 border border-amber-200 rounded-xl p-3 space-y-2">
+        <p class="text-xs font-bold text-amber-700"><i class="fas fa-school mr-1"></i>学校情報</p>
+        <div>
+          <label class="block text-xs font-semibold text-gray-600 mb-1">学校ID<span class="text-red-500">*</span></label>
+          <input type="text" id="setup-school-id" class="inp" placeholder="例: naha-jr-2024" required>
+          <p class="text-xs text-gray-400 mt-0.5">同じ学校の先生は同じIDを使ってください</p>
         </div>
-        <!-- メインタブ -->
-        <div class="flex space-x-1 -mb-px overflow-x-auto">
-            <button onclick="switchTab('dashboard')" id="tab-dashboard" class="main-tab-btn active px-4 py-3 text-sm text-gray-600 whitespace-nowrap"><i class="fas fa-chart-pie mr-2"></i>ダッシュボード</button>
-            <button onclick="switchTab('progress')"  id="tab-progress"  class="main-tab-btn px-4 py-3 text-sm text-gray-600 whitespace-nowrap"><i class="fas fa-chart-bar mr-2"></i>進捗管理</button>
-            <button onclick="switchTab('tasks')"     id="tab-tasks"     class="main-tab-btn px-4 py-3 text-sm text-gray-600 whitespace-nowrap"><i class="fas fa-tasks mr-2"></i>課題管理</button>
-            <button onclick="switchTab('announce')"  id="tab-announce"  class="main-tab-btn px-4 py-3 text-sm text-gray-600 whitespace-nowrap"><i class="fas fa-bullhorn mr-2"></i>お知らせ</button>
-            <button onclick="switchTab('students')"  id="tab-students"  class="main-tab-btn px-4 py-3 text-sm text-gray-600 whitespace-nowrap"><i class="fas fa-users mr-2"></i>生徒名簿</button>
-            <button onclick="switchTab('settings')"  id="tab-settings"  class="main-tab-btn px-4 py-3 text-sm text-gray-600 whitespace-nowrap"><i class="fas fa-school mr-2"></i>クラス設定</button>
+        <div>
+          <label class="block text-xs font-semibold text-gray-600 mb-1">学校名</label>
+          <input type="text" id="setup-school-name" class="inp" placeholder="例: 那覇中学校">
         </div>
-    </div>
-</header>
-
-<!-- ==================== ダッシュボード ==================== -->
-<div id="panel-dashboard" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-    <h2 class="text-2xl font-bold text-gray-900 mb-6">ダッシュボード</h2>
-    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8" id="stat-cards">
-        <div class="stat-card text-center"><div class="text-3xl font-bold text-blue-600" id="stat-classes">--</div><div class="text-sm text-gray-500 mt-1">クラス数</div></div>
-        <div class="stat-card text-center"><div class="text-3xl font-bold text-green-600" id="stat-tasks">--</div><div class="text-sm text-gray-500 mt-1">課題数（学年別）</div></div>
-        <div class="stat-card text-center"><div class="text-3xl font-bold text-purple-600" id="stat-songs">--</div><div class="text-sm text-gray-500 mt-1">曲数</div></div>
-        <div class="stat-card text-center"><div class="text-3xl font-bold text-red-500" id="stat-announce">--</div><div class="text-sm text-gray-500 mt-1">お知らせ</div></div>
-    </div>
-
-    <div class="bg-white rounded-xl shadow-lg p-6">
-        <h3 class="text-lg font-bold text-gray-900 mb-4">クラス別達成率</h3>
-        <div id="class-completion-list" class="space-y-3">
-            <p class="text-gray-400 text-sm text-center py-4"><i class="fas fa-spinner fa-spin mr-2"></i>読み込み中...</p>
-        </div>
-    </div>
+      </div>
+      <div id="setup-err" class="hidden text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2"></div>
+      <button type="submit" class="btn-red w-full py-3"><i class="fas fa-save mr-2"></i>保存してはじめる</button>
+    </form>
+  </div>
 </div>
 
-<!-- ==================== 進捗管理 ==================== -->
-<div id="panel-progress" style="display:none;">
-    <!-- クラス選択 -->
-    <div id="class-selection" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        <div class="text-center mb-10">
-            <h2 class="text-3xl font-bold text-gray-900 mb-2">クラス選択</h2>
-            <p class="text-gray-500">進捗を確認するクラスを選択してください</p>
+<!-- アプリ本体 -->
+<div id="app" class="hidden min-h-screen">
+
+  <!-- ヘッダー -->
+  <div class="header-grad text-white px-4 py-3">
+    <div class="max-w-7xl mx-auto flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <span class="text-2xl">🎵</span>
+        <div>
+          <div class="font-bold text-base">三線学習システム</div>
+          <div id="school-label" class="text-xs opacity-70"></div>
         </div>
-        <div id="class-cards-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            <div class="col-span-3 text-center py-12 text-gray-400"><i class="fas fa-spinner fa-spin text-2xl mb-2"></i><p class="text-sm">読み込み中...</p></div>
-        </div>
+      </div>
+      <div class="flex items-center gap-3">
+        <span id="teacher-label" class="text-sm opacity-80"></span>
+        <button onclick="doLogout()" class="text-xs bg-white/20 hover:bg-white/30 px-3 py-1.5 rounded-lg transition-colors">
+          <i class="fas fa-sign-out-alt mr-1"></i>ログアウト
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- タブナビ -->
+  <div class="nav-bar">
+    <div class="max-w-7xl mx-auto flex overflow-x-auto">
+      <button class="tab-btn active" id="tab-btn-dashboard" onclick="switchTab('dashboard')"><i class="fas fa-home mr-1.5"></i>ダッシュボード</button>
+      <button class="tab-btn" id="tab-btn-progress" onclick="switchTab('progress')"><i class="fas fa-chart-bar mr-1.5"></i>進捗管理</button>
+      <button class="tab-btn" id="tab-btn-tasks" onclick="switchTab('tasks')"><i class="fas fa-tasks mr-1.5"></i>課題管理</button>
+      <button class="tab-btn" id="tab-btn-announce" onclick="switchTab('announce')"><i class="fas fa-bullhorn mr-1.5"></i>お知らせ</button>
+      <button class="tab-btn" id="tab-btn-roster" onclick="switchTab('roster')"><i class="fas fa-users mr-1.5"></i>生徒名簿</button>
+      <button class="tab-btn" id="tab-btn-classes" onclick="switchTab('classes')"><i class="fas fa-school mr-1.5"></i>クラス設定</button>
+      <button class="tab-btn" id="tab-btn-settings" onclick="switchTab('settings')"><i class="fas fa-cog mr-1.5"></i>設定</button>
+    </div>
+  </div>
+
+  <!-- コンテンツ -->
+  <div class="max-w-7xl mx-auto p-4 pb-12">
+
+    <!-- ダッシュボード -->
+    <div id="tab-dashboard" class="tab-content space-y-4">
+      <div id="dash-content"><div class="text-center py-12 text-gray-400"><i class="fas fa-spinner fa-spin text-2xl mb-2 block"></i>読み込み中...</div></div>
     </div>
 
-    <!-- 進捗詳細 -->
-    <div id="progress-detail" style="display:none;">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-            <div class="bg-white rounded-xl shadow-lg p-5 mb-6 flex items-center justify-between flex-wrap gap-3">
-                <div class="flex items-center">
-                    <button onclick="showClassSelection()" class="bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-lg mr-4 text-sm transition">
-                        <i class="fas fa-arrow-left mr-2"></i>戻る
-                    </button>
-                    <div>
-                        <h2 class="text-xl font-bold text-gray-800" id="selected-class-title"></h2>
-                        <p class="text-sm text-gray-500">進捗マトリクス</p>
-                    </div>
-                </div>
-                <div class="flex gap-2">
-                    <button id="export-grade-btn" onclick="exportGradeCSV()"
-                        class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg text-sm transition">
-                        <i class="fas fa-download mr-2"></i>CSV（学年別）
-                    </button>
-                    <button id="export-song-btn" onclick="exportSongCSV()"
-                        class="hidden bg-purple-500 hover:bg-purple-600 text-white px-4 py-2 rounded-lg text-sm transition">
-                        <i class="fas fa-download mr-2"></i>CSV（曲別）
-                    </button>
-                </div>
-            </div>
-
-            <div class="bg-white rounded-xl shadow-lg">
-                <div class="flex border-b border-gray-200 px-5 pt-4 gap-6">
-                    <button id="prog-sub-grade" onclick="switchProgressSub('grade')"
-                        class="prog-sub-tab active pb-3 text-sm font-semibold text-gray-500 whitespace-nowrap">
-                        <i class="fas fa-graduation-cap mr-2"></i>学年別課題
-                    </button>
-                    <button id="prog-sub-song" onclick="switchProgressSub('song')"
-                        class="prog-sub-tab pb-3 text-sm font-semibold text-gray-500 whitespace-nowrap">
-                        <i class="fas fa-music mr-2"></i>曲別課題
-                    </button>
-                </div>
-
-                <div id="sub-grade" class="p-5 overflow-x-auto">
-                    <div class="flex items-center justify-between mb-3">
-                        <span class="text-sm font-semibold text-gray-700">進捗マトリクス</span>
-                        <span id="grade-task-count" class="text-xs text-gray-500"></span>
-                    </div>
-                    <div id="grade-matrix"></div>
-                </div>
-
-                <div id="sub-song" class="hidden p-5">
-                    <div class="flex flex-wrap gap-3 mb-5" id="song-prog-tabs"></div>
-                    <div class="flex items-center justify-between mb-3">
-                        <span class="text-sm font-semibold text-gray-700">曲別進捗マトリクス</span>
-                        <span id="song-task-count" class="text-xs text-gray-500"></span>
-                    </div>
-                    <div id="song-matrix" class="overflow-x-auto"></div>
-                </div>
-            </div>
+    <!-- 進捗管理 -->
+    <div id="tab-progress" class="tab-content hidden space-y-4">
+      <div class="card p-4">
+        <div class="flex flex-wrap gap-3 items-end">
+          <div>
+            <label class="block text-xs font-semibold text-gray-600 mb-1">学年</label>
+            <select id="prog-grade" class="inp w-28" onchange="onProgGradeChange()">
+              <option value="">選択</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-gray-600 mb-1">組</label>
+            <select id="prog-class" class="inp w-28" disabled onchange="loadProgressMatrix()">
+              <option value="">選択</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-gray-600 mb-1">種別</label>
+            <select id="prog-type" class="inp w-36" onchange="loadProgressMatrix()">
+              <option value="koto">基礎課題</option>
+              <option value="song">楽曲課題</option>
+            </select>
+          </div>
+          <button class="btn-red" onclick="loadProgressMatrix()"><i class="fas fa-sync-alt mr-1"></i>表示</button>
         </div>
+      </div>
+      <div id="matrix-wrap" class="card p-4 overflow-x-auto">
+        <div class="text-center text-gray-400 text-sm py-6">クラスを選択してください</div>
+      </div>
     </div>
-</div>
 
-<!-- ==================== 課題管理 ==================== -->
-<div id="panel-tasks" style="display:none;">
-    <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
-        <!-- タスク種別タブ -->
-        <div class="bg-gray-100 rounded-xl p-1 flex gap-1">
-            <button onclick="switchTaskKind('grade')" id="kind-tab-grade"
-                class="grade-tab-btn flex-1 py-2.5 rounded-lg text-sm text-gray-500 active">
-                <i class="fas fa-graduation-cap mr-2"></i>学年別課題
-            </button>
-            <button onclick="switchTaskKind('song')" id="kind-tab-song"
-                class="grade-tab-btn flex-1 py-2.5 rounded-lg text-sm text-gray-500">
-                <i class="fas fa-music mr-2"></i>曲別課題
-            </button>
+    <!-- 課題管理 -->
+    <div id="tab-tasks" class="tab-content hidden">
+      <div class="grid md:grid-cols-2 gap-4">
+        <!-- 基礎課題 -->
+        <div class="card p-4">
+          <div class="section-title"><i class="fas fa-list-check text-red-500"></i>基礎課題</div>
+          <div id="koto-task-list" class="space-y-2 mb-3"></div>
+          <form onsubmit="addKotoTask(event)" class="flex gap-2">
+            <input type="text" id="koto-title" class="inp flex-1" placeholder="課題タイトルを入力" required>
+            <button type="submit" class="btn-red flex-shrink-0"><i class="fas fa-plus mr-1"></i>追加</button>
+          </form>
         </div>
-
-        <!-- 学年別課題 -->
-        <div id="task-kind-grade">
-            <div class="bg-gray-100 rounded-xl p-1 flex gap-1 mb-6" id="grade-tabs"></div>
-            <div id="grade-csv-section" class="bg-white rounded-2xl shadow-lg p-8 mb-6">
-                <h2 class="text-xl font-bold text-gray-900 mb-1 flex items-center">
-                    <i class="fas fa-file-csv text-green-500 mr-3"></i>CSVインポート
-                    <span id="import-grade-badge" class="ml-3 px-3 py-0.5 rounded-full text-xs font-bold bg-blue-100 text-blue-800"></span>
-                </h2>
-                <p class="text-gray-400 text-sm mb-6">アップロードすると <strong id="import-grade-label" class="text-gray-700"></strong>の課題が即時更新されます。</p>
-                <div class="bg-gray-50 border border-gray-200 rounded-xl p-4 mb-6 text-sm font-mono">
-                    <p class="text-xs font-sans font-semibold text-gray-400 mb-1.5">📋 CSVフォーマット例</p>
-                    <div class="text-green-700">課題番号,課題名,達成基準</div>
-                    <div class="text-gray-500">1,各部位の名称,龍頭・龍尾・弦の各名称を言える</div>
-                </div>
-                <div id="drop-zone" class="drop-zone rounded-xl p-10 text-center cursor-pointer mb-4"
-                    onclick="document.getElementById('csv-file').click()"
-                    ondragover="dz(event,'drop-zone')" ondragleave="dzl('drop-zone')" ondrop="dzd(event,'drop-zone',false)">
-                    <i class="fas fa-cloud-upload-alt text-5xl text-gray-300 mb-4"></i>
-                    <p class="text-base font-semibold text-gray-500 mb-1">CSVファイルをドロップ</p>
-                    <p class="text-sm text-gray-400">またはクリックしてファイルを選択</p>
-                    <input type="file" id="csv-file" accept=".csv" class="hidden" onchange="handleCSV(event,false)">
-                </div>
-                <div id="grade-file-info" class="hidden bg-blue-50 border border-blue-200 rounded-lg px-4 py-3 text-sm text-blue-700 mb-4 flex items-center justify-between">
-                    <div><i class="fas fa-file-alt mr-2"></i><span id="grade-file-name"></span></div>
-                    <button onclick="clearGradeCSV()" class="text-blue-300 hover:text-blue-600"><i class="fas fa-times"></i></button>
-                </div>
-                <div id="grade-csv-preview" class="hidden mb-6">
-                    <h3 class="font-semibold text-gray-700 mb-3 text-sm"><i class="fas fa-eye mr-2 text-indigo-400"></i>プレビュー（<span id="grade-preview-count">0</span>件）</h3>
-                    <div class="overflow-x-auto rounded-xl border border-gray-200">
-                        <table class="w-full text-sm"><thead><tr class="bg-gray-50">
-                            <th class="px-4 py-3 text-left text-gray-500 w-16">番号</th>
-                            <th class="px-4 py-3 text-left text-gray-500 w-44">課題名</th>
-                            <th class="px-4 py-3 text-left text-gray-500">達成基準</th>
-                        </tr></thead><tbody id="grade-preview-tbody"></tbody></table>
-                    </div>
-                </div>
-                <button id="grade-upload-btn" onclick="uploadGradeTasks()" class="hidden w-full bg-gradient-to-r from-green-500 to-emerald-600 text-white py-4 rounded-xl font-bold hover:shadow-lg transform hover:-translate-y-0.5 transition-all">
-                    <i class="fas fa-upload mr-3"></i><span id="grade-upload-label"></span>の課題をこの内容で更新する
-                </button>
-            </div>
-
-            <!-- 現在の学年別課題一覧 -->
-            <div class="bg-white rounded-2xl shadow-lg p-8">
-                <div class="flex items-center justify-between mb-6">
-                    <h2 class="text-xl font-bold text-gray-900 flex items-center">
-                        <i class="fas fa-list-check text-blue-500 mr-3"></i>現在の課題一覧
-                        <span id="current-grade-badge" class="ml-3 px-3 py-0.5 rounded-full text-xs font-bold bg-blue-100 text-blue-800"></span>
-                    </h2>
-                    <button onclick="loadGradeTaskList()" class="text-sm text-blue-500 hover:text-blue-700 flex items-center gap-1">
-                        <i class="fas fa-sync-alt"></i>更新
-                    </button>
-                </div>
-                <div id="grade-task-list" class="space-y-2"></div>
-            </div>
-        </div>
-
-        <!-- 曲別課題 -->
-        <div id="task-kind-song" class="hidden space-y-8">
-            <!-- 曲管理 -->
-            <div class="bg-white rounded-2xl shadow-lg p-8">
-                <div class="flex items-center justify-between mb-5">
-                    <h2 class="text-xl font-bold text-gray-900 flex items-center">
-                        <i class="fas fa-compact-disc text-purple-500 mr-3"></i>曲の管理
-                    </h2>
-                    <button onclick="openAddSongModal()" class="bg-purple-500 hover:bg-purple-600 text-white px-4 py-2 rounded-lg text-sm transition">
-                        <i class="fas fa-plus mr-2"></i>曲を追加
-                    </button>
-                </div>
-                <div id="songs-list" class="space-y-2"></div>
-            </div>
-
-            <!-- 曲別タブ -->
-            <div class="flex flex-wrap gap-3" id="song-manage-tabs"></div>
-
-            <!-- CSV取込（曲別） -->
-            <div class="bg-white rounded-2xl shadow-lg p-8">
-                <h2 class="text-xl font-bold text-gray-900 mb-1 flex items-center">
-                    <i class="fas fa-file-csv text-purple-500 mr-3"></i>CSVインポート
-                    <span id="song-import-badge" class="ml-3 px-3 py-0.5 rounded-full text-xs font-bold bg-purple-100 text-purple-800"></span>
-                </h2>
-                <p class="text-gray-400 text-sm mb-6">アップロードすると <strong id="song-import-label" class="text-gray-700"></strong>の課題が即時更新されます。</p>
-                <div class="bg-gray-50 border border-gray-200 rounded-xl p-4 mb-6 text-sm font-mono">
-                    <p class="text-xs font-sans font-semibold text-gray-400 mb-1.5">📋 CSVフォーマット例</p>
-                    <div class="text-purple-700">課題番号,課題名,達成基準</div>
-                    <div class="text-gray-500">1,前奏を弾く,前奏部分を指番号通りに弾ける</div>
-                </div>
-                <div id="song-drop-zone" class="drop-zone rounded-xl p-10 text-center cursor-pointer mb-4"
-                    onclick="document.getElementById('song-csv-file').click()"
-                    ondragover="dz(event,'song-drop-zone')" ondragleave="dzl('song-drop-zone')" ondrop="dzd(event,'song-drop-zone',true)">
-                    <i class="fas fa-cloud-upload-alt text-5xl text-gray-300 mb-4"></i>
-                    <p class="text-base font-semibold text-gray-500 mb-1">CSVファイルをドロップ</p>
-                    <p class="text-sm text-gray-400">またはクリックしてファイルを選択</p>
-                    <input type="file" id="song-csv-file" accept=".csv" class="hidden" onchange="handleCSV(event,true)">
-                </div>
-                <div id="song-file-info" class="hidden bg-purple-50 border border-purple-200 rounded-lg px-4 py-3 text-sm text-purple-700 mb-4 flex items-center justify-between">
-                    <div><i class="fas fa-file-alt mr-2"></i><span id="song-file-name"></span></div>
-                    <button onclick="clearSongCSV()" class="text-purple-300 hover:text-purple-600"><i class="fas fa-times"></i></button>
-                </div>
-                <div id="song-csv-preview" class="hidden mb-6">
-                    <h3 class="font-semibold text-gray-700 mb-3 text-sm"><i class="fas fa-eye mr-2 text-purple-400"></i>プレビュー（<span id="song-preview-count">0</span>件）</h3>
-                    <div class="overflow-x-auto rounded-xl border border-gray-200">
-                        <table class="w-full text-sm"><thead><tr class="bg-gray-50">
-                            <th class="px-4 py-3 text-left text-gray-500 w-16">番号</th>
-                            <th class="px-4 py-3 text-left text-gray-500 w-44">課題名</th>
-                            <th class="px-4 py-3 text-left text-gray-500">達成基準</th>
-                        </tr></thead><tbody id="song-preview-tbody"></tbody></table>
-                    </div>
-                </div>
-                <button id="song-upload-btn" onclick="uploadSongTasks()" class="hidden w-full bg-gradient-to-r from-purple-500 to-indigo-600 text-white py-4 rounded-xl font-bold hover:shadow-lg transform hover:-translate-y-0.5 transition-all">
-                    <i class="fas fa-upload mr-3"></i><span id="song-upload-label"></span>の課題をこの内容で更新する
-                </button>
-            </div>
-
-            <!-- 曲別課題一覧 -->
-            <div class="bg-white rounded-2xl shadow-lg p-8">
-                <div class="flex items-center justify-between mb-6">
-                    <h2 class="text-xl font-bold text-gray-900 flex items-center">
-                        <i class="fas fa-list-check text-purple-500 mr-3"></i>現在の課題一覧
-                        <span id="song-current-badge" class="ml-3 px-3 py-0.5 rounded-full text-xs font-bold bg-purple-100 text-purple-800"></span>
-                    </h2>
-                    <button onclick="loadSongTaskList()" class="text-sm text-purple-500 hover:text-purple-700 flex items-center gap-1">
-                        <i class="fas fa-sync-alt"></i>更新
-                    </button>
-                </div>
-                <div id="song-task-list" class="space-y-2"></div>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- ==================== お知らせ ==================== -->
-<div id="panel-announce" style="display:none;">
-    <div class="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
-        <div class="flex items-center justify-between">
-            <h2 class="text-2xl font-bold text-gray-900">お知らせ管理</h2>
-            <button onclick="openAnnounceModal()" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg text-sm transition">
-                <i class="fas fa-plus mr-2"></i>新規作成
-            </button>
-        </div>
-        <div id="announce-list" class="space-y-3">
-            <p class="text-center text-gray-400 py-8"><i class="fas fa-spinner fa-spin mr-2"></i>読み込み中...</p>
-        </div>
-    </div>
-</div>
-
-<!-- ==================== 生徒名簿 ==================== -->
-<div id="panel-students" style="display:none;">
-    <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
-        <div class="flex items-center justify-between flex-wrap gap-3">
-            <h2 class="text-2xl font-bold text-gray-900">生徒名簿</h2>
+        <!-- 楽曲 -->
+        <div class="card p-4">
+          <div class="section-title"><i class="fas fa-music text-amber-500"></i>楽曲</div>
+          <div id="songs-manage-list" class="space-y-3 mb-3"></div>
+          <form onsubmit="addSong(event)" class="space-y-2">
             <div class="flex gap-2">
-                <select id="student-grade-select" onchange="loadStudentRoster()" class="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500">
-                    <option value="">学年を選択</option>
-                </select>
-                <select id="student-class-select" onchange="loadStudentRoster()" class="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500" disabled>
-                    <option value="">組を選択</option>
-                </select>
+              <input type="text" id="song-title" class="inp flex-1" placeholder="曲名" required>
+              <input type="text" id="song-artist" class="inp flex-1" placeholder="アーティスト">
             </div>
+            <button type="submit" class="btn-red w-full"><i class="fas fa-plus mr-1"></i>楽曲を追加</button>
+          </form>
         </div>
-
-        <div class="bg-white rounded-xl shadow-lg p-6 space-y-4">
-            <!-- 生徒追加フォーム -->
-            <div class="flex gap-2 flex-wrap">
-                <input type="number" id="new-student-number" min="1" max="99" placeholder="番号" class="w-20 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500">
-                <input type="text" id="new-student-name" placeholder="氏名" class="flex-1 min-w-32 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500">
-                <button onclick="addStudent()" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg text-sm transition whitespace-nowrap">
-                    <i class="fas fa-plus mr-1"></i>追加
-                </button>
-            </div>
-            <div id="student-roster" class="space-y-2 max-h-[500px] overflow-y-auto">
-                <p class="text-gray-400 text-sm text-center py-4">学年・組を選択してください</p>
-            </div>
-        </div>
-
-        <!-- 先生が進捗を編集するモーダルへのアクセス -->
-        <div class="bg-blue-50 border border-blue-200 rounded-xl p-4 text-sm text-blue-800">
-            <i class="fas fa-info-circle mr-2"></i>生徒の進捗を先生が修正するには、「進捗管理」タブのマトリクス上のセルをクリックしてください。
-        </div>
+      </div>
     </div>
-</div>
 
-<!-- ==================== クラス設定 ==================== -->
-<div id="panel-settings" style="display:none;">
-    <div class="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
-        <div class="bg-blue-50 border border-blue-200 rounded-xl px-5 py-4 text-sm text-blue-800 flex items-start gap-3">
-            <i class="fas fa-info-circle mt-0.5 shrink-0"></i>
-            <div>変更は即時保存されます。削除するとその組の生徒は生徒ログイン画面に表示されなくなります。</div>
-        </div>
-        <div id="settings-container" class="space-y-5"></div>
-        <div class="bg-white rounded-2xl shadow-lg p-6">
-            <h3 class="font-bold text-gray-800 mb-4">クラスを追加</h3>
-            <div class="flex gap-3 flex-wrap">
-                <select id="new-class-grade" class="px-3 py-2 border border-gray-300 rounded-lg text-sm">
-                    <option value="1">1年</option><option value="2">2年</option><option value="3">3年</option>
-                </select>
-                <input type="text" id="new-class-name" placeholder="組名（例: A）" class="flex-1 min-w-24 px-3 py-2 border border-gray-300 rounded-lg text-sm">
-                <input type="number" id="new-class-max" placeholder="人数" min="1" max="99" value="40" class="w-24 px-3 py-2 border border-gray-300 rounded-lg text-sm">
-                <button onclick="addClass()" class="bg-indigo-500 hover:bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm transition">
-                    <i class="fas fa-plus mr-1"></i>追加
-                </button>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- ==================== トースト ==================== -->
-<div id="toast" class="fixed bottom-6 right-6 hidden z-50 max-w-sm">
-    <div id="toast-inner" class="px-5 py-4 rounded-xl shadow-xl flex items-center space-x-3">
-        <i id="toast-icon" class="text-xl shrink-0"></i>
-        <div><p id="toast-title" class="font-semibold text-sm"></p><p id="toast-msg" class="text-xs opacity-80"></p></div>
-    </div>
-</div>
-
-<!-- ==================== モーダル: 課題編集 ==================== -->
-<div id="task-edit-modal" class="modal-overlay">
-    <div class="bg-white rounded-2xl p-6 w-full max-w-md mx-4 shadow-2xl">
-        <h3 class="text-lg font-bold text-gray-900 mb-4">課題を編集</h3>
-        <input type="hidden" id="edit-task-id">
-        <div class="space-y-3">
-            <div><label class="text-sm font-medium text-gray-700 mb-1 block">課題番号</label>
-                <input type="number" id="edit-task-number" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"></div>
-            <div><label class="text-sm font-medium text-gray-700 mb-1 block">課題名</label>
-                <input type="text" id="edit-task-title" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"></div>
-            <div><label class="text-sm font-medium text-gray-700 mb-1 block">達成基準</label>
-                <textarea id="edit-task-criteria" rows="3" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm resize-none"></textarea></div>
-        </div>
-        <div class="flex gap-3 mt-5">
-            <button onclick="closeModal('task-edit-modal')" class="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 py-2 rounded-lg text-sm transition">キャンセル</button>
-            <button onclick="saveTaskEdit()" class="flex-1 bg-blue-500 hover:bg-blue-600 text-white py-2 rounded-lg text-sm transition">保存</button>
-        </div>
-    </div>
-</div>
-
-<!-- ==================== モーダル: お知らせ作成/編集 ==================== -->
-<div id="announce-modal" class="modal-overlay">
-    <div class="bg-white rounded-2xl p-6 w-full max-w-md mx-4 shadow-2xl">
-        <h3 class="text-lg font-bold text-gray-900 mb-4" id="announce-modal-title">お知らせを作成</h3>
-        <input type="hidden" id="announce-edit-id">
-        <div class="space-y-3">
-            <div><label class="text-sm font-medium text-gray-700 mb-1 block">タイトル</label>
-                <input type="text" id="announce-title" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm" placeholder="お知らせのタイトル"></div>
-            <div><label class="text-sm font-medium text-gray-700 mb-1 block">内容（任意）</label>
-                <textarea id="announce-content" rows="3" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm resize-none" placeholder="詳細内容（省略可）"></textarea></div>
-            <label class="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
-                <input type="checkbox" id="announce-pinned" class="w-4 h-4 accent-blue-500">
-                <span>上部に固定する</span>
+    <!-- お知らせ -->
+    <div id="tab-announce" class="tab-content hidden space-y-4">
+      <div class="card p-4">
+        <div class="section-title"><i class="fas fa-plus-circle text-red-500"></i>新規お知らせ</div>
+        <form onsubmit="addAnnounce(event)" class="space-y-2">
+          <input type="text" id="ann-title" class="inp" placeholder="タイトル（必須）" required>
+          <textarea id="ann-content" class="inp resize-none" rows="2" placeholder="内容（省略可）"></textarea>
+          <div class="flex gap-3 items-center">
+            <label class="flex items-center gap-1.5 text-sm cursor-pointer">
+              <input type="checkbox" id="ann-pinned"> 上部に固定
             </label>
-        </div>
-        <div class="flex gap-3 mt-5">
-            <button onclick="closeModal('announce-modal')" class="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 py-2 rounded-lg text-sm transition">キャンセル</button>
-            <button onclick="saveAnnounce()" class="flex-1 bg-blue-500 hover:bg-blue-600 text-white py-2 rounded-lg text-sm transition">保存</button>
-        </div>
+            <button type="submit" class="btn-red ml-auto"><i class="fas fa-plus mr-1"></i>追加</button>
+          </div>
+        </form>
+      </div>
+      <div id="announce-list" class="space-y-2"></div>
     </div>
+
+    <!-- 生徒名簿 -->
+    <div id="tab-roster" class="tab-content hidden space-y-4">
+      <div class="card p-4">
+        <div class="flex flex-wrap gap-3 items-end justify-between">
+          <div class="flex gap-3 items-end">
+            <div>
+              <label class="block text-xs font-semibold text-gray-600 mb-1">学年</label>
+              <select id="roster-grade" class="inp w-24" onchange="onRosterGradeChange()">
+                <option value="">全て</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-gray-600 mb-1">組</label>
+              <select id="roster-class" class="inp w-24" onchange="loadRoster()">
+                <option value="">全て</option>
+              </select>
+            </div>
+            <button class="btn-gray" onclick="loadRoster()"><i class="fas fa-sync-alt mr-1"></i>表示</button>
+          </div>
+          <div class="flex gap-2">
+            <button class="btn-gray" onclick="document.getElementById('csv-input').click()">
+              <i class="fas fa-file-import mr-1"></i>CSVインポート
+            </button>
+            <button class="btn-gray" onclick="exportCSV()">
+              <i class="fas fa-file-export mr-1"></i>CSVダウンロード
+            </button>
+            <input type="file" id="csv-input" accept=".csv" class="hidden" onchange="onCSVSelected(event)">
+          </div>
+        </div>
+      </div>
+      <div class="card p-4">
+        <div id="roster-table-wrap" class="overflow-x-auto"></div>
+        <form onsubmit="addStudent(event)" class="mt-3 flex gap-2">
+          <select id="add-stu-grade" class="inp w-20" required>
+            <option value="">学年</option>
+          </select>
+          <select id="add-stu-class" class="inp w-20" required>
+            <option value="">組</option>
+          </select>
+          <input type="number" id="add-stu-num" class="inp w-20" placeholder="番号" required min="1" max="99">
+          <input type="text" id="add-stu-name" class="inp flex-1" placeholder="名前">
+          <button type="submit" class="btn-red flex-shrink-0"><i class="fas fa-plus mr-1"></i>追加</button>
+        </form>
+      </div>
+    </div>
+
+    <!-- クラス設定 -->
+    <div id="tab-classes" class="tab-content hidden space-y-4">
+      <div class="card p-4">
+        <div class="section-title"><i class="fas fa-link text-red-500"></i>生徒配布URL</div>
+        <div class="bg-gray-50 rounded-xl p-3 flex items-center gap-2">
+          <code id="student-url" class="text-xs text-gray-600 flex-1 break-all"></code>
+          <button onclick="copyStudentUrl()" class="btn-gray flex-shrink-0 text-xs"><i class="fas fa-copy mr-1"></i>コピー</button>
+        </div>
+        <p class="text-xs text-gray-400 mt-2">このURLを生徒に配布してください</p>
+      </div>
+      <div class="card p-4">
+        <div class="section-title"><i class="fas fa-school text-red-500"></i>クラス一覧</div>
+        <div id="class-list" class="space-y-2 mb-3"></div>
+        <form onsubmit="addClass(event)" class="flex gap-2 flex-wrap">
+          <select id="add-class-grade" class="inp w-24" required>
+            <option value="">学年</option>
+            <option value="1">1年</option>
+            <option value="2">2年</option>
+            <option value="3">3年</option>
+          </select>
+          <input type="text" id="add-class-name" class="inp w-24" placeholder="組名 例:A" required>
+          <input type="number" id="add-class-max" class="inp w-24" placeholder="最大人数" value="40">
+          <button type="submit" class="btn-red"><i class="fas fa-plus mr-1"></i>追加</button>
+        </form>
+      </div>
+    </div>
+
+    <!-- 設定 -->
+    <div id="tab-settings" class="tab-content hidden">
+      <div class="max-w-lg space-y-4">
+        <div class="card p-5">
+          <div class="section-title"><i class="fas fa-user text-red-500"></i>プロフィール</div>
+          <form onsubmit="saveTeacherProfile(event)" class="space-y-3">
+            <div>
+              <label class="block text-xs font-semibold text-gray-600 mb-1">ユーザーID</label>
+              <input type="text" id="set-username" class="inp bg-gray-50" readonly>
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-gray-600 mb-1">名前</label>
+              <input type="text" id="set-name" class="inp" placeholder="山田 花子">
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-gray-600 mb-1">学校ID</label>
+              <input type="text" id="set-school-id" class="inp bg-gray-50" readonly>
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-gray-600 mb-1">学校名</label>
+              <input type="text" id="set-school-name" class="inp" placeholder="那覇中学校">
+            </div>
+            <button type="submit" class="btn-red w-full"><i class="fas fa-save mr-1"></i>保存</button>
+          </form>
+        </div>
+      </div>
+    </div>
+
+  </div>
 </div>
 
-<!-- ==================== モーダル: 曲追加/編集 ==================== -->
-<div id="song-modal" class="modal-overlay">
-    <div class="bg-white rounded-2xl p-6 w-full max-w-sm mx-4 shadow-2xl">
-        <h3 class="text-lg font-bold text-gray-900 mb-4" id="song-modal-title">曲を追加</h3>
-        <input type="hidden" id="song-edit-id">
-        <div class="space-y-3">
-            <div><label class="text-sm font-medium text-gray-700 mb-1 block">曲名</label>
-                <input type="text" id="song-edit-name" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm" placeholder="例: 涙そうそう"></div>
-            <div><label class="text-sm font-medium text-gray-700 mb-1 block">アイコン（絵文字）</label>
-                <input type="text" id="song-edit-icon" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm" placeholder="例: 🎵"></div>
-        </div>
-        <div class="flex gap-3 mt-5">
-            <button onclick="closeModal('song-modal')" class="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 py-2 rounded-lg text-sm transition">キャンセル</button>
-            <button onclick="saveSong()" class="flex-1 bg-purple-500 hover:bg-purple-600 text-white py-2 rounded-lg text-sm transition">保存</button>
-        </div>
+<!-- モーダル：生徒編集 -->
+<div id="edit-student-modal" class="modal-overlay hidden">
+  <div class="modal-box">
+    <h3 class="font-bold text-gray-800 mb-4">生徒情報を編集</h3>
+    <input type="hidden" id="edit-stu-id">
+    <div class="space-y-3">
+      <div class="grid grid-cols-3 gap-2">
+        <div><label class="text-xs font-semibold text-gray-600 mb-1 block">学年</label><input type="text" id="edit-stu-grade" class="inp" readonly></div>
+        <div><label class="text-xs font-semibold text-gray-600 mb-1 block">組</label><input type="text" id="edit-stu-class" class="inp" readonly></div>
+        <div><label class="text-xs font-semibold text-gray-600 mb-1 block">番号</label><input type="number" id="edit-stu-num" class="inp" min="1" max="99"></div>
+      </div>
+      <div><label class="text-xs font-semibold text-gray-600 mb-1 block">名前</label><input type="text" id="edit-stu-name" class="inp" placeholder="名前"></div>
     </div>
+    <div class="flex gap-2 mt-4">
+      <button class="btn-gray flex-1" onclick="closeModal('edit-student-modal')">キャンセル</button>
+      <button class="btn-red flex-1" onclick="saveStudentEdit()"><i class="fas fa-save mr-1"></i>保存</button>
+    </div>
+  </div>
 </div>
+
+<!-- モーダル：課題編集 -->
+<div id="edit-task-modal" class="modal-overlay hidden">
+  <div class="modal-box">
+    <h3 class="font-bold text-gray-800 mb-4">課題を編集</h3>
+    <input type="hidden" id="edit-task-id">
+    <div class="space-y-2">
+      <div><label class="text-xs font-semibold text-gray-600 mb-1 block">タイトル</label><input type="text" id="edit-task-title" class="inp"></div>
+      <div><label class="text-xs font-semibold text-gray-600 mb-1 block">説明（省略可）</label><textarea id="edit-task-desc" class="inp resize-none" rows="2"></textarea></div>
+    </div>
+    <div class="flex gap-2 mt-4">
+      <button class="btn-gray flex-1" onclick="closeModal('edit-task-modal')">キャンセル</button>
+      <button class="btn-red flex-1" onclick="saveTaskEdit()"><i class="fas fa-save mr-1"></i>保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- モーダル：楽曲課題編集 -->
+<div id="song-tasks-modal" class="modal-overlay hidden">
+  <div class="modal-box" style="max-width:500px">
+    <h3 class="font-bold text-gray-800 mb-1" id="song-tasks-title">楽曲課題</h3>
+    <p class="text-xs text-gray-400 mb-4" id="song-tasks-sub"></p>
+    <input type="hidden" id="song-tasks-song-id">
+    <div id="song-tasks-list" class="space-y-1 mb-3 max-h-48 overflow-y-auto"></div>
+    <form onsubmit="addSongTask(event)" class="flex gap-2">
+      <input type="text" id="new-song-task-title" class="inp flex-1" placeholder="課題タイトル" required>
+      <button type="submit" class="btn-red flex-shrink-0"><i class="fas fa-plus mr-1"></i>追加</button>
+    </form>
+    <button class="btn-gray w-full mt-3" onclick="closeModal('song-tasks-modal')">閉じる</button>
+  </div>
+</div>
+
+<!-- モーダル：CSVインポート -->
+<div id="csv-modal" class="modal-overlay hidden">
+  <div class="modal-box" style="max-width:520px">
+    <h3 class="font-bold text-gray-800 mb-2"><i class="fas fa-file-import mr-2 text-red-500"></i>CSVインポート</h3>
+    <p class="text-xs text-gray-500 mb-4">CSVの列：<code class="bg-gray-100 px-1 rounded">出席番号, 名前, 学校名, 担当先生</code>（学校名・担当先生は無視されます）</p>
+    <div class="flex gap-3 mb-4">
+      <div class="flex-1">
+        <label class="text-xs font-semibold text-gray-600 mb-1 block">学年 <span class="text-red-500">*</span></label>
+        <select id="csv-grade" class="inp">
+          <option value="">選択</option>
+        </select>
+      </div>
+      <div class="flex-1">
+        <label class="text-xs font-semibold text-gray-600 mb-1 block">組 <span class="text-red-500">*</span></label>
+        <select id="csv-class" class="inp" disabled>
+          <option value="">選択</option>
+        </select>
+      </div>
+    </div>
+    <div class="bg-gray-50 rounded-xl overflow-hidden mb-4" style="max-height:200px;overflow-y:auto">
+      <table>
+        <thead><tr><th>出席番号</th><th>名前</th></tr></thead>
+        <tbody id="csv-preview"></tbody>
+      </table>
+    </div>
+    <p id="csv-count" class="text-sm text-gray-600 mb-3"></p>
+    <div class="flex gap-2">
+      <button class="btn-gray flex-1" onclick="closeModal('csv-modal')">キャンセル</button>
+      <button class="btn-red flex-1" id="csv-import-btn" onclick="doImportCSV()"><i class="fas fa-file-import mr-1"></i>インポート</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast-area"></div>
 
 <script>
-// =============================================
-// 状態管理
-// =============================================
-const ALL_GRADES = ['1','2','3'];
-const GRADE_LABEL = { '1':'1年生', '2':'2年生', '3':'3年生' };
-const GRADE_COLOR = { '1':'bg-blue-100 text-blue-800', '2':'bg-yellow-100 text-yellow-800', '3':'bg-pink-100 text-pink-800' };
+  let T = null; // currentTeacher
+  let csvRows = [];
+  let classesCache = [];
+  const tabLoaded = {};
 
-let classesData = [];       // [{id, grade, class_name, max_students}]
-let songs = [];             // [{id, song_key, song_name, icon}]
-let activeGrade = '1';
-let activeSongManage = '';
-let selectedClass = '';
-let activeProgressSub = 'grade';
-let activeSongProgress = '';
-let parsedGradeCSV = [];
-let parsedSongCSV  = [];
-let editTaskType = 'grade'; // 'grade' or 'song'
+  // ---- INIT ----
 
-// =============================================
-// 初期化
-// =============================================
-document.addEventListener('DOMContentLoaded', async () => {
+  async function init() {
     const { data: { session } } = await db.auth.getSession();
     if (!session) { window.location.href = 'teacher-login.html'; return; }
 
-    const { data: profile } = await db.from('teacher_profiles').select('*').eq('id', session.user.id).single();
-    document.getElementById('teacher-name').textContent = profile?.name || session.user.email;
-    document.getElementById('teacher-dept').textContent = profile?.department || '音楽科';
+    const { data: profile } = await db.from('teacher_profiles')
+      .select('*').eq('id', session.user.id).single();
 
-    await Promise.all([loadClasses(), loadSongs()]);
-    initDashboard();
-});
-
-// =============================================
-// タブ切替
-// =============================================
-const TABS = ['dashboard','progress','tasks','announce','students','settings'];
-function switchTab(tab) {
-    TABS.forEach(t => {
-        document.getElementById(`panel-${t}`).style.display = t === tab ? 'block' : 'none';
-        document.getElementById(`tab-${t}`).classList.toggle('active', t === tab);
-    });
-    if (tab === 'progress')  initProgress();
-    if (tab === 'tasks')     initTasks();
-    if (tab === 'announce')  loadAnnouncements();
-    if (tab === 'students')  initStudents();
-    if (tab === 'settings')  renderSettings();
-}
-
-// =============================================
-// データ読み込み
-// =============================================
-async function loadClasses() {
-    const { data } = await db.from('classes').select('*').eq('is_active', true).order('grade').order('class_name');
-    classesData = data || [];
-}
-
-async function loadSongs() {
-    const { data } = await db.from('songs').select('*').eq('is_active', true).order('sort_order');
-    songs = data || [];
-}
-
-// =============================================
-// ダッシュボード
-// =============================================
-async function initDashboard() {
-    const [{ count: taskCount }, { count: songCount }, { count: announceCount }] = await Promise.all([
-        db.from('koto_tasks').select('*', { count:'exact', head:true }).eq('is_active', true),
-        db.from('songs').select('*', { count:'exact', head:true }).eq('is_active', true),
-        db.from('announcements').select('*', { count:'exact', head:true }).eq('is_active', true),
-    ]);
-    document.getElementById('stat-classes').textContent  = classesData.length;
-    document.getElementById('stat-tasks').textContent    = taskCount ?? '--';
-    document.getElementById('stat-songs').textContent    = songCount ?? '--';
-    document.getElementById('stat-announce').textContent = announceCount ?? '--';
-    renderClassCompletion();
-}
-
-async function renderClassCompletion() {
-    const listEl = document.getElementById('class-completion-list');
-    if (!classesData.length) {
-        listEl.innerHTML = '<p class="text-gray-400 text-sm text-center py-4">クラスが設定されていません。「クラス設定」タブから追加してください。</p>';
-        return;
+    if (!profile) {
+      document.getElementById('setup-overlay').classList.remove('hidden');
+      window._authUserId = session.user.id;
+      window._authEmail  = session.user.email;
+      return;
     }
 
-    const rows = await Promise.all(classesData.map(async cls => {
-        const grade = cls.grade;
-        const classKey = grade + cls.class_name;
-        const { data: tasks } = await db.from('koto_tasks').select('id').eq('is_active', true).eq('grade', grade);
-        if (!tasks?.length) return { cls, pct: 0, label: '課題なし' };
+    T = { ...profile, email: session.user.email };
+    startApp();
+  }
 
-        const students = await getStudentNumbers(cls.grade, cls.class_name, cls.max_students);
-        if (!students.length) return { cls, pct: 0, label: '生徒なし' };
+  async function saveSetup(e) {
+    e.preventDefault();
+    const username    = document.getElementById('setup-username').value.trim();
+    const name        = document.getElementById('setup-name').value.trim();
+    const school_id   = document.getElementById('setup-school-id').value.trim();
+    const school_name = document.getElementById('setup-school-name').value.trim();
+    const errEl = document.getElementById('setup-err');
+    errEl.classList.add('hidden');
 
-        const studentIds = students.map(n => `${classKey}${String(n).padStart(2,'0')}`);
-        const { data: prog } = await db.from('student_progress')
-            .select('student_id, task_db_id, is_completed')
-            .in('student_id', studentIds)
-            .eq('is_completed', true)
-            .eq('task_type', 'koto');
+    const { data: dup } = await db.from('teacher_profiles').select('id').eq('username', username).maybeSingle();
+    if (dup) { errEl.textContent = 'このユーザーIDは既に使われています。'; errEl.classList.remove('hidden'); return; }
 
-        const totalPossible = students.length * tasks.length;
-        const completed = prog?.length || 0;
-        const pct = totalPossible ? Math.round((completed / totalPossible) * 100) : 0;
-        return { cls, pct, label: `${completed} / ${totalPossible} 完了` };
-    }));
-
-    listEl.innerHTML = rows.map(({ cls, pct, label }) => `
-        <div class="flex items-center gap-4">
-            <div class="w-24 shrink-0">
-                <span class="text-sm font-semibold text-gray-700">${cls.grade}年${cls.class_name}組</span>
-            </div>
-            <div class="flex-1">
-                <div class="progress-bar">
-                    <div class="progress-fill bg-green-500" style="width:${pct}%"></div>
-                </div>
-            </div>
-            <div class="w-32 text-right text-xs text-gray-500">${pct}% (${label})</div>
-        </div>`).join('');
-}
-
-// =============================================
-// 進捗管理
-// =============================================
-function initProgress() {
-    renderClassCards();
-    showClassSelection();
-}
-
-function renderClassCards() {
-    const container = document.getElementById('class-cards-container');
-    if (!classesData.length) {
-        container.innerHTML = `<div class="col-span-3 text-center py-16 text-gray-400">
-            <i class="fas fa-school text-5xl mb-4"></i>
-            <p class="text-lg font-semibold mb-2">クラスが設定されていません</p>
-            <p class="text-sm">「クラス設定」タブから設定してください</p>
-        </div>`;
-        return;
-    }
-    container.innerHTML = classesData.map(cls => `
-        <div onclick="selectClass('${cls.grade}${cls.class_name}')"
-            class="bg-white rounded-2xl p-7 shadow-lg border-2 border-gray-200 hover:border-blue-400 cursor-pointer transition hover:-translate-y-1">
-            <div class="text-center">
-                <span class="inline-block px-3 py-1 rounded-full text-xs font-bold ${GRADE_COLOR[cls.grade]} mb-3">${GRADE_LABEL[cls.grade]}</span>
-                <h3 class="text-2xl font-bold text-gray-900">${cls.grade}年${cls.class_name}組</h3>
-                <p class="text-xs text-gray-400 mt-1">${cls.max_students}名</p>
-            </div>
-        </div>`).join('');
-}
-
-function showClassSelection() {
-    document.getElementById('class-selection').style.display = 'block';
-    document.getElementById('progress-detail').style.display = 'none';
-}
-
-async function selectClass(classKey) {
-    selectedClass = classKey;
-    const grade = classKey.charAt(0);
-    const cls   = classKey.slice(1);
-    document.getElementById('class-selection').style.display = 'none';
-    document.getElementById('progress-detail').style.display = 'block';
-    document.getElementById('selected-class-title').textContent = `${grade}年${cls}組`;
-
-    // 曲別タブを構築
-    const songTabsEl = document.getElementById('song-prog-tabs');
-    songTabsEl.innerHTML = songs.map((s, i) => `
-        <button onclick="switchSongProgressTab('${s.song_key}')" id="sptab-${s.song_key}"
-            class="song-tab-btn ${i === 0 ? 'active' : ''}">${s.icon} ${s.song_name}</button>`).join('');
-    activeSongProgress = songs[0]?.song_key || '';
-
-    switchProgressSub('grade');
-    await loadGradeMatrix();
-}
-
-function switchProgressSub(sub) {
-    activeProgressSub = sub;
-    ['grade','song'].forEach(s => {
-        document.getElementById(`sub-${s}`).classList.toggle('hidden', s !== sub);
-        document.getElementById(`prog-sub-${s}`).classList.toggle('active', s === sub);
+    const { error } = await db.from('teacher_profiles').insert({
+      id: window._authUserId, username, email: window._authEmail,
+      name: name || username, school_id, school_name, department: '音楽科'
     });
-    document.getElementById('export-grade-btn').classList.toggle('hidden', sub !== 'grade');
-    document.getElementById('export-song-btn').classList.toggle('hidden', sub !== 'song');
-    if (sub === 'song' && activeSongProgress) loadSongMatrix(activeSongProgress);
-}
-
-async function switchSongProgressTab(songKey) {
-    activeSongProgress = songKey;
-    songs.forEach(s => document.getElementById(`sptab-${s.song_key}`)?.classList.toggle('active', s.song_key === songKey));
-    await loadSongMatrix(songKey);
-}
-
-async function getStudentNumbers(grade, cls, maxStudents) {
-    const { data } = await db.from('students').select('number').eq('grade', grade).eq('class_name', cls).order('number');
-    if (data?.length) return data.map(s => s.number);
-    return Array.from({ length: maxStudents || 40 }, (_, i) => i + 1);
-}
-
-async function getStudentList(classKey) {
-    const grade = classKey.charAt(0);
-    const cls   = classKey.slice(1);
-    const clsObj = classesData.find(c => c.grade === grade && c.class_name === cls);
-    const { data: namedStudents } = await db.from('students')
-        .select('number, name').eq('grade', grade).eq('class_name', cls).order('number');
-
-    const numbers = namedStudents?.length
-        ? namedStudents.map(s => s.number)
-        : Array.from({ length: clsObj?.max_students || 40 }, (_, i) => i + 1);
-
-    const nameMap = {};
-    (namedStudents || []).forEach(s => { nameMap[s.number] = s.name; });
-    return { numbers, nameMap };
-}
-
-async function loadGradeMatrix() {
-    const grade = selectedClass.charAt(0);
-    const wrapper = document.getElementById('grade-matrix');
-    wrapper.innerHTML = '<div class="py-8 text-center text-gray-400"><i class="fas fa-spinner fa-spin text-2xl mb-2"></i><p class="text-sm mt-2">読み込み中...</p></div>';
-
-    const [{ data: tasks }, { numbers, nameMap }] = await Promise.all([
-        db.from('koto_tasks').select('*').eq('is_active', true).eq('grade', grade).order('task_number'),
-        getStudentList(selectedClass)
-    ]);
-
-    document.getElementById('grade-task-count').textContent = `課題数: ${tasks?.length || 0}件`;
-
-    if (!tasks?.length) {
-        wrapper.innerHTML = `<p class="text-center text-gray-400 py-8 text-sm">課題が登録されていません。「課題管理」タブから登録してください。</p>`;
-        return;
-    }
-
-    const classKey = selectedClass;
-    const studentIds = numbers.map(n => `${classKey}${String(n).padStart(2,'0')}`);
-    const { data: prog } = await db.from('student_progress')
-        .select('student_id, task_db_id, is_completed')
-        .in('student_id', studentIds)
-        .eq('task_type', 'koto');
-
-    const progMap = {};
-    (prog || []).forEach(p => {
-        if (!progMap[p.student_id]) progMap[p.student_id] = {};
-        progMap[p.student_id][p.task_db_id] = p.is_completed;
-    });
-
-    wrapper.innerHTML = buildMatrix(tasks, numbers, nameMap, classKey, progMap, 'koto', 'green');
-}
-
-async function loadSongMatrix(songKey) {
-    const wrapper = document.getElementById('song-matrix');
-    wrapper.innerHTML = '<div class="py-8 text-center text-gray-400"><i class="fas fa-spinner fa-spin text-2xl mb-2"></i><p class="text-sm mt-2">読み込み中...</p></div>';
-
-    const song = songs.find(s => s.song_key === songKey);
-    const [{ data: tasks }, { numbers, nameMap }] = await Promise.all([
-        db.from('song_tasks').select('*').eq('is_active', true).eq('song_key', songKey).order('task_number'),
-        getStudentList(selectedClass)
-    ]);
-
-    document.getElementById('song-task-count').textContent = `${song?.icon || ''} ${song?.song_name || ''} — 課題数: ${tasks?.length || 0}件`;
-
-    if (!tasks?.length) {
-        wrapper.innerHTML = `<p class="text-center text-gray-400 py-8 text-sm">この曲の課題が登録されていません。</p>`;
-        return;
-    }
-
-    const classKey = selectedClass;
-    const studentIds = numbers.map(n => `${classKey}${String(n).padStart(2,'0')}`);
-    const { data: prog } = await db.from('student_progress')
-        .select('student_id, task_db_id, is_completed')
-        .in('student_id', studentIds)
-        .eq('task_type', 'song');
-
-    const progMap = {};
-    (prog || []).forEach(p => {
-        if (!progMap[p.student_id]) progMap[p.student_id] = {};
-        progMap[p.student_id][p.task_db_id] = p.is_completed;
-    });
-
-    wrapper.innerHTML = buildMatrix(tasks, numbers, nameMap, classKey, progMap, 'song', 'purple');
-}
-
-function buildMatrix(tasks, numbers, nameMap, classKey, progMap, taskType, color) {
-    const colorClass = color === 'green' ? 'bg-green-500' : 'bg-purple-500';
-    let html = `<div class="min-w-max">
-        <div class="flex border-b-2 border-gray-200 mb-1">
-            <div class="w-28 text-center font-semibold text-gray-600 text-xs py-2 shrink-0">生徒</div>
-            <div class="flex flex-1">`;
-    tasks.forEach(t => {
-        html += `<div class="min-w-[80px] flex-1 text-center text-xs py-2 border-l border-gray-200 px-1 font-semibold text-gray-600">
-            課題${t.task_number}<br><span class="font-normal text-gray-400">${t.title}</span></div>`;
-    });
-    html += `</div></div>`;
-
-    numbers.forEach(num => {
-        const sid = `${classKey}${String(num).padStart(2,'0')}`;
-        const name = nameMap[num] || '';
-        html += `<div class="flex border-b border-gray-100 hover:bg-gray-50">
-            <div class="w-28 text-center py-3 text-sm text-gray-600 border-r border-gray-200 shrink-0 px-1">
-                <span class="font-semibold">${num}番</span>${name ? `<br><span class="text-xs text-gray-400">${name}</span>` : ''}
-            </div>
-            <div class="flex flex-1">`;
-        tasks.forEach(task => {
-            const done = progMap[sid]?.[task.id] || false;
-            html += `<div onclick="toggleProgressCell('${sid}','${task.id}','${taskType}',this)"
-                class="min-w-[80px] flex-1 border-l border-gray-200 flex items-center justify-center py-2 cursor-pointer hover:bg-gray-100 transition"
-                title="${num}番${name ? ' ' + name : ''} - ${task.title}">
-                ${done
-                    ? `<div class="w-8 h-8 ${colorClass} rounded-md flex items-center justify-center"><i class="fas fa-check text-white text-sm"></i></div>`
-                    : '<div class="w-8 h-8 bg-gray-200 rounded-md"></div>'}
-            </div>`;
-        });
-        html += `</div></div>`;
-    });
-    return html + `</div>`;
-}
-
-async function toggleProgressCell(studentId, taskId, taskType, cellEl) {
-    const isCurrentlyDone = cellEl.querySelector('.fas.fa-check') !== null;
-    const newState = !isCurrentlyDone;
-
-    const { error } = await db.from('student_progress').upsert({
-        student_id: studentId,
-        task_type: taskType,
-        task_db_id: taskId,
-        is_completed: newState,
-        updated_at: new Date().toISOString()
-    }, { onConflict: 'student_id,task_db_id' });
-
-    if (error) { showToast('error', '更新失敗', error.message); return; }
-
-    const colorClass = taskType === 'koto' ? 'bg-green-500' : 'bg-purple-500';
-    cellEl.innerHTML = newState
-        ? `<div class="w-8 h-8 ${colorClass} rounded-md flex items-center justify-center"><i class="fas fa-check text-white text-sm"></i></div>`
-        : '<div class="w-8 h-8 bg-gray-200 rounded-md"></div>';
-}
-
-async function exportGradeCSV() {
-    const grade = selectedClass.charAt(0);
-    const { data: tasks } = await db.from('koto_tasks').select('*').eq('is_active', true).eq('grade', grade).order('task_number');
-    const { numbers, nameMap } = await getStudentList(selectedClass);
-    const studentIds = numbers.map(n => `${selectedClass}${String(n).padStart(2,'0')}`);
-    const { data: prog } = await db.from('student_progress').select('*').in('student_id', studentIds).eq('task_type', 'koto');
-    const progMap = {};
-    (prog || []).forEach(p => { if (!progMap[p.student_id]) progMap[p.student_id] = {}; progMap[p.student_id][p.task_db_id] = p.is_completed; });
-
-    let csv = `氏名,番号,${(tasks || []).map(t => `課題${t.task_number}:${t.title}`).join(',')}\n`;
-    numbers.forEach(n => {
-        const sid = `${selectedClass}${String(n).padStart(2,'0')}`;
-        const statuses = (tasks || []).map(t => progMap[sid]?.[t.id] ? '完了' : '未完了');
-        csv += `${nameMap[n] || ''},${n},${statuses.join(',')}\n`;
-    });
-    downloadCSV(csv, `${selectedClass}_grade_progress.csv`);
-}
-
-async function exportSongCSV() {
-    const { data: tasks } = await db.from('song_tasks').select('*').eq('is_active', true).eq('song_key', activeSongProgress).order('task_number');
-    const { numbers, nameMap } = await getStudentList(selectedClass);
-    const studentIds = numbers.map(n => `${selectedClass}${String(n).padStart(2,'0')}`);
-    const { data: prog } = await db.from('student_progress').select('*').in('student_id', studentIds).eq('task_type', 'song');
-    const progMap = {};
-    (prog || []).forEach(p => { if (!progMap[p.student_id]) progMap[p.student_id] = {}; progMap[p.student_id][p.task_db_id] = p.is_completed; });
-
-    const song = songs.find(s => s.song_key === activeSongProgress);
-    let csv = `氏名,番号,${(tasks || []).map(t => `課題${t.task_number}:${t.title}`).join(',')}\n`;
-    numbers.forEach(n => {
-        const sid = `${selectedClass}${String(n).padStart(2,'0')}`;
-        const statuses = (tasks || []).map(t => progMap[sid]?.[t.id] ? '完了' : '未完了');
-        csv += `${nameMap[n] || ''},${n},${statuses.join(',')}\n`;
-    });
-    downloadCSV(csv, `${selectedClass}_${song?.song_name || activeSongProgress}_progress.csv`);
-}
-
-function downloadCSV(csv, filename) {
-    const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    link.download = filename;
-    link.click();
-}
-
-// =============================================
-// 課題管理
-// =============================================
-function initTasks() {
-    renderGradeTabs();
-    renderSongManageTabs();
-    loadSongsList();
-    loadGradeTaskList();
-    loadSongTaskList();
-}
-
-function switchTaskKind(kind) {
-    ['grade','song'].forEach(k => {
-        document.getElementById(`task-kind-${k}`).classList.toggle('hidden', k !== kind);
-        document.getElementById(`kind-tab-${k}`).classList.toggle('active', k === kind);
-    });
-}
-
-function renderGradeTabs() {
-    const tabsEl = document.getElementById('grade-tabs');
-    const enabled = ALL_GRADES.filter(g => classesData.some(c => c.grade === g));
-    if (!enabled.length) {
-        tabsEl.innerHTML = '<p class="text-gray-400 text-sm w-full text-center py-3">有効な学年がありません</p>';
-        return;
-    }
-    tabsEl.innerHTML = enabled.map(g => `
-        <button onclick="switchGradeTask('${g}')" id="grade-tab-${g}"
-            class="grade-tab-btn flex-1 py-2.5 rounded-lg text-sm text-gray-500 ${g === activeGrade ? 'active' : ''}">
-            <span class="inline-block w-5 h-5 rounded-full ${GRADE_COLOR[g]} text-xs font-bold mr-1 leading-5 text-center">${g}</span>
-            ${GRADE_LABEL[g]}
-        </button>`).join('');
-    switchGradeTask(activeGrade);
-}
-
-function switchGradeTask(grade) {
-    activeGrade = grade;
-    ALL_GRADES.forEach(g => document.getElementById(`grade-tab-${g}`)?.classList.toggle('active', g === grade));
-    const badge = `<span class="ml-3 px-3 py-0.5 rounded-full text-xs font-bold ${GRADE_COLOR[grade]}">${GRADE_LABEL[grade]}</span>`;
-    document.getElementById('import-grade-badge').outerHTML = `<span id="import-grade-badge" class="ml-3 px-3 py-0.5 rounded-full text-xs font-bold ${GRADE_COLOR[grade]}">${GRADE_LABEL[grade]}</span>`;
-    document.getElementById('import-grade-label').textContent = GRADE_LABEL[grade];
-    document.getElementById('grade-upload-label').textContent = GRADE_LABEL[grade];
-    document.getElementById('current-grade-badge').className = `ml-3 px-3 py-0.5 rounded-full text-xs font-bold ${GRADE_COLOR[grade]}`;
-    document.getElementById('current-grade-badge').textContent = GRADE_LABEL[grade];
-    clearGradeCSV();
-    loadGradeTaskList();
-}
-
-function renderSongManageTabs() {
-    const tabsEl = document.getElementById('song-manage-tabs');
-    if (!songs.length) { tabsEl.innerHTML = '<p class="text-gray-400 text-sm">曲が登録されていません</p>'; return; }
-    if (!activeSongManage) activeSongManage = songs[0].song_key;
-    tabsEl.innerHTML = songs.map(s => `
-        <button onclick="switchSongManage('${s.song_key}')" id="smtab-${s.song_key}"
-            class="song-tab-btn ${s.song_key === activeSongManage ? 'active' : ''}">${s.icon} ${s.song_name}</button>`).join('');
-}
-
-function switchSongManage(songKey) {
-    activeSongManage = songKey;
-    songs.forEach(s => document.getElementById(`smtab-${s.song_key}`)?.classList.toggle('active', s.song_key === songKey));
-    const song = songs.find(s => s.song_key === songKey);
-    const label = song ? `${song.icon} ${song.song_name}` : songKey;
-    document.getElementById('song-import-badge').textContent = label;
-    document.getElementById('song-import-label').textContent = label;
-    document.getElementById('song-upload-label').textContent = label;
-    document.getElementById('song-current-badge').textContent = label;
-    clearSongCSV();
-    loadSongTaskList();
-}
-
-async function loadGradeTaskList() {
-    const listEl = document.getElementById('grade-task-list');
-    listEl.innerHTML = '<p class="text-gray-400 text-sm text-center py-4"><i class="fas fa-spinner fa-spin mr-2"></i>読み込み中...</p>';
-    const { data } = await db.from('koto_tasks').select('*').eq('is_active', true).eq('grade', activeGrade).order('task_number');
-    if (!data?.length) { listEl.innerHTML = '<p class="text-gray-400 text-sm text-center py-4">課題が登録されていません</p>'; return; }
-    listEl.innerHTML = data.map(task => buildTaskRow(task, 'grade')).join('');
-}
-
-async function loadSongTaskList() {
-    if (!activeSongManage) return;
-    const listEl = document.getElementById('song-task-list');
-    listEl.innerHTML = '<p class="text-gray-400 text-sm text-center py-4"><i class="fas fa-spinner fa-spin mr-2"></i>読み込み中...</p>';
-    const { data } = await db.from('song_tasks').select('*').eq('is_active', true).eq('song_key', activeSongManage).order('task_number');
-    if (!data?.length) { listEl.innerHTML = '<p class="text-gray-400 text-sm text-center py-4">課題が登録されていません</p>'; return; }
-    listEl.innerHTML = data.map(task => buildTaskRow(task, 'song')).join('');
-}
-
-function buildTaskRow(task, type) {
-    return `<div id="task-row-${task.id}" class="flex items-start bg-gray-50 border border-gray-200 rounded-xl p-4 gap-4">
-        <div class="w-9 h-9 rounded-full ${type === 'koto' || type === 'grade' ? 'bg-blue-500' : 'bg-purple-500'} text-white flex items-center justify-center text-sm font-bold shrink-0">${task.task_number}</div>
-        <div class="flex-1 min-w-0">
-            <p class="font-semibold text-gray-800 text-sm">${task.title}</p>
-            <p class="text-xs text-gray-500 mt-0.5 truncate">${task.criteria}</p>
-        </div>
-        <div class="flex gap-2 shrink-0">
-            <button onclick="openTaskEdit('${task.id}','${type}')" class="text-blue-500 hover:text-blue-700 p-1"><i class="fas fa-edit"></i></button>
-            <button onclick="deleteTask('${task.id}','${type}')" class="text-red-400 hover:text-red-600 p-1"><i class="fas fa-trash"></i></button>
-        </div>
-    </div>`;
-}
-
-function openTaskEdit(taskId, type) {
-    editTaskType = type;
-    const row = document.getElementById(`task-row-${taskId}`);
-    const title   = row.querySelector('p.font-semibold').textContent;
-    const criteria = row.querySelector('p.text-xs').textContent;
-    const num     = row.querySelector('.w-9').textContent;
-    document.getElementById('edit-task-id').value       = taskId;
-    document.getElementById('edit-task-number').value   = num;
-    document.getElementById('edit-task-title').value    = title;
-    document.getElementById('edit-task-criteria').value = criteria;
-    openModal('task-edit-modal');
-}
-
-async function saveTaskEdit() {
-    const taskId   = document.getElementById('edit-task-id').value;
-    const number   = parseInt(document.getElementById('edit-task-number').value);
-    const title    = document.getElementById('edit-task-title').value.trim();
-    const criteria = document.getElementById('edit-task-criteria').value.trim();
-    if (!title) { alert('課題名を入力してください'); return; }
-
-    const table = editTaskType === 'grade' ? 'koto_tasks' : 'song_tasks';
-    const { error } = await db.from(table).update({ task_number: number, title, criteria }).eq('id', taskId);
-    if (error) { showToast('error', '保存失敗', error.message); return; }
-
-    closeModal('task-edit-modal');
-    showToast('success', '課題を更新しました', '');
-    if (editTaskType === 'grade') loadGradeTaskList(); else loadSongTaskList();
-}
-
-async function deleteTask(taskId, type) {
-    if (!confirm('この課題を削除しますか？生徒の進捗データは残ります。')) return;
-    const table = type === 'grade' ? 'koto_tasks' : 'song_tasks';
-    const { error } = await db.from(table).update({ is_active: false }).eq('id', taskId);
-    if (error) { showToast('error', '削除失敗', error.message); return; }
-    document.getElementById(`task-row-${taskId}`)?.remove();
-    showToast('success', '課題を削除しました', '');
-}
-
-// CSV
-function dz(e, id)  { e.preventDefault(); document.getElementById(id).classList.add('drag-over'); }
-function dzl(id)    { document.getElementById(id).classList.remove('drag-over'); }
-function dzd(e, id, isSong) {
-    e.preventDefault(); document.getElementById(id).classList.remove('drag-over');
-    const file = e.dataTransfer.files[0];
-    if (file) parseCSVFile(file, isSong);
-}
-function handleCSV(e, isSong) { const file = e.target.files[0]; if (file) parseCSVFile(file, isSong); }
-
-function parseCSVFile(file, isSong) {
-    if (!file.name.endsWith('.csv') && file.type !== 'text/csv') {
-        showToast('error', 'ファイル形式エラー', 'CSVファイルを選択してください');
-        return;
-    }
-    const nameEl = isSong ? 'song-file-name' : 'grade-file-name';
-    const infoEl = isSong ? 'song-file-info' : 'grade-file-info';
-    document.getElementById(nameEl).textContent = `${file.name} (${(file.size/1024).toFixed(1)} KB)`;
-    document.getElementById(infoEl).classList.remove('hidden');
-    const reader = new FileReader();
-    reader.onload = e => parseCSVText(e.target.result, isSong);
-    reader.readAsText(file, 'UTF-8');
-}
-
-function parseCSVText(text, isSong) {
-    const clean = text.replace(/^﻿/, '').trim();
-    const lines = clean.split(/\r?\n/).filter(l => l.trim());
-    const tasks = [], errors = [];
-    let start = isNaN(Number(lines[0]?.split(',')[0])) ? 1 : 0;
-    for (let i = start; i < lines.length; i++) {
-        const cols = lines[i].split(',');
-        if (cols.length < 3) { errors.push(`行${i+1}: カラム不足`); continue; }
-        const num = Number(cols[0].trim()), title = cols[1].trim(), criteria = cols.slice(2).join(',').trim();
-        if (isNaN(num) || num <= 0) { errors.push(`行${i+1}: 番号が不正`); continue; }
-        if (!title) { errors.push(`行${i+1}: 課題名が空`); continue; }
-        if (!criteria) { errors.push(`行${i+1}: 達成基準が空`); continue; }
-        tasks.push({ task_number: num, title, criteria });
-    }
-
-    if (isSong) { parsedSongCSV = tasks; } else { parsedGradeCSV = tasks; }
-
-    const prefix = isSong ? 'song' : 'grade';
-    document.getElementById(`${prefix}-preview-count`).textContent = tasks.length;
-    const tbody = document.getElementById(`${prefix}-preview-tbody`);
-    tbody.innerHTML = tasks.map(t => `<tr class="border-t border-gray-100">
-        <td class="px-4 py-3 text-center font-bold ${isSong ? 'text-purple-600' : 'text-blue-600'}">${t.task_number}</td>
-        <td class="px-4 py-3 font-medium text-gray-800">${t.title}</td>
-        <td class="px-4 py-3 text-gray-600">${t.criteria}</td></tr>`).join('');
-
-    document.getElementById(`${prefix}-csv-preview`).classList.toggle('hidden', tasks.length === 0);
-    document.getElementById(`${prefix}-upload-btn`).classList.toggle('hidden', tasks.length === 0);
-    if (!tasks.length) showToast('error', 'CSVエラー', '有効なデータがありませんでした');
-}
-
-function clearGradeCSV() {
-    parsedGradeCSV = [];
-    document.getElementById('csv-file').value = '';
-    document.getElementById('grade-file-info').classList.add('hidden');
-    document.getElementById('grade-csv-preview').classList.add('hidden');
-    document.getElementById('grade-upload-btn').classList.add('hidden');
-}
-
-function clearSongCSV() {
-    parsedSongCSV = [];
-    document.getElementById('song-csv-file').value = '';
-    document.getElementById('song-file-info').classList.add('hidden');
-    document.getElementById('song-csv-preview').classList.add('hidden');
-    document.getElementById('song-upload-btn').classList.add('hidden');
-}
-
-async function uploadGradeTasks() {
-    if (!parsedGradeCSV.length) return;
-    const btn = document.getElementById('grade-upload-btn');
-    btn.disabled = true;
-    btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-3"></i>更新中...';
-    const { data: old } = await db.from('koto_tasks').select('id').eq('grade', activeGrade).eq('is_active', true);
-    for (const t of (old || [])) await db.from('koto_tasks').update({ is_active: false }).eq('id', t.id);
-    for (const t of parsedGradeCSV) {
-        await db.from('koto_tasks').insert({ grade: activeGrade, task_number: t.task_number, title: t.title, criteria: t.criteria, is_active: true });
-    }
-    showToast('success', `${GRADE_LABEL[activeGrade]}の課題を更新`, `${parsedGradeCSV.length}件`);
-    clearGradeCSV();
-    loadGradeTaskList();
-    btn.disabled = false;
-    btn.innerHTML = `<i class="fas fa-upload mr-3"></i><span id="grade-upload-label">${GRADE_LABEL[activeGrade]}</span>の課題をこの内容で更新する`;
-}
-
-async function uploadSongTasks() {
-    if (!parsedSongCSV.length) return;
-    const btn = document.getElementById('song-upload-btn');
-    btn.disabled = true;
-    btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-3"></i>更新中...';
-    const song = songs.find(s => s.song_key === activeSongManage);
-    const { data: old } = await db.from('song_tasks').select('id').eq('song_key', activeSongManage).eq('is_active', true);
-    for (const t of (old || [])) await db.from('song_tasks').update({ is_active: false }).eq('id', t.id);
-    for (const t of parsedSongCSV) {
-        await db.from('song_tasks').insert({ song_key: activeSongManage, song_name: song?.song_name || '', task_number: t.task_number, title: t.title, criteria: t.criteria, is_active: true });
-    }
-    const label = song ? `${song.icon} ${song.song_name}` : activeSongManage;
-    showToast('success', `${label}の課題を更新`, `${parsedSongCSV.length}件`);
-    clearSongCSV();
-    loadSongTaskList();
-    btn.disabled = false;
-    btn.innerHTML = `<i class="fas fa-upload mr-3"></i><span id="song-upload-label">${label}</span>の課題をこの内容で更新する`;
-}
-
-// =============================================
-// 曲管理
-// =============================================
-async function loadSongsList() {
-    const listEl = document.getElementById('songs-list');
-    if (!songs.length) { listEl.innerHTML = '<p class="text-gray-400 text-sm text-center py-4">曲が登録されていません</p>'; return; }
-    listEl.innerHTML = songs.map(s => `
-        <div class="flex items-center bg-gray-50 border border-gray-200 rounded-xl p-4 gap-4">
-            <span class="text-2xl">${s.icon}</span>
-            <div class="flex-1"><p class="font-semibold text-gray-800">${s.song_name}</p><p class="text-xs text-gray-400">${s.song_key}</p></div>
-            <div class="flex gap-2">
-                <button onclick="openEditSongModal('${s.id}')" class="text-blue-500 hover:text-blue-700 p-1"><i class="fas fa-edit"></i></button>
-                <button onclick="deleteSong('${s.id}')" class="text-red-400 hover:text-red-600 p-1"><i class="fas fa-trash"></i></button>
-            </div>
-        </div>`).join('');
-}
-
-function openAddSongModal() {
-    document.getElementById('song-modal-title').textContent = '曲を追加';
-    document.getElementById('song-edit-id').value = '';
-    document.getElementById('song-edit-name').value = '';
-    document.getElementById('song-edit-icon').value = '🎵';
-    openModal('song-modal');
-}
-
-function openEditSongModal(songId) {
-    const song = songs.find(s => s.id === songId);
-    if (!song) return;
-    document.getElementById('song-modal-title').textContent = '曲を編集';
-    document.getElementById('song-edit-id').value   = song.id;
-    document.getElementById('song-edit-name').value = song.song_name;
-    document.getElementById('song-edit-icon').value = song.icon;
-    openModal('song-modal');
-}
-
-async function saveSong() {
-    const id   = document.getElementById('song-edit-id').value;
-    const name = document.getElementById('song-edit-name').value.trim();
-    const icon = document.getElementById('song-edit-icon').value.trim() || '🎵';
-    if (!name) { alert('曲名を入力してください'); return; }
-
-    if (id) {
-        await db.from('songs').update({ song_name: name, icon }).eq('id', id);
-        showToast('success', '曲を更新しました', '');
-    } else {
-        const songKey = name.replace(/\s+/g, '_').replace(/[^\w_]/g, '') + '_' + Date.now();
-        await db.from('songs').insert({ song_key: songKey, song_name: name, icon, sort_order: songs.length + 1 });
-        showToast('success', '曲を追加しました', '');
-    }
-    closeModal('song-modal');
-    await loadSongs();
-    loadSongsList();
-    renderSongManageTabs();
-}
-
-async function deleteSong(songId) {
-    const song = songs.find(s => s.id === songId);
-    if (!confirm(`「${song?.song_name}」を削除しますか？関連する課題も非表示になります。`)) return;
-    await db.from('songs').update({ is_active: false }).eq('id', songId);
-    await loadSongs();
-    loadSongsList();
-    renderSongManageTabs();
-    showToast('success', '曲を削除しました', '');
-}
-
-// =============================================
-// お知らせ
-// =============================================
-async function loadAnnouncements() {
-    const listEl = document.getElementById('announce-list');
-    const { data } = await db.from('announcements').select('*').order('is_pinned', { ascending: false }).order('created_at', { ascending: false });
-    if (!data?.length) { listEl.innerHTML = '<p class="text-center text-gray-400 py-8">お知らせがありません</p>'; return; }
-    listEl.innerHTML = data.map(a => `
-        <div class="bg-white border border-gray-200 rounded-xl p-5 flex items-start gap-4">
-            <div class="flex-1 min-w-0">
-                <div class="flex items-center gap-2 mb-1">
-                    ${a.is_pinned ? '<span class="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-semibold">固定</span>' : ''}
-                    ${a.is_active ? '<span class="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-semibold">表示中</span>' : '<span class="text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full font-semibold">非表示</span>'}
-                </div>
-                <p class="font-semibold text-gray-800">${a.title}</p>
-                ${a.content ? `<p class="text-sm text-gray-500 mt-1">${a.content}</p>` : ''}
-                <p class="text-xs text-gray-400 mt-2">${new Date(a.created_at).toLocaleDateString('ja-JP')}</p>
-            </div>
-            <div class="flex gap-2 shrink-0">
-                <button onclick="openEditAnnounce('${a.id}')" class="text-blue-500 hover:text-blue-700 p-1"><i class="fas fa-edit"></i></button>
-                <button onclick="toggleAnnounceActive('${a.id}', ${a.is_active})" class="text-yellow-500 hover:text-yellow-700 p-1" title="${a.is_active ? '非表示にする' : '表示する'}">
-                    <i class="fas fa-${a.is_active ? 'eye-slash' : 'eye'}"></i></button>
-                <button onclick="deleteAnnounce('${a.id}')" class="text-red-400 hover:text-red-600 p-1"><i class="fas fa-trash"></i></button>
-            </div>
-        </div>`).join('');
-}
-
-function openAnnounceModal() {
-    document.getElementById('announce-modal-title').textContent = 'お知らせを作成';
-    document.getElementById('announce-edit-id').value  = '';
-    document.getElementById('announce-title').value    = '';
-    document.getElementById('announce-content').value  = '';
-    document.getElementById('announce-pinned').checked = false;
-    openModal('announce-modal');
-}
-
-async function openEditAnnounce(id) {
-    const { data } = await db.from('announcements').select('*').eq('id', id).single();
-    document.getElementById('announce-modal-title').textContent = 'お知らせを編集';
-    document.getElementById('announce-edit-id').value  = id;
-    document.getElementById('announce-title').value    = data.title;
-    document.getElementById('announce-content').value  = data.content;
-    document.getElementById('announce-pinned').checked = data.is_pinned;
-    openModal('announce-modal');
-}
-
-async function saveAnnounce() {
-    const id      = document.getElementById('announce-edit-id').value;
-    const title   = document.getElementById('announce-title').value.trim();
-    const content = document.getElementById('announce-content').value.trim();
-    const pinned  = document.getElementById('announce-pinned').checked;
-    if (!title) { alert('タイトルを入力してください'); return; }
-
-    if (id) {
-        await db.from('announcements').update({ title, content, is_pinned: pinned }).eq('id', id);
-    } else {
-        await db.from('announcements').insert({ title, content, is_pinned: pinned, is_active: true });
-    }
-    closeModal('announce-modal');
-    showToast('success', id ? 'お知らせを更新しました' : 'お知らせを作成しました', '');
-    loadAnnouncements();
-}
-
-async function toggleAnnounceActive(id, current) {
-    await db.from('announcements').update({ is_active: !current }).eq('id', id);
-    loadAnnouncements();
-}
-
-async function deleteAnnounce(id) {
-    if (!confirm('このお知らせを削除しますか？')) return;
-    await db.from('announcements').delete().eq('id', id);
-    loadAnnouncements();
-    showToast('success', 'お知らせを削除しました', '');
-}
-
-// =============================================
-// 生徒名簿
-// =============================================
-function initStudents() {
-    const gradeEl = document.getElementById('student-grade-select');
-    gradeEl.innerHTML = '<option value="">学年を選択</option>';
-    [...new Set(classesData.map(c => c.grade))].sort().forEach(g => {
-        const opt = document.createElement('option');
-        opt.value = g;
-        opt.textContent = `${g}年`;
-        gradeEl.appendChild(opt);
-    });
-}
-
-function onStudentGradeChange() {
-    const grade = document.getElementById('student-grade-select').value;
-    const classEl = document.getElementById('student-class-select');
-    classEl.innerHTML = '<option value="">組を選択</option>';
-    classesData.filter(c => c.grade === grade).forEach(c => {
-        const opt = document.createElement('option');
-        opt.value = c.class_name;
-        opt.textContent = `${c.class_name}組`;
-        classEl.appendChild(opt);
-    });
-    classEl.disabled = !grade;
-    document.getElementById('student-roster').innerHTML = '<p class="text-gray-400 text-sm text-center py-4">組を選択してください</p>';
-}
-
-document.addEventListener('DOMContentLoaded', () => {
-    const gradeEl = document.getElementById('student-grade-select');
-    if (gradeEl) gradeEl.addEventListener('change', onStudentGradeChange);
-});
-
-async function loadStudentRoster() {
-    const grade = document.getElementById('student-grade-select').value;
-    const cls   = document.getElementById('student-class-select').value;
-    if (!grade || !cls) return;
-
-    const rosterEl = document.getElementById('student-roster');
-    rosterEl.innerHTML = '<p class="text-gray-400 text-sm text-center py-4"><i class="fas fa-spinner fa-spin mr-2"></i>読み込み中...</p>';
-
-    const { data } = await db.from('students').select('*').eq('grade', grade).eq('class_name', cls).order('number');
-    if (!data?.length) {
-        rosterEl.innerHTML = '<p class="text-gray-400 text-sm text-center py-4">生徒が登録されていません</p>';
-        return;
-    }
-    rosterEl.innerHTML = data.map(s => `
-        <div id="student-row-${s.id}" class="flex items-center gap-3 bg-gray-50 border border-gray-200 rounded-lg px-4 py-3">
-            <span class="w-10 text-center font-bold text-gray-600 text-sm">${s.number}番</span>
-            <input type="text" value="${s.name}" class="flex-1 px-2 py-1 border border-gray-200 rounded text-sm focus:ring-1 focus:ring-blue-300 focus:outline-none"
-                onchange="updateStudentName('${s.id}', this.value)">
-            <button onclick="deleteStudent('${s.id}')" class="text-red-400 hover:text-red-600 p-1 text-sm"><i class="fas fa-trash"></i></button>
-        </div>`).join('');
-}
-
-async function addStudent() {
-    const grade  = document.getElementById('student-grade-select').value;
-    const cls    = document.getElementById('student-class-select').value;
-    const number = parseInt(document.getElementById('new-student-number').value);
-    const name   = document.getElementById('new-student-name').value.trim();
-    if (!grade || !cls) { alert('学年・組を選択してください'); return; }
-    if (!number || !name) { alert('番号と氏名を入力してください'); return; }
-
-    const { error } = await db.from('students').upsert(
-        { grade, class_name: cls, number, name },
-        { onConflict: 'grade,class_name,number' }
-    );
-    if (error) { showToast('error', '追加失敗', error.message); return; }
-    document.getElementById('new-student-number').value = '';
-    document.getElementById('new-student-name').value = '';
-    showToast('success', '生徒を追加しました', '');
-    loadStudentRoster();
-}
-
-async function updateStudentName(id, name) {
-    await db.from('students').update({ name }).eq('id', id);
-    showToast('success', '名前を更新しました', '');
-}
-
-async function deleteStudent(id) {
-    if (!confirm('この生徒を名簿から削除しますか？進捗データは残ります。')) return;
-    await db.from('students').delete().eq('id', id);
-    document.getElementById(`student-row-${id}`)?.remove();
-    showToast('success', '生徒を削除しました', '');
-}
-
-// =============================================
-// クラス設定
-// =============================================
-function renderSettings() {
-    const container = document.getElementById('settings-container');
-    const byGrade = {};
-    classesData.forEach(c => { if (!byGrade[c.grade]) byGrade[c.grade] = []; byGrade[c.grade].push(c); });
-
-    container.innerHTML = ALL_GRADES.map(g => {
-        const classes = byGrade[g] || [];
-        return `
-        <div class="bg-white rounded-2xl shadow-lg p-6">
-            <div class="flex items-center gap-3 mb-4">
-                <span class="w-10 h-10 rounded-full ${GRADE_COLOR[g]} flex items-center justify-center text-lg font-bold">${g}</span>
-                <h3 class="text-lg font-bold text-gray-900">${GRADE_LABEL[g]}</h3>
-            </div>
-            <div class="space-y-2" id="class-list-${g}">
-                ${classes.length ? classes.map(c => buildClassRow(c)).join('') : '<p class="text-gray-400 text-sm">クラスがありません</p>'}
-            </div>
-        </div>`;
-    }).join('');
-}
-
-function buildClassRow(cls) {
-    return `<div id="class-row-${cls.id}" class="flex items-center gap-3 bg-gray-50 border border-gray-200 rounded-lg px-4 py-3">
-        <span class="font-semibold text-gray-700 text-sm w-20">${cls.grade}年${cls.class_name}組</span>
-        <div class="flex items-center gap-1 text-sm text-gray-500">
-            <i class="fas fa-users text-xs"></i>
-            <input type="number" value="${cls.max_students}" min="1" max="99"
-                class="w-16 px-2 py-1 border border-gray-200 rounded text-sm text-center focus:ring-1 focus:ring-blue-300 focus:outline-none"
-                onchange="updateClassMax('${cls.id}', this.value)">
-            <span>名</span>
-        </div>
-        <div class="flex-1"></div>
-        <button onclick="deleteClass('${cls.id}')" class="text-red-400 hover:text-red-600 p-1 text-sm"><i class="fas fa-trash"></i></button>
-    </div>`;
-}
-
-async function updateClassMax(classId, maxVal) {
-    const max = parseInt(maxVal);
-    if (!max || max < 1) return;
-    await db.from('classes').update({ max_students: max }).eq('id', classId);
-    const row = classesData.find(c => c.id === classId);
-    if (row) row.max_students = max;
-    showToast('success', '人数を更新しました', '');
-}
-
-async function addClass() {
-    const grade = document.getElementById('new-class-grade').value;
-    const name  = document.getElementById('new-class-name').value.trim();
-    const max   = parseInt(document.getElementById('new-class-max').value) || 40;
-    if (!name) { alert('組名を入力してください'); return; }
-
-    const { data, error } = await db.from('classes').upsert(
-        { grade, class_name: name, max_students: max, is_active: true },
-        { onConflict: 'grade,class_name' }
-    ).select().single();
-    if (error) { showToast('error', '追加失敗', error.message); return; }
-
-    document.getElementById('new-class-name').value = '';
-    await loadClasses();
-    renderSettings();
-    renderClassCards();
-    showToast('success', 'クラスを追加しました', `${grade}年${name}組`);
-}
-
-async function deleteClass(classId) {
-    const cls = classesData.find(c => c.id === classId);
-    if (!confirm(`${cls?.grade}年${cls?.class_name}組を削除しますか？`)) return;
-    await db.from('classes').update({ is_active: false }).eq('id', classId);
-    await loadClasses();
-    renderSettings();
-    renderClassCards();
-    showToast('success', 'クラスを削除しました', '');
-}
-
-// =============================================
-// モーダル
-// =============================================
-function openModal(id)  { document.getElementById(id).classList.add('open'); }
-function closeModal(id) { document.getElementById(id).classList.remove('open'); }
-document.addEventListener('click', e => {
-    ['task-edit-modal','announce-modal','song-modal'].forEach(id => {
-        if (e.target === document.getElementById(id)) closeModal(id);
-    });
-});
-
-// =============================================
-// トースト
-// =============================================
-let toastTimer = null;
-function showToast(type, title, msg) {
-    const inner = document.getElementById('toast-inner');
-    const icon  = document.getElementById('toast-icon');
-    document.getElementById('toast-title').textContent = title;
-    document.getElementById('toast-msg').textContent   = msg;
-    inner.className = `px-5 py-4 rounded-xl shadow-xl flex items-center space-x-3 ${type === 'success' ? 'bg-green-600' : 'bg-red-600'} text-white`;
-    icon.className  = `fas fa-${type === 'success' ? 'check-circle' : 'exclamation-circle'} text-xl shrink-0`;
-    document.getElementById('toast').classList.remove('hidden');
-    if (toastTimer) clearTimeout(toastTimer);
-    toastTimer = setTimeout(() => document.getElementById('toast').classList.add('hidden'), 4000);
-}
-
-// =============================================
-// ログアウト
-// =============================================
-async function logout() {
-    if (!confirm('ログアウトしますか？')) return;
+    if (error) { errEl.textContent = error.message; errEl.classList.remove('hidden'); return; }
+
+    T = { id: window._authUserId, email: window._authEmail, username, name: name || username, school_id, school_name, department: '音楽科' };
+    document.getElementById('setup-overlay').classList.add('hidden');
+    startApp();
+  }
+
+  function startApp() {
+    document.getElementById('teacher-label').textContent = T.name || T.username;
+    document.getElementById('school-label').textContent  = T.school_name || T.school_id;
+    const url = `${location.origin}${location.pathname.replace('teacher.html', 'index.html')}?school=${T.school_id}`;
+    document.getElementById('student-url').textContent = url;
+    document.getElementById('set-username').value   = T.username || '';
+    document.getElementById('set-name').value       = T.name || '';
+    document.getElementById('set-school-id').value  = T.school_id;
+    document.getElementById('set-school-name').value = T.school_name || '';
+    document.getElementById('app').classList.remove('hidden');
+    switchTab('dashboard');
+  }
+
+  async function doLogout() {
     await db.auth.signOut();
     localStorage.removeItem('currentUser');
     localStorage.removeItem('userType');
     window.location.href = 'teacher-login.html';
-}
+  }
+
+  // ---- TABS ----
+
+  async function switchTab(name) {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(c => c.classList.add('hidden'));
+    document.getElementById(`tab-btn-${name}`)?.classList.add('active');
+    document.getElementById(`tab-${name}`)?.classList.remove('hidden');
+    if (!tabLoaded[name]) {
+      tabLoaded[name] = true;
+      const loaders = { dashboard: loadDashboard, progress: initProgress, tasks: loadTasks, announce: loadAnnounce, roster: initRoster, classes: loadClassesTab, settings: () => {} };
+      if (loaders[name]) await loaders[name]();
+    }
+  }
+
+  // ---- DASHBOARD ----
+
+  async function loadDashboard() {
+    const el = document.getElementById('dash-content');
+    const [classRes, studRes, progRes, taskRes] = await Promise.all([
+      db.from('classes').select('grade, class_name, max_students').eq('school_id', T.school_id).eq('is_active', true).order('grade').order('class_name'),
+      db.from('students').select('grade, class_name').eq('school_id', T.school_id),
+      db.from('student_progress').select('student_id, is_completed').eq('school_id', T.school_id),
+      db.from('koto_tasks').select('id').eq('school_id', T.school_id).eq('is_active', true)
+    ]);
+    const classes = classRes.data || [];
+    const students = studRes.data || [];
+    const progress = progRes.data || [];
+    const taskCount = taskRes.data?.length || 0;
+
+    const totalStudents = students.length;
+    const completedItems = progress.filter(p => p.is_completed).length;
+    const totalItems = progress.length;
+    const avgPct = totalItems ? Math.round(completedItems / totalItems * 100) : 0;
+
+    let classRows = '';
+    classes.forEach(c => {
+      const studs = students.filter(s => s.grade === c.grade && s.class_name === c.class_name);
+      const done  = progress.filter(p => studs.some(s => `${s.grade}${s.class_name}` === p.student_id?.substring(0, p.student_id.length - 2)) && p.is_completed).length;
+      const total = progress.filter(p => studs.some(s => `${s.grade}${s.class_name}` === p.student_id?.substring(0, p.student_id.length - 2))).length;
+      const pct = total ? Math.round(done / total * 100) : 0;
+      classRows += `
+        <div class="flex items-center gap-3">
+          <div class="w-20 text-sm font-semibold text-gray-700 flex-shrink-0">${c.grade}年${c.class_name}組</div>
+          <div class="flex-1 bg-gray-100 rounded-full h-3 overflow-hidden">
+            <div class="h-full rounded-full bg-gradient-to-r from-red-500 to-amber-400 transition-all" style="width:${pct}%"></div>
+          </div>
+          <div class="text-sm font-bold text-gray-600 w-10 text-right">${pct}%</div>
+          <div class="text-xs text-gray-400">${studs.length}名</div>
+        </div>`;
+    });
+
+    el.innerHTML = `
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+        ${stat('fa-users','生徒数',totalStudents+'名','#FEF3C7','#92400E')}
+        ${stat('fa-school','クラス数',classes.length+'クラス','#EDE9FE','#5B21B6')}
+        ${stat('fa-tasks','課題数',taskCount+'課題','#DCFCE7','#166534')}
+        ${stat('fa-chart-pie','平均達成率',avgPct+'%','#FEE2E2','#991B1B')}
+      </div>
+      <div class="card p-5">
+        <div class="section-title"><i class="fas fa-chart-bar text-red-500"></i>クラス別進捗</div>
+        <div class="space-y-3">${classRows || '<p class="text-sm text-gray-400">クラスが登録されていません</p>'}</div>
+      </div>`;
+  }
+
+  function stat(icon, label, val, bg, color) {
+    return `<div class="card p-4 text-center" style="background:${bg}">
+      <i class="fas ${icon} text-2xl mb-2" style="color:${color}"></i>
+      <div class="text-xl font-bold" style="color:${color}">${val}</div>
+      <div class="text-xs font-medium mt-0.5" style="color:${color}">${label}</div>
+    </div>`;
+  }
+
+  // ---- PROGRESS ----
+
+  async function initProgress() {
+    await loadClassSelectors('prog-grade', 'prog-class');
+  }
+
+  async function onProgGradeChange() {
+    const grade = document.getElementById('prog-grade').value;
+    const cls   = document.getElementById('prog-class');
+    cls.innerHTML = '<option value="">選択</option>';
+    cls.disabled = true;
+    if (!grade) return;
+    classesCache.filter(c => c.grade === grade).forEach(c => {
+      const o = document.createElement('option'); o.value = c.class_name; o.textContent = c.class_name + '組'; cls.appendChild(o);
+    });
+    cls.disabled = false;
+  }
+
+  async function loadProgressMatrix() {
+    const grade  = document.getElementById('prog-grade').value;
+    const cls    = document.getElementById('prog-class').value;
+    const type   = document.getElementById('prog-type').value;
+    const wrap   = document.getElementById('matrix-wrap');
+    if (!grade || !cls) { wrap.innerHTML = '<div class="text-center text-gray-400 text-sm py-6">クラスを選択してください</div>'; return; }
+
+    wrap.innerHTML = '<div class="text-center text-gray-400 text-sm py-6"><i class="fas fa-spinner fa-spin mr-2"></i>読み込み中...</div>';
+
+    const prefix = `${grade}${cls}`;
+    const [studRes, taskRes, progRes] = await Promise.all([
+      db.from('students').select('student_id, name, number').eq('school_id', T.school_id).eq('grade', grade).eq('class_name', cls).order('number'),
+      type === 'koto'
+        ? db.from('koto_tasks').select('id, title').eq('school_id', T.school_id).eq('is_active', true).order('order_num')
+        : db.from('song_tasks').select('id, title').eq('school_id', T.school_id).order('order_num'),
+      db.from('student_progress').select('student_id, task_db_id, is_completed').eq('school_id', T.school_id).like('student_id', prefix + '%')
+    ]);
+
+    const students = studRes.data || [];
+    const tasks    = taskRes.data || [];
+    const progress = progRes.data || [];
+
+    if (!students.length || !tasks.length) {
+      wrap.innerHTML = '<div class="text-center text-gray-400 text-sm py-6">生徒または課題が登録されていません</div>';
+      return;
+    }
+
+    const progMap = {};
+    progress.forEach(p => { progMap[`${p.student_id}_${p.task_db_id}`] = p.is_completed; });
+
+    let head = '<tr><th>生徒</th>';
+    tasks.forEach(t => { head += `<th class="text-center" style="min-width:36px" title="${t.title}">${tasks.indexOf(t)+1}</th>`; });
+    head += '</tr>';
+
+    let body = '';
+    students.forEach(s => {
+      body += `<tr><td class="font-medium whitespace-nowrap">${s.number}番 ${s.name || ''}</td>`;
+      tasks.forEach(t => {
+        const done = progMap[`${s.student_id}_${t.id}`] || false;
+        body += `<td class="text-center p-1"><div class="matrix-cell ${done ? 'done' : 'todo'} mx-auto" onclick="toggleMatrix('${s.student_id}','${t.id}',this)">${done ? '✓' : ''}</div></td>`;
+      });
+      body += '</tr>';
+    });
+
+    let legend = '';
+    tasks.forEach((t, i) => { legend += `<span class="text-xs text-gray-500">${i+1}: ${t.title}</span>`; });
+
+    wrap.innerHTML = `
+      <div class="overflow-x-auto">
+        <table style="font-size:12px"><thead>${head}</thead><tbody>${body}</tbody></table>
+      </div>
+      <div class="mt-3 flex flex-wrap gap-x-4 gap-y-1">${legend}</div>`;
+  }
+
+  async function toggleMatrix(studentId, taskId, cell) {
+    const done = cell.classList.contains('done');
+    cell.classList.toggle('done', !done);
+    cell.classList.toggle('todo', done);
+    cell.textContent = done ? '' : '✓';
+    await db.from('student_progress').upsert({
+      school_id: T.school_id, student_id: studentId, task_db_id: taskId,
+      is_completed: !done, updated_at: new Date().toISOString()
+    }, { onConflict: 'school_id,student_id,task_db_id' });
+  }
+
+  // ---- TASKS ----
+
+  async function loadTasks() {
+    await Promise.all([loadKotoTasks(), loadSongsManage()]);
+  }
+
+  async function loadKotoTasks() {
+    const { data } = await db.from('koto_tasks').select('*').eq('school_id', T.school_id).eq('is_active', true).order('order_num');
+    const el = document.getElementById('koto-task-list');
+    el.innerHTML = '';
+    (data || []).forEach(t => {
+      const row = document.createElement('div');
+      row.className = 'flex items-center gap-2 p-2 bg-gray-50 rounded-lg';
+      row.id = `kt-${t.id}`;
+      row.innerHTML = `
+        <span class="flex-1 text-sm">${t.title}</span>
+        <button class="btn-sm btn-edit" onclick="openEditTask('${t.id}','${escQ(t.title)}','${escQ(t.description||'')}')"><i class="fas fa-pen"></i></button>
+        <button class="btn-sm btn-del" onclick="deleteKotoTask('${t.id}')"><i class="fas fa-trash"></i></button>
+      `;
+      el.appendChild(row);
+    });
+  }
+
+  async function addKotoTask(e) {
+    e.preventDefault();
+    const title = document.getElementById('koto-title').value.trim();
+    const { data: last } = await db.from('koto_tasks').select('order_num').eq('school_id', T.school_id).order('order_num', { ascending: false }).limit(1);
+    const order = (last?.[0]?.order_num || 0) + 1;
+    const { error } = await db.from('koto_tasks').insert({ school_id: T.school_id, title, order_num: order });
+    if (error) { toast('追加失敗: ' + error.message, 'error'); return; }
+    document.getElementById('koto-title').value = '';
+    tabLoaded['dashboard'] = false;
+    await loadKotoTasks();
+    toast('課題を追加しました', 'success');
+  }
+
+  function openEditTask(id, title, desc) {
+    document.getElementById('edit-task-id').value    = id;
+    document.getElementById('edit-task-title').value = title;
+    document.getElementById('edit-task-desc').value  = desc;
+    document.getElementById('edit-task-modal').classList.remove('hidden');
+  }
+
+  async function saveTaskEdit() {
+    const id    = document.getElementById('edit-task-id').value;
+    const title = document.getElementById('edit-task-title').value.trim();
+    const desc  = document.getElementById('edit-task-desc').value.trim();
+    const { error } = await db.from('koto_tasks').update({ title, description: desc }).eq('id', id);
+    if (error) { toast('保存失敗', 'error'); return; }
+    closeModal('edit-task-modal');
+    await loadKotoTasks();
+    toast('保存しました', 'success');
+  }
+
+  async function deleteKotoTask(id) {
+    if (!confirm('この課題を削除しますか？')) return;
+    const { error } = await db.from('koto_tasks').delete().eq('id', id);
+    if (error) { toast('削除失敗', 'error'); return; }
+    await loadKotoTasks();
+    toast('削除しました', 'success');
+  }
+
+  async function loadSongsManage() {
+    const { data } = await db.from('songs').select('*').eq('school_id', T.school_id).eq('is_active', true).order('order_num');
+    const el = document.getElementById('songs-manage-list');
+    el.innerHTML = '';
+    (data || []).forEach(s => {
+      const row = document.createElement('div');
+      row.className = 'p-3 bg-amber-50 rounded-xl flex items-center gap-2';
+      row.innerHTML = `
+        <div class="flex-1 min-w-0">
+          <div class="text-sm font-semibold truncate">${s.title}</div>
+          ${s.artist ? `<div class="text-xs text-gray-400">${s.artist}</div>` : ''}
+        </div>
+        <button class="btn-sm btn-edit" onclick="openSongTasks('${s.id}','${escQ(s.title)}')">課題</button>
+        <button class="btn-sm btn-del" onclick="deleteSong('${s.id}')"><i class="fas fa-trash"></i></button>
+      `;
+      el.appendChild(row);
+    });
+  }
+
+  async function addSong(e) {
+    e.preventDefault();
+    const title  = document.getElementById('song-title').value.trim();
+    const artist = document.getElementById('song-artist').value.trim();
+    const { data: last } = await db.from('songs').select('order_num').eq('school_id', T.school_id).order('order_num', { ascending: false }).limit(1);
+    const order = (last?.[0]?.order_num || 0) + 1;
+    const { error } = await db.from('songs').insert({ school_id: T.school_id, title, artist, order_num: order });
+    if (error) { toast('追加失敗', 'error'); return; }
+    document.getElementById('song-title').value = '';
+    document.getElementById('song-artist').value = '';
+    await loadSongsManage();
+    toast('楽曲を追加しました', 'success');
+  }
+
+  async function deleteSong(id) {
+    if (!confirm('この楽曲と関連課題を削除しますか？')) return;
+    await db.from('songs').delete().eq('id', id);
+    await loadSongsManage();
+    toast('削除しました', 'success');
+  }
+
+  async function openSongTasks(songId, songTitle) {
+    document.getElementById('song-tasks-song-id').value = songId;
+    document.getElementById('song-tasks-title').textContent = songTitle;
+    await loadSongTasksList(songId);
+    document.getElementById('song-tasks-modal').classList.remove('hidden');
+  }
+
+  async function loadSongTasksList(songId) {
+    songId = songId || document.getElementById('song-tasks-song-id').value;
+    const { data } = await db.from('song_tasks').select('*').eq('song_id', songId).order('order_num');
+    const el = document.getElementById('song-tasks-list');
+    el.innerHTML = '';
+    (data || []).forEach(t => {
+      const row = document.createElement('div');
+      row.className = 'flex items-center gap-2 p-2 bg-gray-50 rounded-lg';
+      row.innerHTML = `
+        <span class="flex-1 text-sm">${t.title}</span>
+        <button class="btn-sm btn-del" onclick="deleteSongTask('${t.id}','${songId}')"><i class="fas fa-trash"></i></button>
+      `;
+      el.appendChild(row);
+    });
+    document.getElementById('song-tasks-sub').textContent = `${data?.length || 0}課題`;
+  }
+
+  async function addSongTask(e) {
+    e.preventDefault();
+    const songId = document.getElementById('song-tasks-song-id').value;
+    const title  = document.getElementById('new-song-task-title').value.trim();
+    const { data: last } = await db.from('song_tasks').select('order_num').eq('song_id', songId).order('order_num', { ascending: false }).limit(1);
+    const order = (last?.[0]?.order_num || 0) + 1;
+    const { error } = await db.from('song_tasks').insert({ song_id: songId, school_id: T.school_id, title, order_num: order });
+    if (error) { toast('追加失敗', 'error'); return; }
+    document.getElementById('new-song-task-title').value = '';
+    await loadSongTasksList(songId);
+    toast('課題を追加しました', 'success');
+  }
+
+  async function deleteSongTask(id, songId) {
+    if (!confirm('この課題を削除しますか？')) return;
+    await db.from('song_tasks').delete().eq('id', id);
+    await loadSongTasksList(songId);
+    toast('削除しました', 'success');
+  }
+
+  // ---- ANNOUNCEMENTS ----
+
+  async function loadAnnounce() {
+    const { data } = await db.from('announcements').select('*').eq('school_id', T.school_id).order('is_pinned', { ascending: false }).order('created_at', { ascending: false });
+    const el = document.getElementById('announce-list');
+    el.innerHTML = '';
+    (data || []).forEach(a => {
+      const row = document.createElement('div');
+      row.className = 'card p-4 flex items-start gap-3';
+      row.innerHTML = `
+        <div class="flex-1">
+          <div class="flex items-center gap-2 mb-0.5">
+            <span class="font-semibold text-sm">${a.title}</span>
+            ${a.is_pinned ? '<span class="badge badge-amber">📌 固定</span>' : ''}
+            <span class="badge ${a.is_active ? 'badge-green' : 'badge-gray'}">${a.is_active ? '公開中' : '非公開'}</span>
+          </div>
+          ${a.content ? `<p class="text-xs text-gray-500 mt-1">${a.content}</p>` : ''}
+          <p class="text-xs text-gray-300 mt-1">${new Date(a.created_at).toLocaleDateString('ja-JP')}</p>
+        </div>
+        <div class="flex gap-1">
+          <button class="btn-sm ${a.is_active ? 'btn-toggle' : 'btn-toggle off'}" onclick="toggleAnnounce('${a.id}',${a.is_active})">${a.is_active ? '公開' : '非公開'}</button>
+          <button class="btn-sm btn-del" onclick="deleteAnnounce('${a.id}')"><i class="fas fa-trash"></i></button>
+        </div>
+      `;
+      el.appendChild(row);
+    });
+    if (!data?.length) el.innerHTML = '<div class="text-center text-gray-400 text-sm py-4">お知らせはありません</div>';
+  }
+
+  async function addAnnounce(e) {
+    e.preventDefault();
+    const title   = document.getElementById('ann-title').value.trim();
+    const content = document.getElementById('ann-content').value.trim();
+    const pinned  = document.getElementById('ann-pinned').checked;
+    const { error } = await db.from('announcements').insert({ school_id: T.school_id, title, content, is_pinned: pinned });
+    if (error) { toast('追加失敗', 'error'); return; }
+    document.getElementById('ann-title').value   = '';
+    document.getElementById('ann-content').value = '';
+    document.getElementById('ann-pinned').checked = false;
+    await loadAnnounce();
+    toast('お知らせを追加しました', 'success');
+  }
+
+  async function toggleAnnounce(id, current) {
+    await db.from('announcements').update({ is_active: !current }).eq('id', id);
+    await loadAnnounce();
+  }
+
+  async function deleteAnnounce(id) {
+    if (!confirm('削除しますか？')) return;
+    await db.from('announcements').delete().eq('id', id);
+    await loadAnnounce();
+    toast('削除しました', 'success');
+  }
+
+  // ---- ROSTER ----
+
+  async function initRoster() {
+    await loadClassSelectors('roster-grade', 'roster-class', true);
+    await populateAddStudentSelectors();
+    await loadRoster();
+  }
+
+  async function populateAddStudentSelectors() {
+    const gs = document.getElementById('add-stu-grade');
+    const cs = document.getElementById('add-stu-class');
+    gs.innerHTML = '<option value="">学年</option>';
+    cs.innerHTML = '<option value="">組</option>';
+    classesCache.forEach(c => {
+      const og = gs.querySelector(`option[value="${c.grade}"]`);
+      if (!og) { const o = document.createElement('option'); o.value = c.grade; o.textContent = c.grade + '年'; gs.appendChild(o); }
+    });
+    gs.onchange = () => {
+      cs.innerHTML = '<option value="">組</option>';
+      classesCache.filter(c => c.grade === gs.value).forEach(c => {
+        const o = document.createElement('option'); o.value = c.class_name; o.textContent = c.class_name + '組'; cs.appendChild(o);
+      });
+    };
+  }
+
+  async function onRosterGradeChange() {
+    const grade = document.getElementById('roster-grade').value;
+    const cls   = document.getElementById('roster-class');
+    cls.innerHTML = '<option value="">全て</option>';
+    classesCache.filter(c => !grade || c.grade === grade).map(c => c.class_name).filter((v,i,a) => a.indexOf(v) === i).forEach(cn => {
+      const o = document.createElement('option'); o.value = cn; o.textContent = cn + '組'; cls.appendChild(o);
+    });
+    await loadRoster();
+  }
+
+  async function loadRoster() {
+    const grade = document.getElementById('roster-grade').value;
+    const cls   = document.getElementById('roster-class').value;
+    let query = db.from('students').select('*').eq('school_id', T.school_id).order('grade').order('class_name').order('number');
+    if (grade) query = query.eq('grade', grade);
+    if (cls)   query = query.eq('class_name', cls);
+    const { data } = await query;
+    const wrap = document.getElementById('roster-table-wrap');
+    if (!data?.length) { wrap.innerHTML = '<p class="text-center text-sm text-gray-400 py-4">生徒が登録されていません</p>'; return; }
+    let html = '<table><thead><tr><th>学年</th><th>組</th><th>番号</th><th>名前</th><th>生徒ID</th><th>操作</th></tr></thead><tbody>';
+    data.forEach(s => {
+      html += `<tr>
+        <td>${s.grade}年</td><td>${s.class_name}組</td><td>${s.number}番</td>
+        <td>${s.name || '<span class="text-gray-300">未登録</span>'}</td>
+        <td><code class="text-xs bg-gray-100 px-1 rounded">${s.student_id}</code></td>
+        <td class="flex gap-1">
+          <button class="btn-sm btn-edit" onclick="openEditStudent('${s.id}','${s.grade}','${s.class_name}',${s.number},'${escQ(s.name||'')}')">編集</button>
+          <button class="btn-sm btn-del" onclick="deleteStudent('${s.id}')"><i class="fas fa-trash"></i></button>
+        </td>
+      </tr>`;
+    });
+    html += '</tbody></table>';
+    wrap.innerHTML = html;
+  }
+
+  async function addStudent(e) {
+    e.preventDefault();
+    const grade  = document.getElementById('add-stu-grade').value;
+    const cls    = document.getElementById('add-stu-class').value;
+    const num    = parseInt(document.getElementById('add-stu-num').value);
+    const name   = document.getElementById('add-stu-name').value.trim();
+    const sid    = `${grade}${cls}${String(num).padStart(2, '0')}`;
+    const { error } = await db.from('students').insert({ school_id: T.school_id, student_id: sid, grade, class_name: cls, number: num, name });
+    if (error) { toast(error.message.includes('unique') ? '同じ番号の生徒がすでに存在します' : '追加失敗', 'error'); return; }
+    document.getElementById('add-stu-num').value  = '';
+    document.getElementById('add-stu-name').value = '';
+    await loadRoster();
+    toast('生徒を追加しました', 'success');
+  }
+
+  function openEditStudent(id, grade, cls, num, name) {
+    document.getElementById('edit-stu-id').value    = id;
+    document.getElementById('edit-stu-grade').value = grade;
+    document.getElementById('edit-stu-class').value = cls;
+    document.getElementById('edit-stu-num').value   = num;
+    document.getElementById('edit-stu-name').value  = name;
+    document.getElementById('edit-student-modal').classList.remove('hidden');
+  }
+
+  async function saveStudentEdit() {
+    const id   = document.getElementById('edit-stu-id').value;
+    const num  = parseInt(document.getElementById('edit-stu-num').value);
+    const name = document.getElementById('edit-stu-name').value.trim();
+    const grade = document.getElementById('edit-stu-grade').value;
+    const cls   = document.getElementById('edit-stu-class').value;
+    const sid   = `${grade}${cls}${String(num).padStart(2, '0')}`;
+    const { error } = await db.from('students').update({ number: num, name, student_id: sid }).eq('id', id);
+    if (error) { toast('保存失敗', 'error'); return; }
+    closeModal('edit-student-modal');
+    await loadRoster();
+    toast('保存しました', 'success');
+  }
+
+  async function deleteStudent(id) {
+    if (!confirm('この生徒を削除しますか？')) return;
+    await db.from('students').delete().eq('id', id);
+    await loadRoster();
+    toast('削除しました', 'success');
+  }
+
+  // CSV
+  function onCSVSelected(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = ev => {
+      const text = ev.target.result;
+      const lines = text.replace(/\r/g, '').split('\n').filter(l => l.trim());
+      if (lines.length < 2) { toast('データが見つかりません', 'error'); return; }
+      const headers = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g, ''));
+      const numIdx  = headers.findIndex(h => h.includes('出席番号') || h.includes('番号') || h === 'number');
+      const nameIdx = headers.findIndex(h => h.includes('名前') || h === 'name');
+      if (numIdx < 0 || nameIdx < 0) { toast('「出席番号」「名前」列が見つかりません', 'error'); return; }
+      csvRows = lines.slice(1).map(line => {
+        const vals = line.split(',').map(v => v.trim().replace(/^"|"$/g, ''));
+        return { number: parseInt(vals[numIdx]) || 0, name: vals[nameIdx] || '' };
+      }).filter(r => r.number > 0);
+
+      const preview = document.getElementById('csv-preview');
+      preview.innerHTML = csvRows.slice(0, 10).map(r => `<tr><td>${r.number}</td><td>${r.name}</td></tr>`).join('');
+      document.getElementById('csv-count').textContent = `${csvRows.length}名のデータを確認しました${csvRows.length > 10 ? '（最初の10件を表示）' : ''}`;
+
+      // populate grade/class selectors in modal
+      const cg = document.getElementById('csv-grade');
+      const cc = document.getElementById('csv-class');
+      cg.innerHTML = '<option value="">選択</option>';
+      const grades = [...new Set(classesCache.map(c => c.grade))].sort();
+      grades.forEach(g => { const o = document.createElement('option'); o.value = g; o.textContent = g + '年'; cg.appendChild(o); });
+      cg.onchange = () => {
+        cc.innerHTML = '<option value="">選択</option>';
+        classesCache.filter(c => c.grade === cg.value).forEach(c => { const o = document.createElement('option'); o.value = c.class_name; o.textContent = c.class_name + '組'; cc.appendChild(o); });
+        cc.disabled = false;
+      };
+      cc.disabled = true;
+
+      document.getElementById('csv-modal').classList.remove('hidden');
+    };
+    reader.readAsText(file, 'UTF-8');
+    e.target.value = '';
+  }
+
+  async function doImportCSV() {
+    const grade = document.getElementById('csv-grade').value;
+    const cls   = document.getElementById('csv-class').value;
+    if (!grade || !cls) { toast('学年と組を選択してください', 'error'); return; }
+    const btn = document.getElementById('csv-import-btn');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i>インポート中...';
+
+    let ok = 0, skip = 0;
+    for (const row of csvRows) {
+      const sid = `${grade}${cls}${String(row.number).padStart(2, '0')}`;
+      const { error } = await db.from('students').upsert({
+        school_id: T.school_id, student_id: sid, grade, class_name: cls, number: row.number, name: row.name
+      }, { onConflict: 'school_id,student_id' });
+      if (error) skip++; else ok++;
+    }
+
+    closeModal('csv-modal');
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fas fa-file-import mr-1"></i>インポート';
+    await loadRoster();
+    toast(`${ok}名を登録しました${skip ? '（'+skip+'件エラー）' : ''}`, ok > 0 ? 'success' : 'error');
+  }
+
+  async function exportCSV() {
+    const { data } = await db.from('students').select('*').eq('school_id', T.school_id).order('grade').order('class_name').order('number');
+    if (!data?.length) { toast('生徒データがありません', 'error'); return; }
+    const rows = [['出席番号', '名前', '学年', '組', '学校名', '担当先生']];
+    data.forEach(s => rows.push([s.number, s.name || '', s.grade + '年', s.class_name + '組', T.school_name || T.school_id, T.name || T.username]));
+    const csv  = rows.map(r => r.map(v => `"${v}"`).join(',')).join('\n');
+    const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8' });
+    const a    = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `roster_${T.school_id}_${new Date().toISOString().slice(0,10)}.csv`;
+    a.click();
+    toast('CSVをダウンロードしました', 'success');
+  }
+
+  // ---- CLASSES ----
+
+  async function loadClassesTab() {
+    await loadClassSelectors('prog-grade', 'prog-class');
+    await renderClassList();
+  }
+
+  async function renderClassList() {
+    const el = document.getElementById('class-list');
+    el.innerHTML = '';
+    classesCache.filter(c => c.is_active).forEach(c => {
+      const row = document.createElement('div');
+      row.className = 'flex items-center gap-3 p-3 bg-gray-50 rounded-xl';
+      row.innerHTML = `
+        <div class="flex-1"><span class="font-semibold">${c.grade}年${c.class_name}組</span> <span class="text-xs text-gray-400 ml-2">最大${c.max_students}名</span></div>
+        <button class="btn-sm btn-del" onclick="deleteClass('${c.id}')"><i class="fas fa-trash"></i></button>
+      `;
+      el.appendChild(row);
+    });
+    if (!classesCache.filter(c => c.is_active).length) el.innerHTML = '<p class="text-sm text-gray-400">クラスが登録されていません</p>';
+  }
+
+  async function addClass(e) {
+    e.preventDefault();
+    const grade = document.getElementById('add-class-grade').value;
+    const name  = document.getElementById('add-class-name').value.trim();
+    const max   = parseInt(document.getElementById('add-class-max').value) || 40;
+    const { error } = await db.from('classes').insert({ school_id: T.school_id, grade, class_name: name, max_students: max });
+    if (error) { toast(error.message.includes('unique') ? 'このクラスはすでに存在します' : '追加失敗: ' + error.message, 'error'); return; }
+    document.getElementById('add-class-name').value = '';
+    await loadClassSelectors('prog-grade', 'prog-class');
+    await renderClassList();
+    tabLoaded['roster'] = false;
+    toast('クラスを追加しました', 'success');
+  }
+
+  async function deleteClass(id) {
+    if (!confirm('このクラスを削除しますか？')) return;
+    await db.from('classes').delete().eq('id', id);
+    classesCache = classesCache.filter(c => c.id !== id);
+    await renderClassList();
+    tabLoaded['roster'] = false;
+    toast('削除しました', 'success');
+  }
+
+  async function loadClassSelectors(gradeId, classId, addAll = false) {
+    const { data } = await db.from('classes').select('*').eq('school_id', T.school_id).eq('is_active', true).order('grade').order('class_name');
+    classesCache = data || [];
+    const gs = document.getElementById(gradeId);
+    const cs = document.getElementById(classId);
+    if (!gs || !cs) return;
+    const curGrade = gs.value;
+    gs.innerHTML = addAll ? '<option value="">全て</option>' : '<option value="">選択</option>';
+    [...new Set(classesCache.map(c => c.grade))].sort().forEach(g => {
+      const o = document.createElement('option'); o.value = g; o.textContent = g + '年'; gs.appendChild(o);
+    });
+    gs.value = curGrade;
+    cs.innerHTML = addAll ? '<option value="">全て</option>' : '<option value="">選択</option>';
+    cs.disabled = !addAll;
+  }
+
+  function copyStudentUrl() {
+    const url = document.getElementById('student-url').textContent;
+    navigator.clipboard.writeText(url).then(() => toast('URLをコピーしました', 'success'));
+  }
+
+  // ---- SETTINGS ----
+
+  async function saveTeacherProfile(e) {
+    e.preventDefault();
+    const name        = document.getElementById('set-name').value.trim();
+    const school_name = document.getElementById('set-school-name').value.trim();
+    const { error } = await db.from('teacher_profiles').update({ name, school_name }).eq('id', T.id);
+    if (error) { toast('保存失敗', 'error'); return; }
+    T.name = name; T.school_name = school_name;
+    document.getElementById('teacher-label').textContent = name || T.username;
+    document.getElementById('school-label').textContent  = school_name || T.school_id;
+    toast('保存しました', 'success');
+  }
+
+  // ---- HELPERS ----
+
+  function escQ(s) { return (s || '').replace(/'/g, "\\'").replace(/"/g, '\\"'); }
+
+  function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
+
+  function toast(msg, type = 'success') {
+    const colors = { success: '#10B981', error: '#EF4444', info: '#3B82F6' };
+    const icons  = { success: 'fa-check-circle', error: 'fa-exclamation-circle', info: 'fa-info-circle' };
+    const el = document.createElement('div');
+    el.className = 'toast';
+    el.style.background = colors[type];
+    el.innerHTML = `<i class="fas ${icons[type]} mr-2"></i>${msg}`;
+    document.getElementById('toast-area').appendChild(el);
+    setTimeout(() => { el.style.opacity = '0'; el.style.transform = 'translateX(100%)'; el.style.transition = 'all .3s'; setTimeout(() => el.remove(), 300); }, 3000);
+  }
+
+  document.addEventListener('DOMContentLoaded', init);
 </script>
 </body>
 </html>

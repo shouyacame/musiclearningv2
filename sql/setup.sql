@@ -1,145 +1,182 @@
 -- =====================================================
--- 三味線学習システム - Supabase テーブル設定
--- Supabase Dashboard → SQL Editor で実行してください
+-- 三線学習システム - 完全リセット版セットアップ
+-- Supabase SQL Editor で実行してください
+-- ※ 既存データは全て削除されます
 -- =====================================================
 
--- クラス設定テーブル（school_settings の代替）
-CREATE TABLE IF NOT EXISTS classes (
-  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  grade TEXT NOT NULL,           -- '1', '2', '3'
-  class_name TEXT NOT NULL,      -- 'A', 'B', 'さくら' など
-  max_students INTEGER DEFAULT 40,
-  is_active BOOLEAN DEFAULT TRUE,
-  created_at TIMESTAMPTZ DEFAULT NOW(),
-  UNIQUE(grade, class_name)
-);
+DROP TABLE IF EXISTS student_progress CASCADE;
+DROP TABLE IF EXISTS song_tasks CASCADE;
+DROP TABLE IF EXISTS songs CASCADE;
+DROP TABLE IF EXISTS koto_tasks CASCADE;
+DROP TABLE IF EXISTS students CASCADE;
+DROP TABLE IF EXISTS classes CASCADE;
+DROP TABLE IF EXISTS announcements CASCADE;
+DROP TABLE IF EXISTS teacher_profiles CASCADE;
 
--- 学年別課題テーブル
-CREATE TABLE IF NOT EXISTS koto_tasks (
-  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  grade TEXT NOT NULL,
-  task_number INTEGER NOT NULL,
-  title TEXT NOT NULL,
-  criteria TEXT DEFAULT '',
-  is_active BOOLEAN DEFAULT TRUE,
-  created_at TIMESTAMPTZ DEFAULT NOW()
-);
+-- =====================================================
+-- テーブル定義
+-- =====================================================
 
--- 曲テーブル（動的管理・ハードコードを廃止）
-CREATE TABLE IF NOT EXISTS songs (
-  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  song_key TEXT UNIQUE NOT NULL,
-  song_name TEXT NOT NULL,
-  icon TEXT DEFAULT '🎵',
-  sort_order INTEGER DEFAULT 0,
-  is_active BOOLEAN DEFAULT TRUE,
-  created_at TIMESTAMPTZ DEFAULT NOW()
-);
-
--- 曲別課題テーブル
-CREATE TABLE IF NOT EXISTS song_tasks (
-  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  song_key TEXT NOT NULL,
-  song_name TEXT NOT NULL,
-  task_number INTEGER NOT NULL,
-  title TEXT NOT NULL,
-  criteria TEXT DEFAULT '',
-  is_active BOOLEAN DEFAULT TRUE,
-  created_at TIMESTAMPTZ DEFAULT NOW()
-);
-
--- 生徒名簿テーブル（任意登録）
-CREATE TABLE IF NOT EXISTS students (
-  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  grade TEXT NOT NULL,
-  class_name TEXT NOT NULL,
-  number INTEGER NOT NULL,
-  name TEXT NOT NULL DEFAULT '',
-  created_at TIMESTAMPTZ DEFAULT NOW(),
-  UNIQUE(grade, class_name, number)
-);
-
--- 生徒進捗テーブル（LocalStorage の代替・全デバイスから参照可能）
-CREATE TABLE IF NOT EXISTS student_progress (
-  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  student_id TEXT NOT NULL,      -- e.g. '1A01'
-  task_type TEXT NOT NULL,       -- 'koto' or 'song'
-  task_db_id UUID NOT NULL,      -- koto_tasks.id or song_tasks.id
-  is_completed BOOLEAN DEFAULT FALSE,
-  memo TEXT DEFAULT '',
-  updated_at TIMESTAMPTZ DEFAULT NOW(),
-  UNIQUE(student_id, task_db_id)
-);
-
--- お知らせテーブル
-CREATE TABLE IF NOT EXISTS announcements (
-  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  title TEXT NOT NULL,
-  content TEXT DEFAULT '',
-  is_pinned BOOLEAN DEFAULT FALSE,
-  is_active BOOLEAN DEFAULT TRUE,
-  created_at TIMESTAMPTZ DEFAULT NOW()
-);
-
--- 先生プロフィールテーブル（Supabase Auth と連携）
-CREATE TABLE IF NOT EXISTS teacher_profiles (
+CREATE TABLE teacher_profiles (
   id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
-  name TEXT NOT NULL DEFAULT '先生',
+  username TEXT UNIQUE NOT NULL,
+  email TEXT,
+  name TEXT,
+  school_id TEXT NOT NULL,
+  school_name TEXT,
   department TEXT DEFAULT '音楽科',
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- =====================================================
--- 初期データ（曲）
--- =====================================================
-INSERT INTO songs (song_key, song_name, icon, sort_order) VALUES
-  ('umi_no_koe',          '海の声',     '🌊', 1),
-  ('shimanchu_nu_takara', '島人ぬ宝', '🏝️', 2),
-  ('namida_sousou',       '涙そうそう', '💧', 3)
-ON CONFLICT (song_key) DO NOTHING;
+CREATE TABLE classes (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  school_id TEXT NOT NULL,
+  grade TEXT NOT NULL,
+  class_name TEXT NOT NULL,
+  max_students INTEGER DEFAULT 40,
+  is_active BOOLEAN DEFAULT true,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE(school_id, grade, class_name)
+);
+
+CREATE TABLE students (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  school_id TEXT NOT NULL,
+  student_id TEXT NOT NULL,
+  name TEXT DEFAULT '',
+  grade TEXT,
+  class_name TEXT,
+  number INTEGER,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE(school_id, student_id)
+);
+
+CREATE TABLE koto_tasks (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  school_id TEXT NOT NULL,
+  title TEXT NOT NULL,
+  description TEXT DEFAULT '',
+  category TEXT DEFAULT '基礎',
+  order_num INTEGER DEFAULT 0,
+  is_active BOOLEAN DEFAULT true,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE songs (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  school_id TEXT NOT NULL,
+  title TEXT NOT NULL,
+  artist TEXT DEFAULT '',
+  description TEXT DEFAULT '',
+  order_num INTEGER DEFAULT 0,
+  is_active BOOLEAN DEFAULT true,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE song_tasks (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  song_id UUID REFERENCES songs(id) ON DELETE CASCADE,
+  school_id TEXT NOT NULL,
+  title TEXT NOT NULL,
+  description TEXT DEFAULT '',
+  order_num INTEGER DEFAULT 0,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE student_progress (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  school_id TEXT NOT NULL,
+  student_id TEXT NOT NULL,
+  task_db_id UUID NOT NULL,
+  task_type TEXT DEFAULT 'koto',
+  is_completed BOOLEAN DEFAULT false,
+  memo TEXT DEFAULT '',
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE(school_id, student_id, task_db_id)
+);
+
+CREATE TABLE announcements (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  school_id TEXT NOT NULL,
+  title TEXT NOT NULL,
+  content TEXT DEFAULT '',
+  is_active BOOLEAN DEFAULT true,
+  is_pinned BOOLEAN DEFAULT false,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
 
 -- =====================================================
--- RLS（行レベルセキュリティ）
+-- RLS有効化
 -- =====================================================
-ALTER TABLE classes          ENABLE ROW LEVEL SECURITY;
-ALTER TABLE koto_tasks       ENABLE ROW LEVEL SECURITY;
-ALTER TABLE songs            ENABLE ROW LEVEL SECURITY;
-ALTER TABLE song_tasks       ENABLE ROW LEVEL SECURITY;
-ALTER TABLE students         ENABLE ROW LEVEL SECURITY;
-ALTER TABLE student_progress ENABLE ROW LEVEL SECURITY;
-ALTER TABLE announcements    ENABLE ROW LEVEL SECURITY;
+
 ALTER TABLE teacher_profiles ENABLE ROW LEVEL SECURITY;
-
--- 匿名ユーザー（生徒）: 読み取りのみ
-CREATE POLICY "anon_read_classes"       ON classes       FOR SELECT TO anon USING (is_active = true);
-CREATE POLICY "anon_read_koto_tasks"    ON koto_tasks    FOR SELECT TO anon USING (is_active = true);
-CREATE POLICY "anon_read_songs"         ON songs         FOR SELECT TO anon USING (is_active = true);
-CREATE POLICY "anon_read_song_tasks"    ON song_tasks    FOR SELECT TO anon USING (is_active = true);
-CREATE POLICY "anon_read_students"      ON students      FOR SELECT TO anon USING (true);
-CREATE POLICY "anon_read_announcements" ON announcements FOR SELECT TO anon USING (is_active = true);
-
--- 匿名ユーザー（生徒）: 進捗の読み書き
-CREATE POLICY "anon_all_student_progress" ON student_progress
-  FOR ALL TO anon USING (true) WITH CHECK (true);
-
--- 認証済みユーザー（先生）: すべての操作
-CREATE POLICY "auth_all_classes"          ON classes          FOR ALL TO authenticated USING (true) WITH CHECK (true);
-CREATE POLICY "auth_all_koto_tasks"       ON koto_tasks       FOR ALL TO authenticated USING (true) WITH CHECK (true);
-CREATE POLICY "auth_all_songs"            ON songs            FOR ALL TO authenticated USING (true) WITH CHECK (true);
-CREATE POLICY "auth_all_song_tasks"       ON song_tasks       FOR ALL TO authenticated USING (true) WITH CHECK (true);
-CREATE POLICY "auth_all_students"         ON students         FOR ALL TO authenticated USING (true) WITH CHECK (true);
-CREATE POLICY "auth_all_student_progress" ON student_progress FOR ALL TO authenticated USING (true) WITH CHECK (true);
-CREATE POLICY "auth_all_announcements"    ON announcements    FOR ALL TO authenticated USING (true) WITH CHECK (true);
-CREATE POLICY "auth_own_teacher_profile"  ON teacher_profiles
-  FOR ALL TO authenticated USING (id = auth.uid()) WITH CHECK (id = auth.uid());
+ALTER TABLE classes ENABLE ROW LEVEL SECURITY;
+ALTER TABLE students ENABLE ROW LEVEL SECURITY;
+ALTER TABLE koto_tasks ENABLE ROW LEVEL SECURITY;
+ALTER TABLE songs ENABLE ROW LEVEL SECURITY;
+ALTER TABLE song_tasks ENABLE ROW LEVEL SECURITY;
+ALTER TABLE student_progress ENABLE ROW LEVEL SECURITY;
+ALTER TABLE announcements ENABLE ROW LEVEL SECURITY;
 
 -- =====================================================
--- 先生アカウント作成方法
+-- 権限付与（GRANTが必要）
 -- =====================================================
--- 1. Supabase Dashboard → Authentication → Users → "Add user"
---    でメールアドレスとパスワードを設定してください
---    （例: yamada@school.local / password123）
---
--- 2. ユーザー作成後、以下のSQLで先生プロフィールを登録:
---    INSERT INTO teacher_profiles (id, name, department)
---    VALUES ('<auth.users の UUID>', '山田先生', '音楽科');
+
+GRANT USAGE ON SCHEMA public TO anon, authenticated;
+
+GRANT SELECT ON teacher_profiles TO anon;
+GRANT ALL ON teacher_profiles TO authenticated;
+
+GRANT SELECT ON classes TO anon, authenticated;
+GRANT INSERT, UPDATE, DELETE ON classes TO authenticated;
+
+GRANT SELECT ON students TO anon, authenticated;
+GRANT INSERT, UPDATE, DELETE ON students TO authenticated;
+
+GRANT SELECT ON koto_tasks TO anon, authenticated;
+GRANT INSERT, UPDATE, DELETE ON koto_tasks TO authenticated;
+
+GRANT SELECT ON songs TO anon, authenticated;
+GRANT INSERT, UPDATE, DELETE ON songs TO authenticated;
+
+GRANT SELECT ON song_tasks TO anon, authenticated;
+GRANT INSERT, UPDATE, DELETE ON song_tasks TO authenticated;
+
+GRANT SELECT, INSERT, UPDATE, DELETE ON student_progress TO anon, authenticated;
+
+GRANT SELECT ON announcements TO anon, authenticated;
+GRANT INSERT, UPDATE, DELETE ON announcements TO authenticated;
+
+GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO anon, authenticated;
+
+-- =====================================================
+-- RLSポリシー
+-- =====================================================
+
+-- teacher_profiles: 匿名はSELECTのみ（ユーザーID→メール変換に必要）
+CREATE POLICY "tp_select" ON teacher_profiles FOR SELECT USING (true);
+CREATE POLICY "tp_insert" ON teacher_profiles FOR INSERT TO authenticated WITH CHECK (auth.uid() = id);
+CREATE POLICY "tp_update" ON teacher_profiles FOR UPDATE TO authenticated USING (auth.uid() = id);
+CREATE POLICY "tp_delete" ON teacher_profiles FOR DELETE TO authenticated USING (auth.uid() = id);
+
+-- 各テーブル: 全員読み取り、認証済みは書き込み可
+CREATE POLICY "classes_select" ON classes FOR SELECT USING (true);
+CREATE POLICY "classes_write"  ON classes FOR ALL TO authenticated USING (true) WITH CHECK (true);
+
+CREATE POLICY "students_select" ON students FOR SELECT USING (true);
+CREATE POLICY "students_write"  ON students FOR ALL TO authenticated USING (true) WITH CHECK (true);
+
+CREATE POLICY "koto_select" ON koto_tasks FOR SELECT USING (true);
+CREATE POLICY "koto_write"  ON koto_tasks FOR ALL TO authenticated USING (true) WITH CHECK (true);
+
+CREATE POLICY "songs_select" ON songs FOR SELECT USING (true);
+CREATE POLICY "songs_write"  ON songs FOR ALL TO authenticated USING (true) WITH CHECK (true);
+
+CREATE POLICY "song_tasks_select" ON song_tasks FOR SELECT USING (true);
+CREATE POLICY "song_tasks_write"  ON song_tasks FOR ALL TO authenticated USING (true) WITH CHECK (true);
+
+-- student_progress: 誰でも読み書き可（生徒が直接更新する）
+CREATE POLICY "progress_all" ON student_progress FOR ALL USING (true) WITH CHECK (true);
+
+CREATE POLICY "announce_select" ON announcements FOR SELECT USING (true);
+CREATE POLICY "announce_write"  ON announcements FOR ALL TO authenticated USING (true) WITH CHECK (true);

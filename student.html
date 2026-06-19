@@ -1,671 +1,378 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>三味線学習システム - 生徒用</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
-    <script src="supabase-config.js"></script>
-    <style>
-        .task-card { transition: all 0.3s ease; }
-        .task-card:hover { transform: translateY(-2px); box-shadow: 0 4px 20px rgba(0,0,0,0.1); }
-        .completed { background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%); border-color: #10b981; }
-
-        .stamp-item {
-            width: 56px; height: 56px; border-radius: 50%;
-            display: flex; align-items: center; justify-content: center;
-            font-weight: bold; font-size: 1.1rem; transition: all 0.3s ease;
-        }
-        .stamp-item.completed {
-            background: linear-gradient(135deg, #10b981, #059669); color: white;
-            box-shadow: 0 4px 15px rgba(16,185,129,0.4); transform: scale(1.1);
-        }
-        .stamp-item.current {
-            background: linear-gradient(135deg, #3b82f6, #1d4ed8); color: white;
-            animation: pulse 2s infinite;
-        }
-        .stamp-item.pending { background: #e5e7eb; color: #9ca3af; border: 2px dashed #d1d5db; }
-
-        @keyframes pulse {
-            0%   { box-shadow: 0 0 0 0 rgba(59,130,246,0.7); }
-            70%  { box-shadow: 0 0 0 10px rgba(59,130,246,0); }
-            100% { box-shadow: 0 0 0 0 rgba(59,130,246,0); }
-        }
-
-        .section-tab-btn {
-            transition: all 0.2s; border-bottom: 3px solid transparent; font-size: 0.95rem;
-        }
-        .section-tab-btn.active { border-bottom-color: #6366f1; color: #4338ca; font-weight: 700; }
-
-        .song-tab-btn {
-            transition: all 0.2s; border-radius: 9999px;
-            padding: 6px 18px; font-size: 0.85rem; font-weight: 600;
-            background: #f3f4f6; color: #6b7280;
-        }
-        .song-tab-btn.active {
-            background: linear-gradient(135deg, #8b5cf6, #6366f1); color: white;
-            box-shadow: 0 2px 10px rgba(99,102,241,0.3);
-        }
-        .song-tab-btn:hover:not(.active) { background: #e5e7eb; color: #374151; }
-
-        .memo-area { display: none; }
-        .memo-area.open { display: block; }
-
-        @keyframes confetti-fall {
-            0%   { transform: translateY(-20px) rotate(0deg); opacity: 1; }
-            100% { transform: translateY(100vh) rotate(720deg); opacity: 0; }
-        }
-        .confetti-piece {
-            position: fixed; top: -20px; width: 10px; height: 10px;
-            border-radius: 2px; animation: confetti-fall linear forwards;
-            z-index: 9999; pointer-events: none;
-        }
-
-        .progress-bar { height: 8px; border-radius: 4px; background: #e5e7eb; overflow: hidden; }
-        .progress-fill { height: 100%; border-radius: 4px; transition: width 0.5s ease; }
-    </style>
-</head>
-<body class="bg-gray-50">
-
-<!-- ヘッダー -->
-<header class="bg-white shadow-sm border-b-2 border-blue-500 sticky top-0 z-20">
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div class="flex justify-between items-center py-4">
-            <h1 class="text-2xl font-bold text-gray-900">三味線学習システム</h1>
-            <div class="flex items-center space-x-4">
-                <div class="text-right">
-                    <p class="text-sm font-medium text-gray-900" id="student-name">読み込み中...</p>
-                    <p class="text-xs text-gray-500" id="student-class"></p>
-                </div>
-                <button onclick="logout()"
-                    class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg text-sm transition">
-                    <i class="fas fa-sign-out-alt mr-2"></i>ログアウト
-                </button>
-            </div>
-        </div>
-    </div>
-</header>
-
-<main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
-
-    <!-- お知らせ -->
-    <div id="announcements-area" class="hidden space-y-2"></div>
-
-    <!-- 全体進捗サマリー -->
-    <div id="summary-card" class="bg-white rounded-xl shadow-lg p-5 hidden">
-        <h3 class="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">全体進捗</h3>
-        <div class="grid grid-cols-2 gap-4">
-            <div>
-                <p class="text-xs text-gray-500 mb-1">学年別課題</p>
-                <div class="progress-bar mb-1">
-                    <div id="grade-progress-fill" class="progress-fill bg-blue-500" style="width:0%"></div>
-                </div>
-                <p class="text-xs font-semibold text-gray-700" id="grade-progress-label">--</p>
-            </div>
-            <div>
-                <p class="text-xs text-gray-500 mb-1">曲別課題（全体）</p>
-                <div class="progress-bar mb-1">
-                    <div id="song-progress-fill" class="progress-fill bg-purple-500" style="width:0%"></div>
-                </div>
-                <p class="text-xs font-semibold text-gray-700" id="song-progress-label">--</p>
-            </div>
-        </div>
-    </div>
-
-    <!-- メインカード（タブ付き） -->
-    <div class="bg-white rounded-xl shadow-lg">
-        <div class="flex border-b border-gray-200 px-6 pt-5 gap-6">
-            <button id="sec-tab-grade" onclick="switchSectionTab('grade')"
-                class="section-tab-btn active pb-3 text-gray-600">
-                <i class="fas fa-graduation-cap mr-2"></i>学年別課題
-            </button>
-            <button id="sec-tab-song" onclick="switchSectionTab('song')"
-                class="section-tab-btn pb-3 text-gray-600">
-                <i class="fas fa-music mr-2"></i>曲別課題
-            </button>
-        </div>
-
-        <!-- 学年別課題パネル -->
-        <div id="panel-grade" class="p-6 sm:p-8">
-            <div class="flex items-center justify-between mb-4">
-                <div>
-                    <h2 class="text-xl font-bold text-gray-900">課題達成状況</h2>
-                    <p class="text-sm text-gray-500" id="grade-progress-text">読み込み中...</p>
-                </div>
-                <div class="flex space-x-2 flex-wrap justify-end gap-2" id="stamp-rally">
-                    <div class="w-14 h-14 rounded-full bg-gray-200 animate-pulse"></div>
-                    <div class="w-14 h-14 rounded-full bg-gray-200 animate-pulse"></div>
-                    <div class="w-14 h-14 rounded-full bg-gray-200 animate-pulse"></div>
-                </div>
-            </div>
-            <div id="tasks-loading" class="py-10 text-center text-gray-400">
-                <i class="fas fa-spinner fa-spin text-3xl mb-3"></i>
-                <p class="text-sm">課題を読み込み中...</p>
-            </div>
-            <div id="tasks-empty" class="hidden py-10 text-center text-gray-400">
-                <i class="fas fa-inbox text-3xl mb-3"></i>
-                <p class="text-sm">現在、課題が登録されていません。<br>先生に確認してください。</p>
-            </div>
-            <div id="tasks-container" class="hidden"></div>
-        </div>
-
-        <!-- 曲別課題パネル -->
-        <div id="panel-song" class="hidden p-6 sm:p-8">
-            <h2 class="text-xl font-bold text-gray-900 mb-1">
-                <i class="fas fa-music text-purple-500 mr-2"></i>曲別課題
-            </h2>
-            <p class="text-sm text-gray-500 mb-5">曲を選んで課題を確認・達成登録しましょう</p>
-
-            <div id="song-tabs-loading" class="text-center py-4 text-gray-400 text-sm">
-                <i class="fas fa-spinner fa-spin mr-2"></i>曲を読み込み中...
-            </div>
-            <div class="flex flex-wrap gap-3 mb-6 hidden" id="song-tabs"></div>
-
-            <div class="flex items-center justify-between mb-5 bg-purple-50 rounded-xl px-4 py-3">
-                <p class="text-sm text-purple-700 font-semibold" id="song-progress-text-detail">曲を選択してください</p>
-                <div class="flex space-x-2 flex-wrap gap-2" id="song-stamp-rally"></div>
-            </div>
-
-            <div id="song-tasks-loading" class="hidden py-10 text-center text-gray-400">
-                <i class="fas fa-spinner fa-spin text-3xl mb-3"></i>
-                <p class="text-sm">課題を読み込み中...</p>
-            </div>
-            <div id="song-tasks-empty" class="hidden py-10 text-center text-gray-400">
-                <i class="fas fa-inbox text-3xl mb-3"></i>
-                <p class="text-sm">この曲の課題がまだ登録されていません。<br>先生に確認してください。</p>
-            </div>
-            <div id="song-tasks-container" class="hidden"></div>
-        </div>
-    </div>
-
-    <!-- 学習のポイント -->
-    <div class="bg-blue-50 rounded-xl p-6">
-        <h3 class="text-lg font-semibold text-blue-900 mb-2">
-            <i class="fas fa-lightbulb mr-2"></i>学習のポイント
-        </h3>
-        <ul class="text-blue-800 space-y-1 text-sm">
-            <li>• 各課題は順番に取り組むことをお勧めします</li>
-            <li>• 達成基準をしっかり読んで、目標を理解してから練習しましょう</li>
-            <li>• 分からないことがあれば、遠慮なく先生に質問してください</li>
-            <li>• 【完了】ボタンは、達成基準を満たしたと確信した時に押してください</li>
-        </ul>
-    </div>
-</main>
-
-<script>
-let currentUser = null;
-let kotoTasks = [];
-let kotoProgress = {}; // { task_uuid: { is_completed, memo } }
-let songs = [];
-let activeSongKey = null;
-let songTasksCache = {};  // { song_key: [tasks] }
-let songProgress = {};    // { task_uuid: { is_completed, memo } }
-
-// =============================================
-// 初期化
-// =============================================
-async function initializeApp() {
-    const savedUser = localStorage.getItem('currentUser');
-    if (!savedUser || localStorage.getItem('userType') !== 'student') {
-        window.location.href = 'index.html';
-        return;
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>三線学習システム - 学習画面</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.2/dist/confetti.browser.min.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
+  <script src="supabase-config.js"></script>
+  <style>
+    body { font-family: 'Noto Sans JP', sans-serif; background: #EEF6F7; }
+    .header-gradient { background: linear-gradient(135deg, #0D4A56, #1A7A8A); }
+    .card { background: #fff; border-radius: 16px; box-shadow: 0 4px 20px rgba(0,0,0,.06); }
+    .task-row {
+      display: flex; align-items: center; gap: 12px;
+      padding: 11px 14px; border-radius: 10px; cursor: pointer;
+      transition: background .15s;
     }
-    currentUser = JSON.parse(savedUser);
+    .task-row:hover { background: #f0f9fa; }
+    .task-row.done { background: #ECFDF5; }
+    .task-check {
+      width: 22px; height: 22px; border-radius: 50%;
+      border: 2px solid #d1d5db;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0; transition: all .2s;
+    }
+    .task-row.done .task-check { background: #10B981; border-color: #10B981; color: #fff; }
+    .task-title { flex: 1; font-size: 13.5px; line-height: 1.4; }
+    .task-row.done .task-title { color: #065F46; }
+    .memo-btn {
+      padding: 4px 8px; border-radius: 6px; font-size: 11px;
+      border: 1px solid #d1d5db; background: #fff; color: #6b7280;
+      cursor: pointer; transition: all .15s; flex-shrink: 0;
+    }
+    .memo-btn:hover { border-color: #1A7A8A; color: #1A7A8A; }
+    .memo-btn.has-memo { background: #e0f2fe; border-color: #7dd3fc; color: #0369a1; }
+    .progress-bar-bg { background: #e5e7eb; border-radius: 999px; height: 10px; overflow: hidden; }
+    .progress-bar-fill { height: 100%; border-radius: 999px; background: linear-gradient(90deg, #1A7A8A, #2BAEBF); transition: width .4s; }
+    .song-header {
+      display: flex; align-items: center; gap: 10px;
+      padding: 12px 16px; cursor: pointer;
+      border-radius: 12px; transition: background .15s;
+    }
+    .song-header:hover { background: #f0f9fa; }
+    .modal-overlay {
+      position: fixed; inset: 0; background: rgba(0,0,0,.5);
+      display: flex; align-items: center; justify-content: center;
+      z-index: 50; padding: 16px;
+    }
+    .modal-box { background: #fff; border-radius: 16px; padding: 24px; width: 100%; max-width: 400px; box-shadow: 0 20px 60px rgba(0,0,0,.3); }
+    textarea { font-family: 'Noto Sans JP', sans-serif; }
+    .btn-teal { background: linear-gradient(135deg, #1A7A8A, #2BAEBF); color: #fff; border: none; border-radius: 8px; padding: 9px 18px; font-size: 13px; font-weight: 600; cursor: pointer; font-family: 'Noto Sans JP', sans-serif; transition: all .2s; }
+    .btn-teal:hover { box-shadow: 0 4px 12px rgba(26,122,138,.4); }
+    .btn-gray { background: #f3f4f6; color: #374151; border: none; border-radius: 8px; padding: 9px 18px; font-size: 13px; cursor: pointer; font-family: 'Noto Sans JP', sans-serif; }
+    .btn-gray:hover { background: #e5e7eb; }
+  </style>
+</head>
+<body>
 
-    document.getElementById('student-name').textContent = currentUser.displayName;
-    document.getElementById('student-class').textContent =
-        `${currentUser.grade}年${currentUser.class}組 出席番号: ${currentUser.number}番`;
+  <div class="header-gradient text-white px-4 py-4">
+    <div class="max-w-2xl mx-auto flex items-center justify-between">
+      <div>
+        <div class="text-xs text-white/60 mb-0.5">三線学習システム</div>
+        <div id="student-name" class="font-bold text-lg"></div>
+      </div>
+      <button onclick="logout()" class="text-xs bg-white/20 hover:bg-white/30 px-3 py-1.5 rounded-lg transition-colors">
+        <i class="fas fa-sign-out-alt mr-1"></i>終了
+      </button>
+    </div>
+  </div>
 
-    await Promise.all([
-        loadAnnouncements(),
-        loadKotoTasks(),
-        loadSongs()
-    ]);
-    updateSummaryCard();
-}
+  <div class="max-w-2xl mx-auto px-4 py-5 space-y-4">
 
-// =============================================
-// お知らせ
-// =============================================
-async function loadAnnouncements() {
-    const { data } = await db
-        .from('announcements')
-        .select('*')
+    <div id="announce" class="hidden card px-4 py-3 bg-teal-50 border border-teal-200 text-sm text-teal-800">
+      <i class="fas fa-bullhorn mr-2"></i><span id="announce-text"></span>
+    </div>
+
+    <div class="card p-4">
+      <div class="flex items-center justify-between mb-2">
+        <span class="text-sm font-semibold text-gray-700">全体の進捗</span>
+        <span id="progress-pct" class="text-sm font-bold text-teal-700">0%</span>
+      </div>
+      <div class="progress-bar-bg">
+        <div id="progress-bar" class="progress-bar-fill" style="width:0%"></div>
+      </div>
+      <p id="progress-detail" class="text-xs text-gray-400 mt-1.5">読み込み中...</p>
+    </div>
+
+    <div id="loading" class="text-center py-10 text-gray-400">
+      <i class="fas fa-spinner fa-spin text-2xl mb-2 block"></i>
+      <p class="text-sm">読み込み中...</p>
+    </div>
+
+    <div id="content" class="hidden space-y-4">
+      <div class="card p-4">
+        <h2 class="font-bold text-gray-800 mb-3 flex items-center gap-2">
+          <span class="w-7 h-7 bg-teal-100 text-teal-700 rounded-lg flex items-center justify-center text-sm"><i class="fas fa-tasks"></i></span>
+          基礎課題
+        </h2>
+        <div id="koto-list" class="space-y-1"></div>
+        <div id="koto-empty" class="hidden text-center py-3 text-sm text-gray-400">課題はまだ登録されていません</div>
+      </div>
+
+      <div id="songs-section">
+        <h2 class="font-bold text-gray-700 px-1 mb-2 flex items-center gap-2">
+          <span class="w-7 h-7 bg-amber-100 text-amber-700 rounded-lg flex items-center justify-center text-sm"><i class="fas fa-music"></i></span>
+          楽曲
+        </h2>
+        <div id="songs-list" class="space-y-3"></div>
+        <div id="songs-empty" class="hidden card text-center py-4 text-sm text-gray-400">楽曲はまだ登録されていません</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- メモモーダル -->
+  <div id="memo-modal" class="modal-overlay hidden">
+    <div class="modal-box">
+      <h3 class="font-bold text-gray-800 mb-0.5" id="memo-task-title">メモ</h3>
+      <p class="text-xs text-gray-400 mb-3">自分だけのメモを残せます</p>
+      <textarea id="memo-text" rows="4"
+        class="w-full border border-gray-300 rounded-xl p-3 text-sm resize-none focus:outline-none focus:border-teal-500"
+        placeholder="例: 弾き方のコツ、練習内容..."></textarea>
+      <div class="flex gap-2 mt-3 justify-end">
+        <button class="btn-gray" onclick="closeMemo()">キャンセル</button>
+        <button class="btn-teal" onclick="saveMemo()"><i class="fas fa-save mr-1"></i>保存</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 確認モーダル -->
+  <div id="confirm-modal" class="modal-overlay hidden">
+    <div class="modal-box text-center">
+      <div class="text-4xl mb-3">🔄</div>
+      <p class="font-semibold text-gray-800 mb-1">達成を取り消しますか？</p>
+      <p class="text-sm text-gray-400 mb-5">チェックを外します</p>
+      <div class="flex gap-2">
+        <button class="btn-gray flex-1" onclick="closeConfirm()">キャンセル</button>
+        <button class="flex-1 bg-red-500 text-white border-none rounded-xl py-2.5 text-sm font-semibold cursor-pointer hover:bg-red-600 transition-colors"
+          onclick="confirmUncheck()">取り消す</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let student = null;
+    let progressMap = {};
+    let allTasks = [];
+    let memoTarget = null;
+    let uncheckTarget = null;
+
+    async function init() {
+      student = JSON.parse(localStorage.getItem('currentUser') || 'null');
+      if (!student || student.type !== 'student') { window.location.href = 'index.html'; return; }
+      document.getElementById('student-name').textContent = student.displayName;
+
+      await Promise.all([loadProgress(), loadAnnouncement()]);
+      await loadContent();
+      document.getElementById('loading').classList.add('hidden');
+      document.getElementById('content').classList.remove('hidden');
+      updateProgressBar();
+    }
+
+    async function loadProgress() {
+      const { data } = await db.from('student_progress')
+        .select('task_db_id, is_completed, memo')
+        .eq('school_id', student.school_id)
+        .eq('student_id', student.id);
+      (data || []).forEach(r => {
+        progressMap[r.task_db_id] = { is_completed: r.is_completed, memo: r.memo || '' };
+      });
+    }
+
+    async function loadAnnouncement() {
+      const { data } = await db.from('announcements')
+        .select('title, content')
+        .eq('school_id', student.school_id)
         .eq('is_active', true)
         .order('is_pinned', { ascending: false })
         .order('created_at', { ascending: false })
-        .limit(3);
-
-    if (!data?.length) return;
-
-    const area = document.getElementById('announcements-area');
-    area.innerHTML = data.map(a => `
-        <div class="bg-blue-50 border border-blue-200 rounded-lg px-4 py-3 flex items-start gap-3">
-            <i class="fas fa-${a.is_pinned ? 'thumbtack text-blue-600' : 'bullhorn text-blue-400'} mt-0.5 shrink-0"></i>
-            <div>
-                <p class="text-sm font-semibold text-blue-900">${a.title}</p>
-                ${a.content ? `<p class="text-xs text-blue-700 mt-0.5">${a.content}</p>` : ''}
-            </div>
-        </div>`).join('');
-    area.classList.remove('hidden');
-}
-
-// =============================================
-// 学年別課題
-// =============================================
-async function loadKotoTasks() {
-    const [tasksRes, progressRes] = await Promise.all([
-        db.from('koto_tasks')
-            .select('*')
-            .eq('is_active', true)
-            .eq('grade', String(currentUser.grade))
-            .order('task_number'),
-        db.from('student_progress')
-            .select('task_db_id, is_completed, memo')
-            .eq('student_id', currentUser.id)
-            .eq('task_type', 'koto')
-    ]);
-
-    kotoTasks = tasksRes.data || [];
-
-    kotoProgress = {};
-    (progressRes.data || []).forEach(p => {
-        kotoProgress[p.task_db_id] = { is_completed: p.is_completed, memo: p.memo || '' };
-    });
-
-    document.getElementById('tasks-loading').classList.add('hidden');
-
-    if (!kotoTasks.length) {
-        document.getElementById('tasks-empty').classList.remove('hidden');
-        document.getElementById('grade-progress-text').textContent = '課題が登録されていません';
-        document.getElementById('stamp-rally').innerHTML = '<p class="text-gray-400 text-sm">課題なし</p>';
-        return;
+        .limit(1);
+      if (data?.length) {
+        document.getElementById('announce-text').textContent =
+          data[0].content ? `${data[0].title}：${data[0].content}` : data[0].title;
+        document.getElementById('announce').classList.remove('hidden');
+      }
     }
 
-    document.getElementById('tasks-container').classList.remove('hidden');
-    renderKotoTasks();
-    updateKotoProgressDisplay();
-}
+    async function loadContent() {
+      const [kotoRes, songsRes] = await Promise.all([
+        db.from('koto_tasks').select('id, title, order_num').eq('school_id', student.school_id).eq('is_active', true).order('order_num'),
+        db.from('songs').select('id, title, artist, order_num').eq('school_id', student.school_id).eq('is_active', true).order('order_num')
+      ]);
 
-function renderKotoTasks() {
-    const container = document.getElementById('tasks-container');
-    const completed = kotoTasks.filter(t => kotoProgress[t.id]?.is_completed).length;
-    container.innerHTML = `<div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        ${kotoTasks.map((task, idx) => {
-            const prog = kotoProgress[task.id] || {};
-            const done = prog.is_completed || false;
-            const memo = prog.memo || '';
-            return `
-            <div class="task-card border-2 rounded-xl p-4 ${done ? 'completed border-green-400' : 'border-gray-200 hover:border-blue-400'}">
-                <div class="flex items-start justify-between">
-                    <div class="flex-1">
-                        <div class="flex items-center mb-3">
-                            <div class="w-8 h-8 rounded-full ${done ? 'bg-green-500' : 'bg-blue-500'} text-white flex items-center justify-center text-sm font-bold mr-3 shrink-0">
-                                ${done ? '<i class="fas fa-check"></i>' : task.task_number}
-                            </div>
-                            <h3 class="text-lg font-bold ${done ? 'text-green-800' : 'text-gray-800'}">${task.title}</h3>
-                        </div>
-                        <div class="bg-gray-50 rounded-lg p-3 border-l-4 ${done ? 'border-green-500' : 'border-blue-500'} mb-2">
-                            <p class="font-semibold text-gray-800 mb-1 text-xs">達成基準</p>
-                            <p class="text-gray-700 text-sm">${task.criteria}</p>
-                        </div>
-                        <!-- メモ -->
-                        <button onclick="toggleMemo('koto-memo-${task.id}')"
-                            class="text-xs text-gray-400 hover:text-gray-600 transition mt-1">
-                            <i class="fas fa-sticky-note mr-1"></i>${memo ? 'メモを見る・編集' : 'メモを追加'}
-                        </button>
-                        <div id="koto-memo-${task.id}" class="memo-area mt-2">
-                            <textarea
-                                class="w-full text-xs border border-gray-200 rounded-lg p-2 resize-none focus:outline-none focus:ring-1 focus:ring-blue-300"
-                                rows="2" placeholder="練習メモを入力..."
-                                onchange="saveMemo('koto', '${task.id}', this.value)"
-                            >${memo}</textarea>
-                        </div>
-                    </div>
-                    <div class="ml-4 shrink-0">
-                        <button onclick="toggleKotoCompletion('${task.id}')"
-                            class="px-4 py-2 rounded-lg font-semibold transition duration-300 text-sm ${
-                                done ? 'bg-green-500 text-white hover:bg-red-400' : 'bg-blue-500 hover:bg-blue-600 text-white'
-                            }">
-                            ${done ? '✓ 完了' : '完了'}
-                        </button>
-                    </div>
-                </div>
-            </div>`;
-        }).join('')}
-    </div>`;
-}
-
-function updateKotoProgressDisplay() {
-    const completed = kotoTasks.filter(t => kotoProgress[t.id]?.is_completed).length;
-    const total = kotoTasks.length;
-    document.getElementById('grade-progress-text').textContent = `${completed} / ${total} 課題クリア`;
-
-    const stamps = document.getElementById('stamp-rally');
-    stamps.innerHTML = kotoTasks.map((task, idx) => {
-        const done = kotoProgress[task.id]?.is_completed || false;
-        const isCurrent = !done && completed === idx;
-        return `<div class="stamp-item ${done ? 'completed' : isCurrent ? 'current' : 'pending'}"
-            title="${task.task_number}: ${task.title}">
-            ${done ? '<i class="fas fa-check text-xl"></i>' : task.task_number}
-        </div>`;
-    }).join('');
-
-    updateSummaryCard();
-}
-
-async function toggleKotoCompletion(taskId) {
-    const current = kotoProgress[taskId]?.is_completed || false;
-    const newState = !current;
-
-    if (!newState && !confirm('完了を取り消しますか？')) return;
-
-    if (!kotoProgress[taskId]) kotoProgress[taskId] = { is_completed: false, memo: '' };
-    kotoProgress[taskId].is_completed = newState;
-
-    renderKotoTasks();
-    updateKotoProgressDisplay();
-
-    const { error } = await db.from('student_progress').upsert({
-        student_id: currentUser.id,
-        task_type: 'koto',
-        task_db_id: taskId,
-        is_completed: newState,
-        memo: kotoProgress[taskId].memo || '',
-        updated_at: new Date().toISOString()
-    }, { onConflict: 'student_id,task_db_id' });
-
-    if (error) {
-        console.error('進捗保存エラー:', error);
-        kotoProgress[taskId].is_completed = current;
-        renderKotoTasks();
-        updateKotoProgressDisplay();
-        alert('保存に失敗しました。再度お試しください。');
-        return;
-    }
-
-    if (newState) showCompletionFeedback();
-    const allDone = kotoTasks.every(t => kotoProgress[t.id]?.is_completed);
-    if (allDone && newState) launchConfetti();
-}
-
-// =============================================
-// 曲別課題
-// =============================================
-async function loadSongs() {
-    const { data } = await db
-        .from('songs')
-        .select('*')
-        .eq('is_active', true)
-        .order('sort_order');
-
-    songs = data || [];
-    document.getElementById('song-tabs-loading').classList.add('hidden');
-
-    if (!songs.length) return;
-
-    activeSongKey = songs[0].song_key;
-    const tabsEl = document.getElementById('song-tabs');
-    tabsEl.innerHTML = songs.map(s => `
-        <button onclick="switchSongTab('${s.song_key}')" id="song-tab-${s.song_key}"
-            class="song-tab-btn ${s.song_key === activeSongKey ? 'active' : ''}">
-            ${s.icon} ${s.song_name}
-        </button>`).join('');
-    tabsEl.classList.remove('hidden');
-}
-
-function switchSectionTab(tab) {
-    ['grade', 'song'].forEach(t => {
-        document.getElementById(`panel-${t}`).classList.toggle('hidden', t !== tab);
-        const btn = document.getElementById(`sec-tab-${t}`);
-        btn.classList.toggle('active', t === tab);
-        btn.classList.toggle('text-gray-600', t !== tab);
-    });
-    if (tab === 'song' && activeSongKey) loadSongTasks(activeSongKey);
-}
-
-async function switchSongTab(songKey) {
-    activeSongKey = songKey;
-    songs.forEach(s => {
-        document.getElementById(`song-tab-${s.song_key}`)?.classList.toggle('active', s.song_key === songKey);
-    });
-    await loadSongTasks(songKey);
-}
-
-async function loadSongTasks(songKey) {
-    const loadingEl   = document.getElementById('song-tasks-loading');
-    const emptyEl     = document.getElementById('song-tasks-empty');
-    const containerEl = document.getElementById('song-tasks-container');
-
-    loadingEl.classList.remove('hidden');
-    emptyEl.classList.add('hidden');
-    containerEl.classList.add('hidden');
-
-    if (!songTasksCache[songKey]) {
-        const [tasksRes, progressRes] = await Promise.all([
-            db.from('song_tasks')
-                .select('*')
-                .eq('is_active', true)
-                .eq('song_key', songKey)
-                .order('task_number'),
-            db.from('student_progress')
-                .select('task_db_id, is_completed, memo')
-                .eq('student_id', currentUser.id)
-                .eq('task_type', 'song')
-        ]);
-        songTasksCache[songKey] = tasksRes.data || [];
-        (progressRes.data || []).forEach(p => {
-            songProgress[p.task_db_id] = { is_completed: p.is_completed, memo: p.memo || '' };
+      const kotoTasks = kotoRes.data || [];
+      if (!kotoTasks.length) {
+        document.getElementById('koto-empty').classList.remove('hidden');
+      } else {
+        kotoTasks.forEach(t => {
+          allTasks.push({ id: t.id, title: t.title });
+          document.getElementById('koto-list').appendChild(makeTaskRow(t.id, t.title));
         });
+      }
+
+      const songs = songsRes.data || [];
+      if (!songs.length) {
+        document.getElementById('songs-empty').classList.remove('hidden');
+      } else {
+        for (const song of songs) {
+          const { data: stasks } = await db.from('song_tasks')
+            .select('id, title, order_num')
+            .eq('song_id', song.id)
+            .eq('school_id', student.school_id)
+            .order('order_num');
+
+          const tasks = stasks || [];
+          tasks.forEach(t => allTasks.push({ id: t.id, title: t.title }));
+
+          const doneCount = tasks.filter(t => progressMap[t.id]?.is_completed).length;
+
+          const card = document.createElement('div');
+          card.className = 'card overflow-hidden';
+          card.id = `song-${song.id}`;
+
+          const hdr = document.createElement('div');
+          hdr.className = 'song-header';
+          hdr.innerHTML = `
+            <div class="w-9 h-9 bg-amber-100 text-amber-600 rounded-xl flex items-center justify-center text-lg flex-shrink-0">🎵</div>
+            <div class="flex-1 min-w-0">
+              <div class="font-semibold text-gray-800 text-sm truncate">${song.title}</div>
+              ${song.artist ? `<div class="text-xs text-gray-400">${song.artist}</div>` : ''}
+            </div>
+            <div class="text-xs text-gray-400 flex-shrink-0" id="song-count-${song.id}">${doneCount}/${tasks.length}</div>
+            <i class="fas fa-chevron-down text-gray-400 text-xs ml-1 transition-transform" id="song-chev-${song.id}"></i>
+          `;
+
+          const body = document.createElement('div');
+          body.className = 'px-4 pb-3 space-y-1';
+          body.id = `song-body-${song.id}`;
+
+          if (!tasks.length) {
+            body.innerHTML = '<p class="text-xs text-gray-400 py-2">課題はまだ登録されていません</p>';
+          } else {
+            tasks.forEach(t => body.appendChild(makeTaskRow(t.id, t.title)));
+          }
+
+          hdr.onclick = () => {
+            body.classList.toggle('hidden');
+            const ch = document.getElementById(`song-chev-${song.id}`);
+            ch.style.transform = body.classList.contains('hidden') ? '' : 'rotate(180deg)';
+          };
+
+          card.appendChild(hdr);
+          card.appendChild(body);
+          document.getElementById('songs-list').appendChild(card);
+        }
+      }
     }
 
-    loadingEl.classList.add('hidden');
-    const tasks = songTasksCache[songKey] || [];
+    function makeTaskRow(taskId, title) {
+      const prog = progressMap[taskId] || { is_completed: false, memo: '' };
+      const row = document.createElement('div');
+      row.className = `task-row${prog.is_completed ? ' done' : ''}`;
+      row.id = `task-${taskId}`;
+      row.innerHTML = `
+        <div class="task-check">${prog.is_completed ? '<i class="fas fa-check text-xs"></i>' : ''}</div>
+        <div class="task-title">${title}</div>
+        <button class="memo-btn${prog.memo ? ' has-memo' : ''}" data-task="${taskId}" data-title="${title.replace(/"/g, '&quot;')}">
+          <i class="fas fa-sticky-note mr-0.5"></i>${prog.memo ? 'メモ有' : 'メモ'}
+        </button>
+      `;
+      row.querySelector('.memo-btn').addEventListener('click', e => {
+        e.stopPropagation();
+        openMemo(taskId, title);
+      });
+      row.addEventListener('click', e => {
+        if (e.target.closest('.memo-btn')) return;
+        toggleTask(taskId);
+      });
+      return row;
+    }
 
-    if (!tasks.length) {
-        emptyEl.classList.remove('hidden');
-        document.getElementById('song-progress-text-detail').textContent = '課題が登録されていません';
-        document.getElementById('song-stamp-rally').innerHTML = '';
+    async function toggleTask(taskId) {
+      const prog = progressMap[taskId] || { is_completed: false, memo: '' };
+      if (prog.is_completed) {
+        uncheckTarget = taskId;
+        document.getElementById('confirm-modal').classList.remove('hidden');
         return;
+      }
+      await setCompleted(taskId, true);
     }
 
-    containerEl.classList.remove('hidden');
-    renderSongTasks(songKey, tasks);
-    updateSongProgressDisplay(songKey, tasks);
-    updateSummaryCard();
-}
+    async function confirmUncheck() {
+      closeConfirm();
+      if (uncheckTarget) await setCompleted(uncheckTarget, false);
+      uncheckTarget = null;
+    }
+    function closeConfirm() { document.getElementById('confirm-modal').classList.add('hidden'); }
 
-function renderSongTasks(songKey, tasks) {
-    const containerEl = document.getElementById('song-tasks-container');
-    const song = songs.find(s => s.song_key === songKey);
-    containerEl.innerHTML = `<div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        ${tasks.map((task, idx) => {
-            const prog = songProgress[task.id] || {};
-            const done = prog.is_completed || false;
-            const memo = prog.memo || '';
-            return `
-            <div class="task-card border-2 rounded-xl p-4 ${done ? 'completed border-green-400' : 'border-gray-200 hover:border-purple-400'}">
-                <div class="flex items-start justify-between">
-                    <div class="flex-1">
-                        <div class="flex items-center mb-3">
-                            <div class="w-8 h-8 rounded-full ${done ? 'bg-green-500' : 'bg-purple-500'} text-white flex items-center justify-center text-sm font-bold mr-3 shrink-0">
-                                ${done ? '<i class="fas fa-check"></i>' : task.task_number}
-                            </div>
-                            <h3 class="text-lg font-bold ${done ? 'text-green-800' : 'text-gray-800'}">${task.title}</h3>
-                        </div>
-                        <div class="bg-gray-50 rounded-lg p-3 border-l-4 ${done ? 'border-green-500' : 'border-purple-500'} mb-2">
-                            <p class="font-semibold text-gray-800 mb-1 text-xs">達成基準</p>
-                            <p class="text-gray-700 text-sm">${task.criteria}</p>
-                        </div>
-                        <button onclick="toggleMemo('song-memo-${task.id}')"
-                            class="text-xs text-gray-400 hover:text-gray-600 transition mt-1">
-                            <i class="fas fa-sticky-note mr-1"></i>${memo ? 'メモを見る・編集' : 'メモを追加'}
-                        </button>
-                        <div id="song-memo-${task.id}" class="memo-area mt-2">
-                            <textarea
-                                class="w-full text-xs border border-gray-200 rounded-lg p-2 resize-none focus:outline-none focus:ring-1 focus:ring-purple-300"
-                                rows="2" placeholder="練習メモを入力..."
-                                onchange="saveMemo('song', '${task.id}', this.value)"
-                            >${memo}</textarea>
-                        </div>
-                    </div>
-                    <div class="ml-4 shrink-0">
-                        <button onclick="toggleSongCompletion('${songKey}', '${task.id}')"
-                            class="px-4 py-2 rounded-lg font-semibold transition duration-300 text-sm ${
-                                done ? 'bg-green-500 text-white hover:bg-red-400' : 'bg-purple-500 hover:bg-purple-600 text-white'
-                            }">
-                            ${done ? '✓ 完了' : '完了'}
-                        </button>
-                    </div>
-                </div>
-            </div>`;
-        }).join('')}
-    </div>`;
-}
-
-function updateSongProgressDisplay(songKey, tasks) {
-    const song = songs.find(s => s.song_key === songKey);
-    const completed = tasks.filter(t => songProgress[t.id]?.is_completed).length;
-    const total = tasks.length;
-
-    document.getElementById('song-progress-text-detail').textContent =
-        `${song ? song.icon + ' ' + song.song_name + '　' : ''}${completed} / ${total} 課題クリア`;
-
-    const stampsEl = document.getElementById('song-stamp-rally');
-    stampsEl.innerHTML = tasks.map((task, idx) => {
-        const done = songProgress[task.id]?.is_completed || false;
-        const isCurrent = !done && completed === idx;
-        return `<div class="stamp-item ${done ? 'completed' : isCurrent ? 'current' : 'pending'}"
-            style="width:48px;height:48px" title="${task.task_number}: ${task.title}">
-            ${done ? '<i class="fas fa-check text-lg"></i>' : task.task_number}
-        </div>`;
-    }).join('');
-}
-
-async function toggleSongCompletion(songKey, taskId) {
-    const current = songProgress[taskId]?.is_completed || false;
-    const newState = !current;
-
-    if (!newState && !confirm('完了を取り消しますか？')) return;
-
-    if (!songProgress[taskId]) songProgress[taskId] = { is_completed: false, memo: '' };
-    songProgress[taskId].is_completed = newState;
-
-    const tasks = songTasksCache[songKey] || [];
-    renderSongTasks(songKey, tasks);
-    updateSongProgressDisplay(songKey, tasks);
-    updateSummaryCard();
-
-    const { error } = await db.from('student_progress').upsert({
-        student_id: currentUser.id,
-        task_type: 'song',
-        task_db_id: taskId,
-        is_completed: newState,
-        memo: songProgress[taskId].memo || '',
-        updated_at: new Date().toISOString()
-    }, { onConflict: 'student_id,task_db_id' });
-
-    if (error) {
-        console.error('進捗保存エラー:', error);
-        songProgress[taskId].is_completed = current;
-        renderSongTasks(songKey, tasks);
-        updateSongProgressDisplay(songKey, tasks);
-        alert('保存に失敗しました。再度お試しください。');
-        return;
+    async function setCompleted(taskId, val) {
+      if (!progressMap[taskId]) progressMap[taskId] = { is_completed: false, memo: '' };
+      progressMap[taskId].is_completed = val;
+      await db.from('student_progress').upsert({
+        school_id: student.school_id, student_id: student.id,
+        task_db_id: taskId, is_completed: val,
+        memo: progressMap[taskId].memo, updated_at: new Date().toISOString()
+      }, { onConflict: 'school_id,student_id,task_db_id' });
+      refreshRow(taskId);
+      updateProgressBar();
+      if (val && allTasks.every(t => progressMap[t.id]?.is_completed)) {
+        setTimeout(() => confetti({ particleCount: 200, spread: 80, origin: { y: 0.5 } }), 300);
+      }
     }
 
-    if (newState) showCompletionFeedback();
-}
-
-// =============================================
-// メモ
-// =============================================
-function toggleMemo(id) {
-    const el = document.getElementById(id);
-    if (el) el.classList.toggle('open');
-}
-
-async function saveMemo(taskType, taskId, memo) {
-    const prog = taskType === 'koto' ? kotoProgress : songProgress;
-    if (!prog[taskId]) prog[taskId] = { is_completed: false, memo: '' };
-    prog[taskId].memo = memo;
-
-    await db.from('student_progress').upsert({
-        student_id: currentUser.id,
-        task_type: taskType,
-        task_db_id: taskId,
-        is_completed: prog[taskId].is_completed || false,
-        memo,
-        updated_at: new Date().toISOString()
-    }, { onConflict: 'student_id,task_db_id' });
-}
-
-// =============================================
-// 全体進捗サマリー
-// =============================================
-function updateSummaryCard() {
-    const ktCompleted = kotoTasks.filter(t => kotoProgress[t.id]?.is_completed).length;
-    const ktTotal = kotoTasks.length;
-
-    let songCompleted = 0, songTotal = 0;
-    Object.values(songTasksCache).forEach(tasks => {
-        songTotal += tasks.length;
-        songCompleted += tasks.filter(t => songProgress[t.id]?.is_completed).length;
-    });
-
-    if (!ktTotal && !songTotal) return;
-
-    document.getElementById('grade-progress-fill').style.width = ktTotal ? `${(ktCompleted/ktTotal)*100}%` : '0%';
-    document.getElementById('grade-progress-label').textContent = ktTotal ? `${ktCompleted} / ${ktTotal} 完了` : '課題なし';
-    document.getElementById('song-progress-fill').style.width = songTotal ? `${(songCompleted/songTotal)*100}%` : '0%';
-    document.getElementById('song-progress-label').textContent = songTotal ? `${songCompleted} / ${songTotal} 完了` : '課題なし';
-    document.getElementById('summary-card').classList.remove('hidden');
-}
-
-// =============================================
-// 完了フィードバック
-// =============================================
-function showCompletionFeedback() {
-    const el = document.createElement('div');
-    el.className = 'fixed top-4 right-4 bg-green-500 text-white px-6 py-4 rounded-lg shadow-lg z-50 transition';
-    el.innerHTML = `<div class="flex items-center gap-3">
-        <i class="fas fa-check-circle text-xl"></i>
-        <div><div class="font-semibold">おめでとうございます！</div><div class="text-sm">課題を完了しました</div></div>
-    </div>`;
-    document.body.appendChild(el);
-    setTimeout(() => el.remove(), 3500);
-}
-
-function launchConfetti() {
-    const colors = ['#f43f5e','#f59e0b','#10b981','#3b82f6','#8b5cf6','#ec4899'];
-    for (let i = 0; i < 60; i++) {
-        setTimeout(() => {
-            const piece = document.createElement('div');
-            piece.className = 'confetti-piece';
-            piece.style.left = Math.random() * 100 + 'vw';
-            piece.style.background = colors[Math.floor(Math.random() * colors.length)];
-            piece.style.animationDuration = (1.5 + Math.random() * 2) + 's';
-            piece.style.animationDelay = '0s';
-            document.body.appendChild(piece);
-            setTimeout(() => piece.remove(), 4000);
-        }, i * 30);
+    function refreshRow(taskId) {
+      const row = document.getElementById(`task-${taskId}`);
+      if (!row) return;
+      const prog = progressMap[taskId];
+      row.className = `task-row${prog.is_completed ? ' done' : ''}`;
+      row.querySelector('.task-check').innerHTML = prog.is_completed ? '<i class="fas fa-check text-xs"></i>' : '';
+      const mb = row.querySelector('.memo-btn');
+      mb.className = `memo-btn${prog.memo ? ' has-memo' : ''}`;
+      mb.innerHTML = `<i class="fas fa-sticky-note mr-0.5"></i>${prog.memo ? 'メモ有' : 'メモ'}`;
+      // song count
+      const sc = row.closest('[id^="song-"]');
+      if (sc) {
+        const sid = sc.id.replace('song-', '');
+        const rows = sc.querySelectorAll('.task-row');
+        const d = Array.from(rows).filter(r => r.classList.contains('done')).length;
+        const el = document.getElementById(`song-count-${sid}`);
+        if (el) el.textContent = `${d}/${rows.length}`;
+      }
     }
-}
 
-// =============================================
-// ログアウト
-// =============================================
-function logout() {
-    if (confirm('ログアウトしますか？')) {
-        localStorage.removeItem('currentUser');
-        localStorage.removeItem('userType');
-        window.location.href = 'index.html';
+    function updateProgressBar() {
+      const total = allTasks.length;
+      const done  = allTasks.filter(t => progressMap[t.id]?.is_completed).length;
+      const pct   = total ? Math.round(done / total * 100) : 0;
+      document.getElementById('progress-bar').style.width = pct + '%';
+      document.getElementById('progress-pct').textContent = pct + '%';
+      document.getElementById('progress-detail').textContent =
+        total ? `${done} / ${total} 項目完了` : '課題が登録されていません';
     }
-}
 
-document.addEventListener('DOMContentLoaded', initializeApp);
-</script>
+    function openMemo(taskId, title) {
+      memoTarget = taskId;
+      document.getElementById('memo-task-title').textContent = title;
+      document.getElementById('memo-text').value = progressMap[taskId]?.memo || '';
+      document.getElementById('memo-modal').classList.remove('hidden');
+    }
+    function closeMemo() { document.getElementById('memo-modal').classList.add('hidden'); memoTarget = null; }
+
+    async function saveMemo() {
+      if (!memoTarget) return;
+      const memo = document.getElementById('memo-text').value.trim();
+      if (!progressMap[memoTarget]) progressMap[memoTarget] = { is_completed: false, memo: '' };
+      progressMap[memoTarget].memo = memo;
+      await db.from('student_progress').upsert({
+        school_id: student.school_id, student_id: student.id,
+        task_db_id: memoTarget, is_completed: progressMap[memoTarget].is_completed,
+        memo, updated_at: new Date().toISOString()
+      }, { onConflict: 'school_id,student_id,task_db_id' });
+      refreshRow(memoTarget);
+      closeMemo();
+    }
+
+    function logout() {
+      localStorage.removeItem('currentUser');
+      localStorage.removeItem('userType');
+      window.location.href = `index.html${student?.school_id ? '?school=' + student.school_id : ''}`;
+    }
+
+    document.addEventListener('DOMContentLoaded', init);
+  </script>
 </body>
 </html>
