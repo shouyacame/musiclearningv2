@@ -190,16 +190,28 @@
             <button type="submit" class="btn-red w-full"><i class="fas fa-plus mr-1"></i>追加</button>
           </form>
         </div>
-        <!-- 楽曲 -->
+        <!-- 曲別課題 -->
         <div class="card p-4">
-          <div class="section-title"><i class="fas fa-music text-amber-500"></i>楽曲</div>
+          <div class="flex items-center justify-between mb-3">
+            <div class="section-title mb-0"><i class="fas fa-music text-amber-500"></i>曲別課題</div>
+            <div class="flex gap-1">
+              <button class="btn-gray text-xs" onclick="document.getElementById('song-csv-input').click()">
+                <i class="fas fa-file-import mr-1"></i>インポート
+              </button>
+              <button class="btn-gray text-xs" onclick="downloadSongsCSV()">
+                <i class="fas fa-file-export mr-1"></i>ダウンロード
+              </button>
+            </div>
+            <input type="file" id="song-csv-input" accept=".csv" class="hidden" onchange="onSongCSVSelected(event)">
+          </div>
+          <p class="text-xs text-gray-400 mb-2">CSV列: 曲番号, 曲名, アーティスト</p>
           <div id="songs-manage-list" class="space-y-3 mb-3"></div>
           <form onsubmit="addSong(event)" class="space-y-2">
             <div class="flex gap-2">
               <input type="text" id="song-title" class="inp flex-1" placeholder="曲名" required>
               <input type="text" id="song-artist" class="inp flex-1" placeholder="アーティスト">
             </div>
-            <button type="submit" class="btn-red w-full"><i class="fas fa-plus mr-1"></i>楽曲を追加</button>
+            <button type="submit" class="btn-red w-full"><i class="fas fa-plus mr-1"></i>曲を追加</button>
           </form>
         </div>
       </div>
@@ -970,6 +982,49 @@
     document.getElementById('song-artist').value = '';
     await loadSongsManage();
     toast('楽曲を追加しました', 'success');
+  }
+
+  function onSongCSVSelected(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = async ev => {
+      const lines = ev.target.result.replace(/\r/g, '').split('\n').filter(l => l.trim());
+      if (lines.length < 2) { toast('データが見つかりません', 'error'); return; }
+      const headers  = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g, ''));
+      const numIdx   = headers.findIndex(h => /番号|No|number|順番/.test(h));
+      const titleIdx = headers.findIndex(h => /曲名|タイトル|title/.test(h));
+      const artistIdx = headers.findIndex(h => /アーティスト|artist|歌手/.test(h));
+      if (titleIdx < 0) { toast('「曲名」列が見つかりません', 'error'); return; }
+      const rows = lines.slice(1).map((line, i) => {
+        const vals = line.split(',').map(v => v.trim().replace(/^"|"$/g, ''));
+        return {
+          order_num: numIdx >= 0 ? (parseInt(vals[numIdx]) || i + 1) : i + 1,
+          title: vals[titleIdx] || '',
+          artist: artistIdx >= 0 ? (vals[artistIdx] || '') : ''
+        };
+      }).filter(r => r.title);
+      if (!rows.length) { toast('有効なデータがありません', 'error'); return; }
+      if (!confirm(`${rows.length}件の楽曲をインポートします。既存の楽曲はそのまま残ります。`)) return;
+      let ok = 0;
+      for (const row of rows) {
+        const { error } = await db.from('songs').insert({ school_id: T.school_id, title: row.title, artist: row.artist, order_num: row.order_num });
+        if (!error) ok++;
+      }
+      await loadSongsManage();
+      toast(`${ok}件の楽曲をインポートしました`, 'success');
+    };
+    reader.readAsText(file, 'UTF-8');
+    e.target.value = '';
+  }
+
+  async function downloadSongsCSV() {
+    const { data } = await db.from('songs').select('order_num, title, artist').eq('school_id', T.school_id).eq('is_active', true).order('order_num');
+    if (!data?.length) { toast('楽曲データがありません', 'error'); return; }
+    const rows = [['曲番号', '曲名', 'アーティスト']];
+    data.forEach(s => rows.push([s.order_num, s.title, s.artist || '']));
+    downloadCSVFile(rows, `songs_${T.school_id}.csv`);
+    toast('CSVをダウンロードしました', 'success');
   }
 
   async function deleteSong(id) {
