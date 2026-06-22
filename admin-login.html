@@ -171,7 +171,14 @@
       // Step2: 必ずsignInしてセッションを確立（INSERTにはauthenticated権限が必要）
       const { data: siData, error: siErr } = await db.auth.signInWithPassword({ email, password: pass1 });
       if (siErr || !siData?.user) {
-        errEl.textContent = signUpErr?.message || 'ログインに失敗しました。メールアドレスとパスワードを確認してください。';
+        const msg = siErr?.message || '';
+        let userMsg = '';
+        if (msg.toLowerCase().includes('confirm') || msg.toLowerCase().includes('verified') || msg.toLowerCase().includes('email')) {
+          userMsg = `📧 メール確認が必要です。<br><br>Gmailに届いた <strong>Supabaseからの確認メール</strong> のリンクをクリックしてから、もう一度「管理者アカウントを作成」を押してください。<br><br><small style="color:#888">または Supabase Dashboard → Authentication → Providers → Email → 「Confirm email」をOFFにしてください。</small>`;
+        } else {
+          userMsg = `ログイン失敗: ${msg}<br><br><small style="color:#888">このメールアドレスで先生アカウントを作ったことがある場合は、そのパスワードを入力してください。</small>`;
+        }
+        errEl.innerHTML = userMsg;
         errEl.classList.remove('hidden');
         btn.disabled = false;
         btn.innerHTML = '<i class="fas fa-user-shield mr-2"></i>管理者アカウントを作成';
