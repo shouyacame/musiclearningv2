@@ -13,6 +13,9 @@
     body { font-family: 'Noto Sans JP', sans-serif; }
     .bg-hero { background: linear-gradient(135deg, #0f0c29 0%, #302b63 50%, #24243e 100%); min-height: 100vh; }
     .card { background: #fff; border-radius: 20px; box-shadow: 0 25px 60px rgba(0,0,0,0.3); }
+    .tab-active   { background: #4F46E5; color: #fff; }
+    .tab-inactive { color: #666; }
+    .tab-inactive:hover { background: #f5f5f5; }
     .inp { width: 100%; padding: 11px 14px; border: 2px solid #e5e7eb; border-radius: 10px; font-size: 14px; font-family: 'Noto Sans JP', sans-serif; transition: border-color .2s; }
     .inp:focus { outline: none; border-color: #4F46E5; }
     .btn-indigo { background: linear-gradient(135deg, #4F46E5, #7C3AED); color: #fff; border: none; border-radius: 12px; padding: 13px 20px; font-size: 15px; font-weight: 600; cursor: pointer; width: 100%; font-family: 'Noto Sans JP', sans-serif; transition: all .3s; }
@@ -31,9 +34,15 @@
       <p class="text-white/50 text-sm mt-1">管理者ポータル</p>
     </div>
 
-    <div class="card p-8">
-      <h2 class="text-lg font-bold text-gray-800 mb-6 text-center">管理者ログイン</h2>
+    <!-- 読み込み中 -->
+    <div id="loading-card" class="card p-8 text-center">
+      <i class="fas fa-spinner fa-spin text-2xl text-indigo-400 mb-3 block"></i>
+      <p class="text-sm text-gray-400">確認中...</p>
+    </div>
 
+    <!-- ログインカード（管理者が既に存在する場合） -->
+    <div id="login-card" class="card p-8 hidden">
+      <h2 class="text-lg font-bold text-gray-800 mb-6 text-center">管理者ログイン</h2>
       <form onsubmit="doLogin(event)" class="space-y-4">
         <div>
           <label class="block text-xs font-semibold text-gray-600 mb-1">メールアドレス</label>
@@ -43,8 +52,8 @@
           <label class="block text-xs font-semibold text-gray-600 mb-1">パスワード</label>
           <div class="relative">
             <input type="password" id="l-pass" class="inp pr-11" placeholder="パスワード" required autocomplete="current-password">
-            <button type="button" onclick="togglePw()" class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
-              <i id="pw-icon" class="fas fa-eye text-sm"></i>
+            <button type="button" onclick="togglePw('l-pass','l-pw-icon')" class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+              <i id="l-pw-icon" class="fas fa-eye text-sm"></i>
             </button>
           </div>
         </div>
@@ -53,37 +62,51 @@
           <i class="fas fa-sign-in-alt mr-2"></i>ログイン
         </button>
       </form>
-
-      <!-- 初回セットアップ（ログイン後・管理者未登録時に表示） -->
-      <div id="setup-section" class="hidden mt-6 pt-6 border-t border-gray-100">
-        <div class="bg-indigo-50 border border-indigo-200 rounded-xl p-4 mb-4">
-          <p class="text-sm font-semibold text-indigo-800 mb-1"><i class="fas fa-info-circle mr-1"></i>初回セットアップ</p>
-          <p class="text-xs text-indigo-600">管理者が未登録です。このアカウントを管理者として登録しますか？</p>
-        </div>
-        <div class="space-y-3 mb-4">
-          <div>
-            <label class="block text-xs font-semibold text-gray-600 mb-1">管理者名</label>
-            <input type="text" id="setup-name" class="inp" placeholder="例: システム管理者" value="管理者">
-          </div>
-        </div>
-        <button onclick="doSetup()" id="setup-btn" class="btn-indigo">
-          <i class="fas fa-user-shield mr-2"></i>管理者として登録する
-        </button>
-        <button onclick="doLogout()" class="mt-2 w-full text-center text-xs text-gray-400 hover:text-gray-600 py-2">
-          別のアカウントでログイン
-        </button>
-      </div>
     </div>
 
-    <p class="text-center text-white/30 text-xs mt-6">
-      <i class="fas fa-lock mr-1"></i>このページは管理者専用です
-    </p>
+    <!-- 初回セットアップカード（管理者が1人もいない場合） -->
+    <div id="setup-card" class="card p-8 hidden">
+      <div class="flex items-center gap-2 mb-1">
+        <i class="fas fa-rocket text-indigo-500"></i>
+        <h2 class="text-lg font-bold text-gray-800">初回セットアップ</h2>
+      </div>
+      <p class="text-xs text-gray-400 mb-6">管理者アカウントがまだ登録されていません。<br>最初の管理者アカウントを作成してください。</p>
+
+      <form onsubmit="doSetup(event)" class="space-y-4">
+        <div>
+          <label class="block text-xs font-semibold text-gray-600 mb-1">メールアドレス <span class="text-red-500">*</span></label>
+          <input type="email" id="s-email" class="inp" placeholder="admin@example.com" required autocomplete="email">
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-gray-600 mb-1">管理者名</label>
+          <input type="text" id="s-name" class="inp" placeholder="システム管理者" value="管理者">
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-gray-600 mb-1">パスワード <span class="text-red-500">*</span></label>
+          <div class="relative">
+            <input type="password" id="s-pass" class="inp pr-11" placeholder="8文字以上" required minlength="8" autocomplete="new-password">
+            <button type="button" onclick="togglePw('s-pass','s-pw-icon')" class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+              <i id="s-pw-icon" class="fas fa-eye text-sm"></i>
+            </button>
+          </div>
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-gray-600 mb-1">パスワード確認 <span class="text-red-500">*</span></label>
+          <input type="password" id="s-pass2" class="inp" placeholder="もう一度入力" required minlength="8" autocomplete="new-password">
+        </div>
+        <div id="s-err" class="hidden text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2"></div>
+        <button type="submit" id="s-btn" class="btn-indigo">
+          <i class="fas fa-user-shield mr-2"></i>管理者アカウントを作成
+        </button>
+      </form>
+    </div>
+
   </div>
 
   <script>
-    function togglePw() {
-      const inp = document.getElementById('l-pass');
-      const ic  = document.getElementById('pw-icon');
+    function togglePw(inputId, iconId) {
+      const inp = document.getElementById(inputId);
+      const ic  = document.getElementById(iconId);
       inp.type  = inp.type === 'password' ? 'text' : 'password';
       ic.className = inp.type === 'text' ? 'fas fa-eye-slash text-sm' : 'fas fa-eye text-sm';
     }
@@ -107,69 +130,100 @@
         return;
       }
 
-      // 管理者判定
-      const { data: adminProfile } = await db.from('admin_profiles')
+      const { data: profile } = await db.from('admin_profiles')
         .select('id').eq('id', data.user.id).maybeSingle();
 
-      if (adminProfile) {
+      if (profile) {
         window.location.href = 'admin.html';
         return;
       }
 
-      // 管理者未登録 → 他に管理者がいるか確認
-      const { data: anyAdmin } = await db.from('admin_profiles').select('id').limit(1);
-      if (anyAdmin && anyAdmin.length > 0) {
-        errEl.textContent = 'このアカウントには管理者権限がありません。';
+      await db.auth.signOut();
+      errEl.textContent = 'このアカウントには管理者権限がありません。';
+      errEl.classList.remove('hidden');
+      btn.disabled = false;
+      btn.innerHTML = '<i class="fas fa-sign-in-alt mr-2"></i>ログイン';
+    }
+
+    async function doSetup(e) {
+      e.preventDefault();
+      const email = document.getElementById('s-email').value.trim();
+      const name  = document.getElementById('s-name').value.trim() || '管理者';
+      const pass1 = document.getElementById('s-pass').value;
+      const pass2 = document.getElementById('s-pass2').value;
+      const btn   = document.getElementById('s-btn');
+      const errEl = document.getElementById('s-err');
+      errEl.classList.add('hidden');
+
+      if (pass1 !== pass2) {
+        errEl.textContent = 'パスワードが一致しません。';
         errEl.classList.remove('hidden');
-        await db.auth.signOut();
-        btn.disabled = false;
-        btn.innerHTML = '<i class="fas fa-sign-in-alt mr-2"></i>ログイン';
         return;
       }
 
-      // 管理者が1人もいない → 初回セットアップを表示
-      btn.disabled = false;
-      btn.innerHTML = '<i class="fas fa-sign-in-alt mr-2"></i>ログイン';
-      document.getElementById('setup-section').classList.remove('hidden');
-    }
-
-    async function doSetup() {
-      const name  = document.getElementById('setup-name').value.trim() || '管理者';
-      const btn   = document.getElementById('setup-btn');
       btn.disabled = true;
-      btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>登録中...';
+      btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>作成中...';
 
-      const { data: { session } } = await db.auth.getSession();
-      if (!session) { alert('ログインセッションが切れました。再度ログインしてください。'); window.location.reload(); return; }
+      // Supabase Authアカウント作成
+      const { data: signUpData, error: signUpErr } = await db.auth.signUp({ email, password: pass1 });
 
-      const { error } = await db.from('admin_profiles').insert({
-        id: session.user.id, email: session.user.email, name
-      });
+      // 既にアカウントが存在する場合はサインインで対応
+      let userId = signUpData?.user?.id;
+      if (signUpErr || !userId) {
+        const { data: siData, error: siErr } = await db.auth.signInWithPassword({ email, password: pass1 });
+        if (siErr || !siData?.user) {
+          errEl.textContent = signUpErr?.message || 'アカウント作成に失敗しました。';
+          errEl.classList.remove('hidden');
+          btn.disabled = false;
+          btn.innerHTML = '<i class="fas fa-user-shield mr-2"></i>管理者アカウントを作成';
+          return;
+        }
+        userId = siData.user.id;
+      }
 
-      if (error) {
-        alert('登録に失敗しました: ' + error.message);
+      // admin_profilesに登録
+      const { error: insertErr } = await db.from('admin_profiles').insert({ id: userId, email, name });
+      if (insertErr) {
+        errEl.textContent = '登録に失敗しました: ' + insertErr.message;
+        errEl.classList.remove('hidden');
         btn.disabled = false;
-        btn.innerHTML = '<i class="fas fa-user-shield mr-2"></i>管理者として登録する';
+        btn.innerHTML = '<i class="fas fa-user-shield mr-2"></i>管理者アカウントを作成';
         return;
       }
 
       window.location.href = 'admin.html';
     }
 
-    async function doLogout() {
-      await db.auth.signOut();
-      window.location.reload();
+    async function init() {
+      // ログイン済みなら管理者チェック
+      const { data: { session } } = await db.auth.getSession();
+      if (session) {
+        const { data: profile } = await db.from('admin_profiles')
+          .select('id').eq('id', session.user.id).maybeSingle();
+        if (profile) { window.location.href = 'admin.html'; return; }
+        // ログイン済みだが管理者でない → サインアウトしてフローを続ける
+        await db.auth.signOut();
+      }
+
+      // 管理者が存在するかチェック（公開RPC）
+      const { data: exists, error } = await db.rpc('admin_exists');
+
+      document.getElementById('loading-card').classList.add('hidden');
+
+      if (error || exists === null) {
+        // RPCが存在しない場合（SQL未実行）はセットアップ画面を表示
+        document.getElementById('setup-card').classList.remove('hidden');
+        return;
+      }
+
+      if (exists) {
+        document.getElementById('login-card').classList.remove('hidden');
+      } else {
+        document.getElementById('setup-card').classList.remove('hidden');
+      }
     }
 
-    document.addEventListener('DOMContentLoaded', async () => {
-      const { data } = await db.auth.getSession();
-      if (!data?.session) return;
-
-      // ログイン済みなら管理者チェック
-      const { data: adminProfile } = await db.from('admin_profiles')
-        .select('id').eq('id', data.session.user.id).maybeSingle();
-      if (adminProfile) window.location.href = 'admin.html';
-    });
+    document.addEventListener('DOMContentLoaded', init);
   </script>
 </body>
 </html>

@@ -34,3 +34,11 @@ $$;
 DROP POLICY IF EXISTS "tp_admin_delete" ON teacher_profiles;
 CREATE POLICY "tp_admin_delete" ON teacher_profiles
   FOR DELETE TO authenticated USING (auth.uid() = id OR is_admin());
+
+-- 管理者が存在するか確認する公開関数（ログイン前の初回セットアップ判定に使用）
+CREATE OR REPLACE FUNCTION admin_exists()
+RETURNS BOOLEAN LANGUAGE sql SECURITY DEFINER STABLE AS $$
+  SELECT EXISTS (SELECT 1 FROM admin_profiles);
+$$;
+
+GRANT EXECUTE ON FUNCTION admin_exists() TO anon, authenticated;
