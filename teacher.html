@@ -9,6 +9,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
   <script src="supabase-config.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
   <style>
     body { font-family: 'Noto Sans JP', sans-serif; background: #F5EFE8; }
     .header-grad { background: linear-gradient(135deg, #5C1010 0%, #C84B31 100%); }
@@ -159,6 +160,7 @@
             </select>
           </div>
           <button class="btn-red" onclick="loadProgressMatrix()"><i class="fas fa-sync-alt mr-1"></i>表示</button>
+          <button class="btn-gray ml-auto" onclick="exportProgressCSV()"><i class="fas fa-file-export mr-1"></i>進捗CSV</button>
         </div>
       </div>
       <div id="matrix-wrap" class="card p-4 overflow-x-auto">
@@ -290,6 +292,10 @@
           <button onclick="copyStudentUrl()" class="btn-gray flex-shrink-0 text-xs"><i class="fas fa-copy mr-1"></i>コピー</button>
         </div>
         <p class="text-xs text-gray-400 mt-2">このURLを生徒に配布してください</p>
+        <div class="mt-3 flex flex-col items-center gap-2">
+          <canvas id="student-qr" class="rounded-xl border border-gray-100"></canvas>
+          <button onclick="downloadQR()" class="btn-gray text-xs"><i class="fas fa-download mr-1"></i>QRコードをダウンロード</button>
+        </div>
       </div>
       <div class="card p-4">
         <div class="section-title"><i class="fas fa-school text-red-500"></i>クラス一覧</div>
@@ -333,6 +339,68 @@
             <button type="submit" class="btn-red w-full"><i class="fas fa-save mr-1"></i>保存</button>
           </form>
         </div>
+
+        <div class="card p-5">
+          <div class="section-title"><i class="fas fa-lock text-red-500"></i>パスワード変更</div>
+          <form onsubmit="changePassword(event)" class="space-y-3">
+            <div>
+              <label class="block text-xs font-semibold text-gray-600 mb-1">新しいパスワード <span class="text-red-500">*</span></label>
+              <div class="relative">
+                <input type="password" id="new-pw" class="inp pr-11" placeholder="8文字以上" required minlength="8" autocomplete="new-password">
+                <button type="button" onclick="toggleNewPw()" class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                  <i id="new-pw-icon" class="fas fa-eye text-sm"></i>
+                </button>
+              </div>
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-gray-600 mb-1">確認 <span class="text-red-500">*</span></label>
+              <input type="password" id="new-pw-confirm" class="inp" placeholder="もう一度入力" required minlength="8" autocomplete="new-password">
+            </div>
+            <button type="submit" class="btn-red w-full"><i class="fas fa-key mr-1"></i>変更する</button>
+          </form>
+        </div>
+
+        <div class="card p-5">
+          <div class="section-title"><i class="fas fa-users-cog text-red-500"></i>先生一括登録</div>
+          <p class="text-xs text-gray-500 mb-2">CSVで複数の先生アカウントをまとめて登録します。</p>
+          <div class="bg-gray-50 rounded-xl p-3 font-mono text-xs text-gray-600 mb-3 overflow-x-auto leading-5">
+            先生ID,学校ID,名前,パスワード<br>
+            yamada,naha-jr-2024,山田 花子,mypassword<br>
+            suzuki,naha-jr-2024,鈴木 太郎,pass1234
+          </div>
+          <div class="bg-amber-50 border border-amber-200 rounded-xl p-3 text-xs text-amber-800 mb-3">
+            <i class="fas fa-exclamation-triangle mr-1"></i>
+            登録完了後はログイン画面に戻ります。管理者として再ログインしてください。
+          </div>
+          <div class="flex gap-2">
+            <button class="btn-gray flex-1" onclick="downloadTeacherCSVTemplate()">
+              <i class="fas fa-file-download mr-1"></i>テンプレート
+            </button>
+            <button class="btn-red flex-1" onclick="document.getElementById('teacher-csv-input').click()">
+              <i class="fas fa-file-import mr-1"></i>CSVインポート
+            </button>
+          </div>
+          <input type="file" id="teacher-csv-input" accept=".csv" class="hidden" onchange="onTeacherCSVSelected(event)">
+        </div>
+
+        <div class="card p-5 border-2 border-red-200">
+          <div class="section-title"><i class="fas fa-exclamation-triangle text-red-500"></i>年度リセット</div>
+          <p class="text-xs text-gray-500 mb-4">新年度の切り替え時に使用します。操作は取り消せません。</p>
+          <div class="space-y-2">
+            <button onclick="resetProgress()" class="w-full text-left p-3 rounded-xl border border-amber-200 bg-amber-50 hover:bg-amber-100 transition-colors">
+              <div class="text-sm font-semibold text-amber-800"><i class="fas fa-chart-pie mr-2"></i>進捗データのみリセット</div>
+              <div class="text-xs text-amber-600 mt-0.5">生徒・課題・クラスはそのまま。達成記録だけ消去。</div>
+            </button>
+            <button onclick="resetStudents()" class="w-full text-left p-3 rounded-xl border border-orange-200 bg-orange-50 hover:bg-orange-100 transition-colors">
+              <div class="text-sm font-semibold text-orange-800"><i class="fas fa-users mr-2"></i>生徒＋進捗をリセット</div>
+              <div class="text-xs text-orange-600 mt-0.5">クラス・課題はそのまま。生徒名簿と進捗を消去。</div>
+            </button>
+            <button onclick="resetAll()" class="w-full text-left p-3 rounded-xl border border-red-200 bg-red-50 hover:bg-red-100 transition-colors">
+              <div class="text-sm font-semibold text-red-800"><i class="fas fa-bomb mr-2"></i>全データをリセット</div>
+              <div class="text-xs text-red-600 mt-0.5">生徒・進捗・クラス・課題・お知らせをすべて消去。</div>
+            </button>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -374,6 +442,11 @@
             <div>
               <div class="text-sm font-bold text-gray-700 mb-2">生徒名簿</div>
               <div class="bg-gray-50 rounded-xl p-3 font-mono text-xs text-gray-700 overflow-x-auto">出席番号,名前<br>1,田中 太郎<br>2,鈴木 花子</div>
+            </div>
+            <div>
+              <div class="text-sm font-bold text-gray-700 mb-2">先生一括登録</div>
+              <div class="bg-gray-50 rounded-xl p-3 font-mono text-xs text-gray-700 overflow-x-auto">先生ID,学校ID,名前,パスワード<br>yamada,naha-jr-2024,山田 花子,password123<br>suzuki,naha-jr-2024,鈴木 太郎,pass1234</div>
+              <p class="text-xs text-gray-400 mt-1">「設定」タブ → 先生一括登録 からインポートできます</p>
             </div>
             <div class="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 text-xs text-amber-800">
               <i class="fas fa-exclamation-triangle mr-1"></i>
@@ -541,11 +614,75 @@
   </div>
 </div>
 
+<!-- モーダル：お知らせ編集 -->
+<div id="edit-announce-modal" class="modal-overlay hidden">
+  <div class="modal-box">
+    <h3 class="font-bold text-gray-800 mb-4">お知らせを編集</h3>
+    <input type="hidden" id="edit-ann-id">
+    <div class="space-y-3">
+      <div>
+        <label class="text-xs font-semibold text-gray-600 mb-1 block">タイトル</label>
+        <input type="text" id="edit-ann-title" class="inp" required>
+      </div>
+      <div>
+        <label class="text-xs font-semibold text-gray-600 mb-1 block">内容</label>
+        <textarea id="edit-ann-content" class="inp resize-none" rows="3"></textarea>
+      </div>
+      <label class="flex items-center gap-2 text-sm cursor-pointer">
+        <input type="checkbox" id="edit-ann-pinned"> 上部に固定
+      </label>
+    </div>
+    <div class="flex gap-2 mt-4">
+      <button class="btn-gray flex-1" onclick="closeModal('edit-announce-modal')">キャンセル</button>
+      <button class="btn-red flex-1" onclick="saveAnnounceEdit()"><i class="fas fa-save mr-1"></i>保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- モーダル：生徒詳細 -->
+<div id="student-detail-modal" class="modal-overlay hidden">
+  <div class="modal-box" style="max-width:520px">
+    <div class="flex items-center justify-between mb-4">
+      <h3 class="font-bold text-gray-800" id="student-detail-name"></h3>
+      <button onclick="closeModal('student-detail-modal')" class="text-gray-400 hover:text-gray-600 text-xl leading-none">&times;</button>
+    </div>
+    <div id="student-detail-content">
+      <div class="text-center py-8 text-gray-400"><i class="fas fa-spinner fa-spin text-xl"></i></div>
+    </div>
+    <button class="btn-gray w-full mt-4" onclick="closeModal('student-detail-modal')">閉じる</button>
+  </div>
+</div>
+
+<!-- モーダル：先生CSVインポート -->
+<div id="teacher-csv-modal" class="modal-overlay hidden">
+  <div class="modal-box" style="max-width:500px">
+    <h3 class="font-bold text-gray-800 mb-2"><i class="fas fa-users-cog mr-2 text-red-500"></i>先生一括登録 プレビュー</h3>
+    <div class="bg-gray-50 rounded-xl overflow-hidden mb-3" style="max-height:220px;overflow-y:auto">
+      <table>
+        <thead><tr><th>先生ID</th><th>学校ID</th><th>名前</th><th>パスワード</th></tr></thead>
+        <tbody id="teacher-csv-preview"></tbody>
+      </table>
+    </div>
+    <p id="teacher-csv-count" class="text-sm text-gray-600 mb-3"></p>
+    <div class="bg-amber-50 border border-amber-200 rounded-xl p-3 text-xs text-amber-800 mb-4">
+      <i class="fas fa-exclamation-triangle mr-1"></i>
+      登録後はログイン画面に移動します。管理者として再ログインしてください。
+    </div>
+    <div class="flex gap-2">
+      <button class="btn-gray flex-1" onclick="closeModal('teacher-csv-modal')">キャンセル</button>
+      <button class="btn-red flex-1" id="teacher-csv-import-btn" onclick="doImportTeacherCSV()">
+        <i class="fas fa-user-plus mr-1"></i>登録する
+      </button>
+    </div>
+  </div>
+</div>
+
 <div id="toast-area"></div>
 
 <script>
   let T = null; // currentTeacher
   let csvRows = [];
+  let teacherCsvRows = [];
   let classesCache = [];
   const tabLoaded = {};
 
@@ -793,6 +930,10 @@
       row.className = 'flex items-center gap-2 p-2 bg-gray-50 rounded-lg';
       row.id = `kt-${t.id}`;
       row.innerHTML = `
+        <div class="flex flex-col gap-0.5 mr-1">
+          <button class="btn-sm btn-gray py-0.5 px-1.5 text-gray-400" onclick="moveKotoTask('${t.id}',-1)">▲</button>
+          <button class="btn-sm btn-gray py-0.5 px-1.5 text-gray-400" onclick="moveKotoTask('${t.id}',1)">▼</button>
+        </div>
         <div class="flex-1 min-w-0">
           <div class="text-sm font-semibold">${t.title}</div>
           ${t.description ? `<div class="text-xs text-gray-400 mt-0.5 truncate">${t.description}</div>` : ''}
@@ -960,6 +1101,10 @@
       const row = document.createElement('div');
       row.className = 'p-3 bg-amber-50 rounded-xl flex items-center gap-2';
       row.innerHTML = `
+        <div class="flex flex-col gap-0.5 mr-1">
+          <button class="btn-sm btn-gray py-0.5 px-1.5 text-gray-400" onclick="moveSong('${s.id}',-1)">▲</button>
+          <button class="btn-sm btn-gray py-0.5 px-1.5 text-gray-400" onclick="moveSong('${s.id}',1)">▼</button>
+        </div>
         <div class="flex-1 min-w-0">
           <div class="text-sm font-semibold truncate">${s.title}</div>
           ${s.artist ? `<div class="text-xs text-gray-400">${s.artist}</div>` : ''}
@@ -1105,6 +1250,7 @@
         </div>
         <div class="flex gap-1">
           <button class="btn-sm ${a.is_active ? 'btn-toggle' : 'btn-toggle off'}" onclick="toggleAnnounce('${a.id}',${a.is_active})">${a.is_active ? '公開' : '非公開'}</button>
+          <button class="btn-sm btn-edit" onclick="openEditAnnounce('${a.id}','${escQ(a.title)}','${escQ(a.content||'')}',${a.is_pinned})"><i class="fas fa-pen"></i></button>
           <button class="btn-sm btn-del" onclick="deleteAnnounce('${a.id}')"><i class="fas fa-trash"></i></button>
         </div>
       `;
@@ -1185,9 +1331,12 @@
     if (!data?.length) { wrap.innerHTML = '<p class="text-center text-sm text-gray-400 py-4">生徒が登録されていません</p>'; return; }
     let html = '<table><thead><tr><th>学年</th><th>組</th><th>番号</th><th>名前</th><th>生徒ID</th><th>操作</th></tr></thead><tbody>';
     data.forEach(s => {
+      const nameDisplay = s.name
+        ? `<button class="text-blue-600 hover:underline font-medium text-left" onclick="openStudentDetail('${s.student_id}','${escQ(s.name)}','${s.grade}','${s.class_name}',${s.number})">${s.name}</button>`
+        : '<span class="text-gray-300">未登録</span>';
       html += `<tr>
         <td>${s.grade}年</td><td>${s.class_name}組</td><td>${s.number}番</td>
-        <td>${s.name || '<span class="text-gray-300">未登録</span>'}</td>
+        <td>${nameDisplay}</td>
         <td><code class="text-xs bg-gray-100 px-1 rounded">${s.student_id}</code></td>
         <td class="flex gap-1">
           <button class="btn-sm btn-edit" onclick="openEditStudent('${s.id}','${s.grade}','${s.class_name}',${s.number},'${escQ(s.name||'')}')">編集</button>
@@ -1323,6 +1472,7 @@
   async function loadClassesTab() {
     await loadClassSelectors('prog-grade', 'prog-class');
     await renderClassList();
+    generateQR();
   }
 
   async function renderClassList() {
@@ -1396,6 +1546,335 @@
     document.getElementById('teacher-label').textContent = name || T.username;
     document.getElementById('school-label').textContent  = school_name || T.school_id;
     toast('保存しました', 'success');
+  }
+
+  // ---- PASSWORD CHANGE ----
+
+  function toggleNewPw() {
+    const inp = document.getElementById('new-pw');
+    const ic  = document.getElementById('new-pw-icon');
+    inp.type  = inp.type === 'password' ? 'text' : 'password';
+    ic.className = inp.type === 'text' ? 'fas fa-eye-slash text-sm' : 'fas fa-eye text-sm';
+  }
+
+  async function changePassword(e) {
+    e.preventDefault();
+    const pw1 = document.getElementById('new-pw').value;
+    const pw2 = document.getElementById('new-pw-confirm').value;
+    if (pw1 !== pw2) { toast('パスワードが一致しません', 'error'); return; }
+    const { error } = await db.auth.updateUser({ password: pw1 });
+    if (error) { toast('変更失敗: ' + error.message, 'error'); return; }
+    document.getElementById('new-pw').value         = '';
+    document.getElementById('new-pw-confirm').value = '';
+    toast('パスワードを変更しました', 'success');
+  }
+
+  // ---- ANNOUNCE EDIT ----
+
+  function openEditAnnounce(id, title, content, pinned) {
+    document.getElementById('edit-ann-id').value       = id;
+    document.getElementById('edit-ann-title').value    = title;
+    document.getElementById('edit-ann-content').value  = content;
+    document.getElementById('edit-ann-pinned').checked = pinned;
+    document.getElementById('edit-announce-modal').classList.remove('hidden');
+  }
+
+  async function saveAnnounceEdit() {
+    const id      = document.getElementById('edit-ann-id').value;
+    const title   = document.getElementById('edit-ann-title').value.trim();
+    const content = document.getElementById('edit-ann-content').value.trim();
+    const pinned  = document.getElementById('edit-ann-pinned').checked;
+    if (!title) { toast('タイトルは必須です', 'error'); return; }
+    const { error } = await db.from('announcements').update({ title, content, is_pinned: pinned }).eq('id', id);
+    if (error) { toast('保存失敗', 'error'); return; }
+    closeModal('edit-announce-modal');
+    await loadAnnounce();
+    toast('保存しました', 'success');
+  }
+
+  // ---- TASK REORDER ----
+
+  async function moveKotoTask(id, dir) {
+    const { data } = await db.from('koto_tasks').select('id, order_num').eq('school_id', T.school_id).eq('is_active', true).order('order_num');
+    if (!data || data.length < 2) return;
+    const idx = data.findIndex(t => t.id === id);
+    if (idx < 0) return;
+    const swapIdx = idx + dir;
+    if (swapIdx < 0 || swapIdx >= data.length) return;
+    [data[idx], data[swapIdx]] = [data[swapIdx], data[idx]];
+    await Promise.all(data.map((t, i) => db.from('koto_tasks').update({ order_num: i + 1 }).eq('id', t.id)));
+    await loadKotoTasks();
+  }
+
+  async function moveSong(id, dir) {
+    const { data } = await db.from('songs').select('id, order_num').eq('school_id', T.school_id).eq('is_active', true).order('order_num');
+    if (!data || data.length < 2) return;
+    const idx = data.findIndex(s => s.id === id);
+    if (idx < 0) return;
+    const swapIdx = idx + dir;
+    if (swapIdx < 0 || swapIdx >= data.length) return;
+    [data[idx], data[swapIdx]] = [data[swapIdx], data[idx]];
+    await Promise.all(data.map((s, i) => db.from('songs').update({ order_num: i + 1 }).eq('id', s.id)));
+    await loadSongsManage();
+  }
+
+  // ---- PROGRESS CSV EXPORT ----
+
+  async function exportProgressCSV() {
+    const [studRes, kotoRes, progRes] = await Promise.all([
+      db.from('students').select('student_id, grade, class_name, number, name').eq('school_id', T.school_id).order('grade').order('class_name').order('number'),
+      db.from('koto_tasks').select('id, title, order_num').eq('school_id', T.school_id).eq('is_active', true).order('order_num'),
+      db.from('student_progress').select('student_id, task_db_id, is_completed').eq('school_id', T.school_id)
+    ]);
+    const students = studRes.data || [];
+    const tasks    = kotoRes.data || [];
+    const progress = progRes.data || [];
+    if (!students.length) { toast('生徒データがありません', 'error'); return; }
+    if (!tasks.length)    { toast('課題データがありません', 'error'); return; }
+
+    const progMap = {};
+    progress.forEach(p => { progMap[`${p.student_id}_${p.task_db_id}`] = p.is_completed; });
+
+    const header = ['学年', '組', '番号', '名前', ...tasks.map(t => t.title)];
+    const rows = [header];
+    students.forEach(s => {
+      const row = [s.grade + '年', s.class_name + '組', s.number, s.name || ''];
+      tasks.forEach(t => row.push(progMap[`${s.student_id}_${t.id}`] ? '○' : ''));
+      rows.push(row);
+    });
+    downloadCSVFile(rows, `progress_${T.school_id}_${new Date().toISOString().slice(0,10)}.csv`);
+    toast('進捗CSVをダウンロードしました', 'success');
+  }
+
+  // ---- QR CODE ----
+
+  function generateQR() {
+    const url = document.getElementById('student-url').textContent;
+    if (!url) return;
+    QRCode.toCanvas(document.getElementById('student-qr'), url, { width: 180, margin: 1 }, err => {
+      if (err) console.error(err);
+    });
+  }
+
+  function downloadQR() {
+    const canvas = document.getElementById('student-qr');
+    const a = document.createElement('a');
+    a.href = canvas.toDataURL('image/png');
+    a.download = `qr_${T.school_id}.png`;
+    a.click();
+  }
+
+  // ---- STUDENT DETAIL ----
+
+  async function openStudentDetail(studentId, name, grade, cls, num) {
+    document.getElementById('student-detail-name').textContent = `${grade}年${cls}組 ${num}番 ${name}`;
+    document.getElementById('student-detail-content').innerHTML = '<div class="text-center py-8 text-gray-400"><i class="fas fa-spinner fa-spin text-xl"></i></div>';
+    document.getElementById('student-detail-modal').classList.remove('hidden');
+
+    const [kotoRes, songsRes, progRes] = await Promise.all([
+      db.from('koto_tasks').select('id, title').eq('school_id', T.school_id).eq('is_active', true).order('order_num'),
+      db.from('songs').select('id, title').eq('school_id', T.school_id).eq('is_active', true).order('order_num'),
+      db.from('student_progress').select('task_db_id, is_completed').eq('student_id', studentId).eq('school_id', T.school_id)
+    ]);
+
+    const progMap = {};
+    (progRes.data || []).forEach(p => { progMap[p.task_db_id] = p.is_completed; });
+
+    const kotoTasks = kotoRes.data || [];
+    const songs     = songsRes.data || [];
+    const kotoDone  = kotoTasks.filter(t => progMap[t.id]).length;
+
+    let html = '';
+
+    if (kotoTasks.length) {
+      html += `<div class="mb-4">
+        <div class="flex items-center gap-2 font-semibold text-sm text-gray-700 mb-2">
+          <i class="fas fa-list-check text-red-400"></i>基礎課題
+          <span class="ml-auto text-xs font-normal text-gray-400">${kotoDone} / ${kotoTasks.length}</span>
+        </div>
+        <div class="space-y-1">`;
+      kotoTasks.forEach(t => {
+        const done = progMap[t.id];
+        html += `<div class="flex items-center gap-2 p-2 rounded-lg ${done ? 'bg-green-50' : 'bg-gray-50'}">
+          <i class="fas ${done ? 'fa-check-circle text-green-500' : 'fa-circle text-gray-300'} text-sm flex-shrink-0"></i>
+          <span class="text-sm ${done ? 'text-green-700 font-medium' : 'text-gray-600'}">${t.title}</span>
+        </div>`;
+      });
+      html += '</div></div>';
+    }
+
+    if (songs.length) {
+      const songTasksRes = await db.from('song_tasks').select('id, song_id, title').eq('school_id', T.school_id).order('order_num');
+      const allSongTasks = songTasksRes.data || [];
+
+      html += `<div>
+        <div class="flex items-center gap-2 font-semibold text-sm text-gray-700 mb-2">
+          <i class="fas fa-music text-amber-400"></i>楽曲課題
+        </div>
+        <div class="space-y-2">`;
+
+      songs.forEach(song => {
+        const sts  = allSongTasks.filter(t => t.song_id === song.id);
+        if (!sts.length) return;
+        const done = sts.filter(t => progMap[t.id]).length;
+        html += `<div class="border border-amber-100 rounded-xl p-3 bg-amber-50">
+          <div class="flex items-center text-sm font-medium text-amber-800 mb-1.5">
+            ${song.title}
+            <span class="ml-auto text-xs font-normal text-gray-400">${done} / ${sts.length}</span>
+          </div>
+          <div class="space-y-1">`;
+        sts.forEach(t => {
+          const d = progMap[t.id];
+          html += `<div class="flex items-center gap-1.5 py-0.5">
+            <i class="fas ${d ? 'fa-check-circle text-green-500' : 'fa-circle text-gray-300'} text-xs flex-shrink-0"></i>
+            <span class="text-xs ${d ? 'text-green-700' : 'text-gray-500'}">${t.title}</span>
+          </div>`;
+        });
+        html += '</div></div>';
+      });
+      html += '</div></div>';
+    }
+
+    if (!html) html = '<p class="text-sm text-gray-400 text-center py-6">課題が登録されていません</p>';
+    document.getElementById('student-detail-content').innerHTML = html;
+  }
+
+  // ---- YEAR RESET ----
+
+  async function resetProgress() {
+    if (!confirm('全生徒の進捗データを削除しますか？')) return;
+    if (!confirm('【確認】この操作は取り消せません。本当に進捗データを全削除しますか？')) return;
+    const { error } = await db.from('student_progress').delete().eq('school_id', T.school_id);
+    if (error) { toast('失敗: ' + error.message, 'error'); return; }
+    tabLoaded['dashboard'] = false;
+    toast('進捗データをリセットしました', 'success');
+  }
+
+  async function resetStudents() {
+    if (!confirm('生徒名簿と進捗データを全削除しますか？')) return;
+    if (!confirm('【確認】この操作は取り消せません。本当に削除しますか？')) return;
+    await db.from('student_progress').delete().eq('school_id', T.school_id);
+    const { error } = await db.from('students').delete().eq('school_id', T.school_id);
+    if (error) { toast('失敗: ' + error.message, 'error'); return; }
+    tabLoaded['dashboard'] = false;
+    tabLoaded['roster']    = false;
+    toast('生徒・進捗データをリセットしました', 'success');
+  }
+
+  async function resetAll() {
+    if (!confirm('クラス・課題・生徒・進捗・お知らせをすべて削除しますか？')) return;
+    if (!confirm('【最終確認】この操作は取り消せません。本当に全データを削除しますか？')) return;
+    await Promise.all([
+      db.from('student_progress').delete().eq('school_id', T.school_id),
+      db.from('students').delete().eq('school_id', T.school_id),
+      db.from('announcements').delete().eq('school_id', T.school_id),
+    ]);
+    await Promise.all([
+      db.from('koto_tasks').delete().eq('school_id', T.school_id),
+      db.from('songs').delete().eq('school_id', T.school_id),
+      db.from('classes').delete().eq('school_id', T.school_id),
+    ]);
+    Object.keys(tabLoaded).forEach(k => tabLoaded[k] = false);
+    classesCache = [];
+    toast('全データをリセットしました', 'success');
+  }
+
+  // ---- TEACHER CSV IMPORT ----
+
+  function onTeacherCSVSelected(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = ev => {
+      const lines = ev.target.result.replace(/\r/g, '').split('\n').filter(l => l.trim());
+      if (lines.length < 2) { toast('データが見つかりません', 'error'); return; }
+
+      const headers = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g, ''));
+      const idIdx     = headers.findIndex(h => /先生ID|ユーザーID|username|teacher_id/i.test(h));
+      const schoolIdx = headers.findIndex(h => /学校ID|school_id|schoolId/i.test(h));
+      const nameIdx   = headers.findIndex(h => /名前|name/i.test(h));
+      const passIdx   = headers.findIndex(h => /パスワード|password|pass/i.test(h));
+
+      if (idIdx < 0) { toast('「先生ID」列が見つかりません', 'error'); return; }
+      if (passIdx < 0) { toast('「パスワード」列が見つかりません', 'error'); return; }
+
+      teacherCsvRows = lines.slice(1).map(line => {
+        const vals = line.split(',').map(v => v.trim().replace(/^"|"$/g, ''));
+        return {
+          username:  vals[idIdx] || '',
+          school_id: schoolIdx >= 0 ? (vals[schoolIdx] || T.school_id) : T.school_id,
+          name:      nameIdx >= 0 ? (vals[nameIdx] || '') : '',
+          password:  passIdx >= 0 ? (vals[passIdx] || '') : '',
+        };
+      }).filter(r => r.username && r.password);
+
+      if (!teacherCsvRows.length) { toast('有効なデータがありません', 'error'); return; }
+
+      document.getElementById('teacher-csv-preview').innerHTML = teacherCsvRows.slice(0, 10).map(r =>
+        `<tr><td>${r.username}</td><td>${r.school_id}</td><td>${r.name || '-'}</td><td>••••••</td></tr>`
+      ).join('');
+      document.getElementById('teacher-csv-count').textContent =
+        `${teacherCsvRows.length}名のデータを確認しました${teacherCsvRows.length > 10 ? '（最初の10件を表示）' : ''}`;
+
+      document.getElementById('teacher-csv-modal').classList.remove('hidden');
+    };
+    reader.readAsText(file, 'UTF-8');
+    e.target.value = '';
+  }
+
+  async function doImportTeacherCSV() {
+    const btn = document.getElementById('teacher-csv-import-btn');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i>登録中...';
+
+    let ok = 0, skip = 0;
+    const errs = [];
+
+    for (const row of teacherCsvRows) {
+      if (row.password.length < 6) {
+        skip++; errs.push(`${row.username}: パスワードは6文字以上`); continue;
+      }
+
+      const { data: dup } = await db.from('teacher_profiles').select('id').eq('username', row.username).maybeSingle();
+      if (dup) { skip++; errs.push(`${row.username}: 既に存在`); continue; }
+
+      const email = `${row.username}@${row.school_id}.teachers.local`;
+      const { data: signUpData, error: signUpErr } = await db.auth.signUp({ email, password: row.password });
+      if (signUpErr) { skip++; errs.push(`${row.username}: ${signUpErr.message}`); continue; }
+
+      const userId = signUpData?.user?.id;
+      if (!userId) { skip++; errs.push(`${row.username}: ユーザーID取得失敗`); continue; }
+
+      const { error: pErr } = await db.from('teacher_profiles').insert({
+        id: userId, username: row.username, email,
+        name: row.name || row.username,
+        school_id: row.school_id, school_name: '', department: '音楽科'
+      });
+
+      if (pErr) { skip++; errs.push(`${row.username}: ${pErr.message}`); }
+      else ok++;
+    }
+
+    closeModal('teacher-csv-modal');
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fas fa-user-plus mr-1"></i>登録する';
+
+    if (ok > 0) {
+      toast(`${ok}名を登録しました${skip ? `（${skip}件スキップ）` : ''}。ログイン画面に移動します。`, 'success');
+      setTimeout(() => doLogout(), 2500);
+    } else {
+      toast('登録に失敗しました: ' + errs.slice(0, 3).join(' / '), 'error');
+    }
+  }
+
+  function downloadTeacherCSVTemplate() {
+    const rows = [
+      ['先生ID', '学校ID', '名前', 'パスワード'],
+      ['yamada', T.school_id, '山田 花子', 'password123'],
+      ['suzuki', T.school_id, '鈴木 太郎', 'password456'],
+    ];
+    downloadCSVFile(rows, 'teacher_import_template.csv');
+    toast('テンプレートをダウンロードしました', 'success');
   }
 
   // ---- HELPERS ----
