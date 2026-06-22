@@ -184,9 +184,10 @@
             <input type="file" id="koto-csv-input" accept=".csv" class="hidden" onchange="onKotoCSVSelected(event)">
           </div>
           <div id="koto-task-list" class="space-y-2 mb-3"></div>
-          <form onsubmit="addKotoTask(event)" class="flex gap-2">
-            <input type="text" id="koto-title" class="inp flex-1" placeholder="課題タイトルを入力" required>
-            <button type="submit" class="btn-red flex-shrink-0"><i class="fas fa-plus mr-1"></i>追加</button>
+          <form onsubmit="addKotoTask(event)" class="space-y-2">
+            <input type="text" id="koto-title" class="inp" placeholder="課題タイトルを入力" required>
+            <textarea id="koto-desc" class="inp resize-none text-sm" rows="2" placeholder="達成基準（省略可）"></textarea>
+            <button type="submit" class="btn-red w-full"><i class="fas fa-plus mr-1"></i>追加</button>
           </form>
         </div>
         <!-- 楽曲 -->
@@ -459,7 +460,7 @@
     <input type="hidden" id="edit-task-id">
     <div class="space-y-2">
       <div><label class="text-xs font-semibold text-gray-600 mb-1 block">タイトル</label><input type="text" id="edit-task-title" class="inp"></div>
-      <div><label class="text-xs font-semibold text-gray-600 mb-1 block">説明（省略可）</label><textarea id="edit-task-desc" class="inp resize-none" rows="2"></textarea></div>
+      <div><label class="text-xs font-semibold text-gray-600 mb-1 block">達成基準（省略可）</label><textarea id="edit-task-desc" class="inp resize-none" rows="2"></textarea></div>
     </div>
     <div class="flex gap-2 mt-4">
       <button class="btn-gray flex-1" onclick="closeModal('edit-task-modal')">キャンセル</button>
@@ -778,7 +779,10 @@
       row.className = 'flex items-center gap-2 p-2 bg-gray-50 rounded-lg';
       row.id = `kt-${t.id}`;
       row.innerHTML = `
-        <span class="flex-1 text-sm">${t.title}</span>
+        <div class="flex-1 min-w-0">
+          <div class="text-sm font-semibold">${t.title}</div>
+          ${t.description ? `<div class="text-xs text-gray-400 mt-0.5 truncate">${t.description}</div>` : ''}
+        </div>
         <button class="btn-sm btn-edit" onclick="openEditTask('${t.id}','${escQ(t.title)}','${escQ(t.description||'')}')"><i class="fas fa-pen"></i></button>
         <button class="btn-sm btn-del" onclick="deleteKotoTask('${t.id}')"><i class="fas fa-trash"></i></button>
       `;
@@ -789,11 +793,13 @@
   async function addKotoTask(e) {
     e.preventDefault();
     const title = document.getElementById('koto-title').value.trim();
+    const desc  = document.getElementById('koto-desc').value.trim();
     const { data: last } = await db.from('koto_tasks').select('order_num').eq('school_id', T.school_id).order('order_num', { ascending: false }).limit(1);
     const order = (last?.[0]?.order_num || 0) + 1;
-    const { error } = await db.from('koto_tasks').insert({ school_id: T.school_id, title, order_num: order });
+    const { error } = await db.from('koto_tasks').insert({ school_id: T.school_id, title, description: desc, order_num: order });
     if (error) { toast('追加失敗: ' + error.message, 'error'); return; }
     document.getElementById('koto-title').value = '';
+    document.getElementById('koto-desc').value  = '';
     tabLoaded['dashboard'] = false;
     await loadKotoTasks();
     toast('課題を追加しました', 'success');
