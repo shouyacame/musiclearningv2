@@ -164,28 +164,28 @@
       btn.disabled = true;
       btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>作成中...';
 
-      // Supabase Authアカウント作成
-      const { data: signUpData, error: signUpErr } = await db.auth.signUp({ email, password: pass1 });
+      // Step1: Supabase Authアカウント作成（既存の場合はスキップ）
+      const { error: signUpErr } = await db.auth.signUp({ email, password: pass1 });
+      // signUpErr は「既に登録済み」の場合も出るが次のsignInで対応するため無視
 
-      // 既にアカウントが存在する場合はサインインで対応
-      let userId = signUpData?.user?.id;
-      if (signUpErr || !userId) {
-        const { data: siData, error: siErr } = await db.auth.signInWithPassword({ email, password: pass1 });
-        if (siErr || !siData?.user) {
-          errEl.textContent = signUpErr?.message || 'アカウント作成に失敗しました。';
-          errEl.classList.remove('hidden');
-          btn.disabled = false;
-          btn.innerHTML = '<i class="fas fa-user-shield mr-2"></i>管理者アカウントを作成';
-          return;
-        }
-        userId = siData.user.id;
+      // Step2: 必ずsignInしてセッションを確立（INSERTにはauthenticated権限が必要）
+      const { data: siData, error: siErr } = await db.auth.signInWithPassword({ email, password: pass1 });
+      if (siErr || !siData?.user) {
+        errEl.textContent = signUpErr?.message || 'ログインに失敗しました。メールアドレスとパスワードを確認してください。';
+        errEl.classList.remove('hidden');
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-user-shield mr-2"></i>管理者アカウントを作成';
+        return;
       }
 
-      // admin_profilesに登録
-      const { error: insertErr } = await db.from('admin_profiles').insert({ id: userId, email, name });
+      // Step3: セッション確立後にadmin_profilesへ登録
+      const { error: insertErr } = await db.from('admin_profiles').insert({
+        id: siData.user.id, email, name
+      });
       if (insertErr) {
         errEl.textContent = '登録に失敗しました: ' + insertErr.message;
         errEl.classList.remove('hidden');
+        await db.auth.signOut();
         btn.disabled = false;
         btn.innerHTML = '<i class="fas fa-user-shield mr-2"></i>管理者アカウントを作成';
         return;
