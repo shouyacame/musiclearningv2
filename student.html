@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>三線学習システム - 学習画面</title>
+  <title>三線学習システム</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.2/dist/confetti.browser.min.js"></script>
@@ -11,107 +11,124 @@
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
   <script src="supabase-config.js"></script>
   <style>
-    body { font-family: 'Noto Sans JP', sans-serif; background: #EEF6F7; }
-    .header-gradient { background: linear-gradient(135deg, #0D4A56, #1A7A8A); }
-    .card { background: #fff; border-radius: 16px; box-shadow: 0 4px 20px rgba(0,0,0,.06); }
-    .task-row {
-      display: flex; align-items: center; gap: 12px;
-      padding: 11px 14px; border-radius: 10px; cursor: pointer;
-      transition: background .15s;
-    }
-    .task-row:hover { background: #f0f9fa; }
-    .task-row.done { background: #ECFDF5; }
-    .task-check {
-      width: 22px; height: 22px; border-radius: 50%;
-      border: 2px solid #d1d5db;
-      display: flex; align-items: center; justify-content: center;
-      flex-shrink: 0; transition: all .2s;
-    }
-    .task-row.done .task-check { background: #10B981; border-color: #10B981; color: #fff; }
-    .task-title { flex: 1; font-size: 13.5px; line-height: 1.4; }
-    .task-row.done .task-title { color: #065F46; }
-    .memo-btn {
-      padding: 4px 8px; border-radius: 6px; font-size: 11px;
-      border: 1px solid #d1d5db; background: #fff; color: #6b7280;
-      cursor: pointer; transition: all .15s; flex-shrink: 0;
-    }
-    .memo-btn:hover { border-color: #1A7A8A; color: #1A7A8A; }
-    .memo-btn.has-memo { background: #e0f2fe; border-color: #7dd3fc; color: #0369a1; }
-    .progress-bar-bg { background: #e5e7eb; border-radius: 999px; height: 10px; overflow: hidden; }
-    .progress-bar-fill { height: 100%; border-radius: 999px; background: linear-gradient(90deg, #1A7A8A, #2BAEBF); transition: width .4s; }
-    .song-header {
-      display: flex; align-items: center; gap: 10px;
-      padding: 12px 16px; cursor: pointer;
-      border-radius: 12px; transition: background .15s;
-    }
-    .song-header:hover { background: #f0f9fa; }
-    .modal-overlay {
-      position: fixed; inset: 0; background: rgba(0,0,0,.5);
-      display: flex; align-items: center; justify-content: center;
-      z-index: 50; padding: 16px;
-    }
+    body { font-family: 'Noto Sans JP', sans-serif; background: #F0F4FF; }
+    .site-header { background: #fff; border-bottom: 2px solid #E8EDFF; }
+    .tab-nav { background: #fff; border-bottom: 1px solid #e5e7eb; position: sticky; top: 0; z-index: 20; }
+    .tab-btn { padding: 13px 20px; font-size: 14px; font-weight: 500; color: #6b7280; cursor: pointer; border-bottom: 3px solid transparent; transition: all .2s; white-space: nowrap; }
+    .tab-btn.active { color: #4B6BFB; border-bottom-color: #4B6BFB; font-weight: 700; }
+    .tab-btn:hover:not(.active) { color: #4B6BFB; background: #F5F7FF; }
+
+    /* Task card */
+    .task-card { background: #fff; border-radius: 14px; padding: 16px; margin-bottom: 12px; box-shadow: 0 2px 8px rgba(0,0,0,.06); border: 2px solid transparent; transition: all .25s; }
+    .task-card.done { background: #F0FDF4; border-color: #86EFAC; }
+    .task-card.highlight { border-color: #4B6BFB; box-shadow: 0 4px 18px rgba(75,107,251,.2); }
+
+    /* Number badge */
+    .task-num { width: 30px; height: 30px; min-width: 30px; border-radius: 50%; background: #4B6BFB; color: #fff; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700; }
+    .task-card.done .task-num { background: #10B981; }
+
+    /* Complete button */
+    .kanryo-btn { background: #4B6BFB; color: #fff; border: none; border-radius: 20px; padding: 7px 18px; font-size: 13px; font-weight: 700; cursor: pointer; font-family: 'Noto Sans JP', sans-serif; white-space: nowrap; transition: all .2s; }
+    .kanryo-btn:hover { background: #3B5BDB; box-shadow: 0 4px 12px rgba(75,107,251,.4); }
+    .task-card.done .kanryo-btn { background: #D1FAE5; color: #065F46; }
+
+    /* Criteria box */
+    .criteria-box { border-left: 3px solid #C7D2FE; padding: 8px 12px; margin-top: 10px; background: #F8F9FF; border-radius: 0 8px 8px 0; }
+    .task-card.done .criteria-box { border-left-color: #86EFAC; background: #F0FDF4; }
+
+    /* Song pills */
+    .song-pill { background: #fff; border: 2px solid #e5e7eb; border-radius: 20px; padding: 7px 16px; font-size: 13px; font-weight: 600; cursor: pointer; transition: all .2s; color: #374151; }
+    .song-pill.active { background: #4B6BFB; border-color: #4B6BFB; color: #fff; }
+    .song-pill:hover:not(.active) { border-color: #4B6BFB; color: #4B6BFB; }
+
+    /* Step circles */
+    .step-circle { width: 30px; height: 30px; min-width: 30px; border-radius: 50%; border: 2px solid #d1d5db; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; color: #9ca3af; }
+    .step-circle.done { background: #4B6BFB; border-color: #4B6BFB; color: #fff; }
+
+    /* Memo button */
+    .memo-btn { background: transparent; border: 1px solid #e5e7eb; border-radius: 6px; padding: 4px 8px; font-size: 11px; color: #9ca3af; cursor: pointer; white-space: nowrap; transition: all .15s; }
+    .memo-btn:hover { border-color: #4B6BFB; color: #4B6BFB; }
+    .memo-btn.has-memo { background: #EEF2FF; border-color: #c7d2fe; color: #4B6BFB; }
+
+    /* Learning points */
+    .tips-box { background: #EEF2FF; border-radius: 16px; padding: 18px 20px; }
+
+    /* Modal */
+    .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.5); display: flex; align-items: center; justify-content: center; z-index: 50; padding: 16px; }
     .modal-box { background: #fff; border-radius: 16px; padding: 24px; width: 100%; max-width: 400px; box-shadow: 0 20px 60px rgba(0,0,0,.3); }
     textarea { font-family: 'Noto Sans JP', sans-serif; }
-    .btn-teal { background: linear-gradient(135deg, #1A7A8A, #2BAEBF); color: #fff; border: none; border-radius: 8px; padding: 9px 18px; font-size: 13px; font-weight: 600; cursor: pointer; font-family: 'Noto Sans JP', sans-serif; transition: all .2s; }
-    .btn-teal:hover { box-shadow: 0 4px 12px rgba(26,122,138,.4); }
-    .btn-gray { background: #f3f4f6; color: #374151; border: none; border-radius: 8px; padding: 9px 18px; font-size: 13px; cursor: pointer; font-family: 'Noto Sans JP', sans-serif; }
-    .btn-gray:hover { background: #e5e7eb; }
+
+    /* Logout button */
+    .logout-btn { display: flex; align-items: center; gap: 6px; background: #FEF2F2; color: #DC2626; border: 1px solid #FECACA; border-radius: 8px; padding: 6px 12px; font-size: 12px; font-weight: 600; cursor: pointer; font-family: 'Noto Sans JP', sans-serif; transition: background .2s; }
+    .logout-btn:hover { background: #FEE2E2; }
   </style>
 </head>
 <body>
 
-  <div class="header-gradient text-white px-4 py-4">
+  <!-- ヘッダー -->
+  <div class="site-header px-4 py-3">
     <div class="max-w-2xl mx-auto flex items-center justify-between">
-      <div>
-        <div class="text-xs text-white/60 mb-0.5">三線学習システム</div>
-        <div id="student-name" class="font-bold text-lg"></div>
+      <div class="font-bold text-gray-800 text-base">三線学習システム</div>
+      <div class="flex items-center gap-3">
+        <div class="text-right">
+          <div id="student-name" class="text-xs font-semibold text-gray-500"></div>
+          <span id="grade-badge" class="inline-block bg-blue-100 text-blue-700 text-xs font-bold px-2 py-0.5 rounded-full mt-0.5"></span>
+        </div>
+        <button class="logout-btn" onclick="logout()">
+          <i class="fas fa-sign-out-alt"></i>ログアウト
+        </button>
       </div>
-      <button onclick="logout()" class="text-xs bg-white/20 hover:bg-white/30 px-3 py-1.5 rounded-lg transition-colors">
-        <i class="fas fa-sign-out-alt mr-1"></i>終了
+    </div>
+  </div>
+
+  <!-- タブ -->
+  <div class="tab-nav">
+    <div class="max-w-2xl mx-auto flex">
+      <button class="tab-btn active" id="tab-grade" onclick="showTab('grade')">
+        <i class="fas fa-graduation-cap mr-1.5"></i>学年別課題
+      </button>
+      <button class="tab-btn" id="tab-song" onclick="showTab('song')">
+        <i class="fas fa-music mr-1.5"></i>曲別課題
       </button>
     </div>
   </div>
 
-  <div class="max-w-2xl mx-auto px-4 py-5 space-y-4">
-
-    <div id="announce" class="hidden card px-4 py-3 bg-teal-50 border border-teal-200 text-sm text-teal-800">
-      <i class="fas fa-bullhorn mr-2"></i><span id="announce-text"></span>
-    </div>
-
-    <div class="card p-4">
-      <div class="flex items-center justify-between mb-2">
-        <span class="text-sm font-semibold text-gray-700">全体の進捗</span>
-        <span id="progress-pct" class="text-sm font-bold text-teal-700">0%</span>
-      </div>
-      <div class="progress-bar-bg">
-        <div id="progress-bar" class="progress-bar-fill" style="width:0%"></div>
-      </div>
-      <p id="progress-detail" class="text-xs text-gray-400 mt-1.5">読み込み中...</p>
-    </div>
-
-    <div id="loading" class="text-center py-10 text-gray-400">
+  <!-- 学年別課題 -->
+  <div id="panel-grade" class="max-w-2xl mx-auto px-4 py-4">
+    <div id="grade-loading" class="text-center py-10 text-gray-400">
       <i class="fas fa-spinner fa-spin text-2xl mb-2 block"></i>
       <p class="text-sm">読み込み中...</p>
     </div>
+    <div id="grade-tasks" class="hidden"></div>
+    <div id="grade-empty" class="hidden text-center py-10 text-gray-400 text-sm">課題が登録されていません</div>
+  </div>
 
-    <div id="content" class="hidden space-y-4">
-      <div class="card p-4">
-        <h2 class="font-bold text-gray-800 mb-3 flex items-center gap-2">
-          <span class="w-7 h-7 bg-teal-100 text-teal-700 rounded-lg flex items-center justify-center text-sm"><i class="fas fa-tasks"></i></span>
-          基礎課題
-        </h2>
-        <div id="koto-list" class="space-y-1"></div>
-        <div id="koto-empty" class="hidden text-center py-3 text-sm text-gray-400">課題はまだ登録されていません</div>
-      </div>
+  <!-- 曲別課題 -->
+  <div id="panel-song" class="hidden max-w-2xl mx-auto px-4 py-4">
+    <div id="song-loading" class="text-center py-10 text-gray-400">
+      <i class="fas fa-spinner fa-spin text-2xl mb-2 block"></i>
+      <p class="text-sm">読み込み中...</p>
+    </div>
+    <div id="song-content" class="hidden">
+      <div id="song-pills" class="flex flex-wrap gap-2 mb-4"></div>
+      <div id="song-task-area"></div>
+    </div>
+    <div id="song-empty" class="hidden text-center py-10 text-gray-400 text-sm">楽曲が登録されていません</div>
+  </div>
 
-      <div id="songs-section">
-        <h2 class="font-bold text-gray-700 px-1 mb-2 flex items-center gap-2">
-          <span class="w-7 h-7 bg-amber-100 text-amber-700 rounded-lg flex items-center justify-center text-sm"><i class="fas fa-music"></i></span>
-          楽曲
-        </h2>
-        <div id="songs-list" class="space-y-3"></div>
-        <div id="songs-empty" class="hidden card text-center py-4 text-sm text-gray-400">楽曲はまだ登録されていません</div>
+  <!-- 学習のポイント（常時表示） -->
+  <div class="max-w-2xl mx-auto px-4 pb-8 mt-2">
+    <div class="tips-box">
+      <div class="flex items-center gap-2 mb-3">
+        <span class="text-xl">💡</span>
+        <span class="font-bold text-indigo-800 text-sm">学習のポイント</span>
       </div>
+      <ul class="space-y-2">
+        <li class="text-xs text-indigo-700 flex gap-2"><span>•</span><span>各課題は順番に取り組むことをお勧めします</span></li>
+        <li class="text-xs text-indigo-700 flex gap-2"><span>•</span><span>達成基準をしっかり読んで、目標を理解してから練習しましょう</span></li>
+        <li class="text-xs text-indigo-700 flex gap-2"><span>•</span><span>分からないことがあれば、遠慮なく先生に質問してください</span></li>
+        <li class="text-xs text-indigo-700 flex gap-2"><span>•</span><span>【完了】ボタンは、達成基準を満たしたと確信した時に押してください</span></li>
+      </ul>
     </div>
   </div>
 
@@ -120,12 +137,10 @@
     <div class="modal-box">
       <h3 class="font-bold text-gray-800 mb-0.5" id="memo-task-title">メモ</h3>
       <p class="text-xs text-gray-400 mb-3">自分だけのメモを残せます</p>
-      <textarea id="memo-text" rows="4"
-        class="w-full border border-gray-300 rounded-xl p-3 text-sm resize-none focus:outline-none focus:border-teal-500"
-        placeholder="例: 弾き方のコツ、練習内容..."></textarea>
+      <textarea id="memo-text" rows="4" class="w-full border-2 border-gray-200 rounded-xl p-3 text-sm resize-none focus:outline-none focus:border-indigo-400" placeholder="例: 弾き方のコツ、練習内容..."></textarea>
       <div class="flex gap-2 mt-3 justify-end">
-        <button class="btn-gray" onclick="closeMemo()">キャンセル</button>
-        <button class="btn-teal" onclick="saveMemo()"><i class="fas fa-save mr-1"></i>保存</button>
+        <button class="bg-gray-100 text-gray-700 border-none rounded-lg px-4 py-2 text-sm cursor-pointer hover:bg-gray-200 font-family-inherit" style="font-family:inherit" onclick="closeMemo()">キャンセル</button>
+        <button class="bg-indigo-600 text-white border-none rounded-lg px-4 py-2 text-sm font-semibold cursor-pointer hover:bg-indigo-700" style="font-family:inherit" onclick="saveMemo()"><i class="fas fa-save mr-1"></i>保存</button>
       </div>
     </div>
   </div>
@@ -137,30 +152,32 @@
       <p class="font-semibold text-gray-800 mb-1">達成を取り消しますか？</p>
       <p class="text-sm text-gray-400 mb-5">チェックを外します</p>
       <div class="flex gap-2">
-        <button class="btn-gray flex-1" onclick="closeConfirm()">キャンセル</button>
-        <button class="flex-1 bg-red-500 text-white border-none rounded-xl py-2.5 text-sm font-semibold cursor-pointer hover:bg-red-600 transition-colors"
-          onclick="confirmUncheck()">取り消す</button>
+        <button class="flex-1 bg-gray-100 text-gray-700 border-none rounded-xl py-2.5 text-sm cursor-pointer hover:bg-gray-200" style="font-family:inherit" onclick="closeConfirm()">キャンセル</button>
+        <button class="flex-1 bg-red-500 text-white border-none rounded-xl py-2.5 text-sm font-semibold cursor-pointer hover:bg-red-600" style="font-family:inherit" onclick="confirmUncheck()">取り消す</button>
       </div>
     </div>
   </div>
 
   <script>
-    let student = null;
-    let progressMap = {};
-    let allTasks = [];
-    let memoTarget = null;
-    let uncheckTarget = null;
+    let student     = null;
+    let progressMap = {}; // taskId → { is_completed, memo }
+    let kotoTasks   = []; // { id, title, description, order_num }
+    let allSongs    = []; // { id, title, artist }
+    let songCache   = {}; // songId → [ { id, title, description } ]
+    let currentSongId  = null;
+    let memoTarget     = null;
+    let uncheckTarget  = null;
+    let songTabLoaded  = false;
+
+    // ---- INIT ----
 
     async function init() {
       student = JSON.parse(localStorage.getItem('currentUser') || 'null');
       if (!student || student.type !== 'student') { window.location.href = 'index.html'; return; }
-      document.getElementById('student-name').textContent = student.displayName;
-
-      await Promise.all([loadProgress(), loadAnnouncement()]);
-      await loadContent();
-      document.getElementById('loading').classList.add('hidden');
-      document.getElementById('content').classList.remove('hidden');
-      updateProgressBar();
+      document.getElementById('student-name').textContent = `${student.grade}年${student.class}組 出席番号:${student.number}番`;
+      document.getElementById('grade-badge').textContent  = `${student.grade}年生`;
+      await loadProgress();
+      await loadGradeTasks();
     }
 
     async function loadProgress() {
@@ -173,179 +190,216 @@
       });
     }
 
-    async function loadAnnouncement() {
-      const { data } = await db.from('announcements')
-        .select('title, content')
+    // ---- GRADE TASKS ----
+
+    async function loadGradeTasks() {
+      const { data } = await db.from('koto_tasks')
+        .select('id, title, description, order_num')
         .eq('school_id', student.school_id)
         .eq('is_active', true)
-        .order('is_pinned', { ascending: false })
-        .order('created_at', { ascending: false })
-        .limit(1);
-      if (data?.length) {
-        document.getElementById('announce-text').textContent =
-          data[0].content ? `${data[0].title}：${data[0].content}` : data[0].title;
-        document.getElementById('announce').classList.remove('hidden');
-      }
-    }
+        .order('order_num');
 
-    async function loadContent() {
-      const [kotoRes, songsRes] = await Promise.all([
-        db.from('koto_tasks').select('id, title, order_num').eq('school_id', student.school_id).eq('is_active', true).order('order_num'),
-        db.from('songs').select('id, title, artist, order_num').eq('school_id', student.school_id).eq('is_active', true).order('order_num')
-      ]);
+      document.getElementById('grade-loading').classList.add('hidden');
+      kotoTasks = data || [];
 
-      const kotoTasks = kotoRes.data || [];
       if (!kotoTasks.length) {
-        document.getElementById('koto-empty').classList.remove('hidden');
-      } else {
-        kotoTasks.forEach(t => {
-          allTasks.push({ id: t.id, title: t.title });
-          document.getElementById('koto-list').appendChild(makeTaskRow(t.id, t.title));
-        });
+        document.getElementById('grade-empty').classList.remove('hidden');
+        return;
       }
 
-      const songs = songsRes.data || [];
-      if (!songs.length) {
-        document.getElementById('songs-empty').classList.remove('hidden');
-      } else {
-        for (const song of songs) {
-          const { data: stasks } = await db.from('song_tasks')
-            .select('id, title, order_num')
-            .eq('song_id', song.id)
-            .eq('school_id', student.school_id)
-            .order('order_num');
-
-          const tasks = stasks || [];
-          tasks.forEach(t => allTasks.push({ id: t.id, title: t.title }));
-
-          const doneCount = tasks.filter(t => progressMap[t.id]?.is_completed).length;
-
-          const card = document.createElement('div');
-          card.className = 'card overflow-hidden';
-          card.id = `song-${song.id}`;
-
-          const hdr = document.createElement('div');
-          hdr.className = 'song-header';
-          hdr.innerHTML = `
-            <div class="w-9 h-9 bg-amber-100 text-amber-600 rounded-xl flex items-center justify-center text-lg flex-shrink-0">🎵</div>
-            <div class="flex-1 min-w-0">
-              <div class="font-semibold text-gray-800 text-sm truncate">${song.title}</div>
-              ${song.artist ? `<div class="text-xs text-gray-400">${song.artist}</div>` : ''}
-            </div>
-            <div class="text-xs text-gray-400 flex-shrink-0" id="song-count-${song.id}">${doneCount}/${tasks.length}</div>
-            <i class="fas fa-chevron-down text-gray-400 text-xs ml-1 transition-transform" id="song-chev-${song.id}"></i>
-          `;
-
-          const body = document.createElement('div');
-          body.className = 'px-4 pb-3 space-y-1';
-          body.id = `song-body-${song.id}`;
-
-          if (!tasks.length) {
-            body.innerHTML = '<p class="text-xs text-gray-400 py-2">課題はまだ登録されていません</p>';
-          } else {
-            tasks.forEach(t => body.appendChild(makeTaskRow(t.id, t.title)));
-          }
-
-          hdr.onclick = () => {
-            body.classList.toggle('hidden');
-            const ch = document.getElementById(`song-chev-${song.id}`);
-            ch.style.transform = body.classList.contains('hidden') ? '' : 'rotate(180deg)';
-          };
-
-          card.appendChild(hdr);
-          card.appendChild(body);
-          document.getElementById('songs-list').appendChild(card);
-        }
-      }
+      const container = document.getElementById('grade-tasks');
+      kotoTasks.forEach((t, i) => container.appendChild(makeCard(t.id, i + 1, t.title, t.description)));
+      container.classList.remove('hidden');
     }
 
-    function makeTaskRow(taskId, title) {
-      const prog = progressMap[taskId] || { is_completed: false, memo: '' };
-      const row = document.createElement('div');
-      row.className = `task-row${prog.is_completed ? ' done' : ''}`;
-      row.id = `task-${taskId}`;
-      row.innerHTML = `
-        <div class="task-check">${prog.is_completed ? '<i class="fas fa-check text-xs"></i>' : ''}</div>
-        <div class="task-title">${title}</div>
-        <button class="memo-btn${prog.memo ? ' has-memo' : ''}" data-task="${taskId}" data-title="${title.replace(/"/g, '&quot;')}">
-          <i class="fas fa-sticky-note mr-0.5"></i>${prog.memo ? 'メモ有' : 'メモ'}
-        </button>
+    // ---- SONG TASKS ----
+
+    async function loadSongTab() {
+      if (songTabLoaded) return;
+      songTabLoaded = true;
+
+      const { data } = await db.from('songs')
+        .select('id, title, artist')
+        .eq('school_id', student.school_id)
+        .eq('is_active', true)
+        .order('order_num');
+
+      document.getElementById('song-loading').classList.add('hidden');
+      allSongs = data || [];
+
+      if (!allSongs.length) {
+        document.getElementById('song-empty').classList.remove('hidden');
+        return;
+      }
+
+      const pillsEl = document.getElementById('song-pills');
+      allSongs.forEach((s, i) => {
+        const btn = document.createElement('button');
+        btn.className = `song-pill${i === 0 ? ' active' : ''}`;
+        btn.id        = `pill-${s.id}`;
+        btn.textContent = s.title;
+        btn.onclick   = () => selectSong(s.id);
+        pillsEl.appendChild(btn);
+      });
+
+      document.getElementById('song-content').classList.remove('hidden');
+      await selectSong(allSongs[0].id);
+    }
+
+    async function selectSong(songId) {
+      currentSongId = songId;
+      allSongs.forEach(s => {
+        const p = document.getElementById(`pill-${s.id}`);
+        if (p) p.className = `song-pill${s.id === songId ? ' active' : ''}`;
+      });
+
+      if (!songCache[songId]) {
+        const { data } = await db.from('song_tasks')
+          .select('id, title, description, order_num')
+          .eq('song_id', songId)
+          .eq('school_id', student.school_id)
+          .order('order_num');
+        songCache[songId] = data || [];
+      }
+
+      const tasks = songCache[songId];
+      const song  = allSongs.find(s => s.id === songId);
+      const done  = tasks.filter(t => progressMap[t.id]?.is_completed).length;
+
+      const area = document.getElementById('song-task-area');
+      area.innerHTML = '';
+
+      // Song header + step circles
+      const hdr = document.createElement('div');
+      hdr.className = 'bg-white rounded-2xl p-4 mb-3 flex items-center gap-3';
+      hdr.innerHTML = `
+        <div class="text-2xl">🎵</div>
+        <div class="flex-1 min-w-0">
+          <div class="font-bold text-gray-800 truncate">${song.title}</div>
+          <div class="text-xs text-gray-400 mt-0.5">${done}/${tasks.length} 課題クリア</div>
+        </div>
+        <div class="flex gap-1.5 flex-shrink-0">
+          ${tasks.map((t, i) => `<div class="step-circle${progressMap[t.id]?.is_completed ? ' done' : ''}">${i + 1}</div>`).join('')}
+        </div>
       `;
-      row.querySelector('.memo-btn').addEventListener('click', e => {
+      area.appendChild(hdr);
+
+      if (!tasks.length) {
+        area.innerHTML += '<p class="text-center text-sm text-gray-400 py-4">課題が登録されていません</p>';
+        return;
+      }
+
+      tasks.forEach((t, i) => area.appendChild(makeCard(t.id, i + 1, t.title, t.description)));
+    }
+
+    // ---- TASK CARD ----
+
+    function makeCard(taskId, num, title, description) {
+      const prog = progressMap[taskId] || { is_completed: false, memo: '' };
+      const el   = document.createElement('div');
+      el.className = `task-card${prog.is_completed ? ' done' : ''}`;
+      el.id        = `card-${taskId}`;
+
+      const critHtml = description
+        ? `<div class="criteria-box"><div class="text-xs font-bold text-gray-500 mb-1">達成基準</div><div class="text-sm text-gray-700">${description}</div></div>`
+        : '';
+
+      el.innerHTML = `
+        <div class="flex items-center gap-3">
+          <div class="task-num">${prog.is_completed ? '<i class="fas fa-check text-xs"></i>' : num}</div>
+          <div class="flex-1 font-semibold text-gray-800 text-sm leading-snug">${title}</div>
+          <button class="memo-btn${prog.memo ? ' has-memo' : ''}" id="memo-btn-${taskId}">
+            <i class="fas fa-sticky-note mr-0.5"></i>${prog.memo ? 'メモ有' : 'メモ'}
+          </button>
+          <button class="kanryo-btn" id="done-btn-${taskId}">
+            ${prog.is_completed ? '<i class="fas fa-check mr-1"></i>済み' : '完了'}
+          </button>
+        </div>
+        ${critHtml}
+      `;
+
+      el.querySelector(`#memo-btn-${taskId}`).addEventListener('click', e => {
         e.stopPropagation();
         openMemo(taskId, title);
       });
-      row.addEventListener('click', e => {
-        if (e.target.closest('.memo-btn')) return;
-        toggleTask(taskId);
-      });
-      return row;
+      el.querySelector(`#done-btn-${taskId}`).addEventListener('click', () => toggleTask(taskId, num));
+      return el;
     }
 
-    async function toggleTask(taskId) {
+    function refreshCard(taskId, num) {
+      const el = document.getElementById(`card-${taskId}`);
+      if (!el) return;
+      const prog = progressMap[taskId];
+      el.className = `task-card${prog.is_completed ? ' done' : ''}`;
+      el.querySelector('.task-num').innerHTML = prog.is_completed ? '<i class="fas fa-check text-xs"></i>' : num;
+      const doneBtn = document.getElementById(`done-btn-${taskId}`);
+      if (doneBtn) doneBtn.innerHTML = prog.is_completed ? '<i class="fas fa-check mr-1"></i>済み' : '完了';
+      const memoBtn = document.getElementById(`memo-btn-${taskId}`);
+      if (memoBtn) {
+        memoBtn.className = `memo-btn${prog.memo ? ' has-memo' : ''}`;
+        memoBtn.innerHTML = `<i class="fas fa-sticky-note mr-0.5"></i>${prog.memo ? 'メモ有' : 'メモ'}`;
+      }
+    }
+
+    // ---- TOGGLE / SAVE ----
+
+    async function toggleTask(taskId, num) {
       const prog = progressMap[taskId] || { is_completed: false, memo: '' };
       if (prog.is_completed) {
-        uncheckTarget = taskId;
+        uncheckTarget = { taskId, num };
         document.getElementById('confirm-modal').classList.remove('hidden');
         return;
       }
-      await setCompleted(taskId, true);
+      await setCompleted(taskId, num, true);
+      // brief highlight
+      const card = document.getElementById(`card-${taskId}`);
+      if (card) { card.classList.add('highlight'); setTimeout(() => card.classList.remove('highlight'), 1200); }
     }
 
     async function confirmUncheck() {
       closeConfirm();
-      if (uncheckTarget) await setCompleted(uncheckTarget, false);
-      uncheckTarget = null;
+      if (uncheckTarget) { await setCompleted(uncheckTarget.taskId, uncheckTarget.num, false); uncheckTarget = null; }
     }
     function closeConfirm() { document.getElementById('confirm-modal').classList.add('hidden'); }
 
-    async function setCompleted(taskId, val) {
+    async function setCompleted(taskId, num, val) {
       if (!progressMap[taskId]) progressMap[taskId] = { is_completed: false, memo: '' };
       progressMap[taskId].is_completed = val;
+
       await db.from('student_progress').upsert({
         school_id: student.school_id, student_id: student.id,
         task_db_id: taskId, is_completed: val,
         memo: progressMap[taskId].memo, updated_at: new Date().toISOString()
       }, { onConflict: 'school_id,student_id,task_db_id' });
-      refreshRow(taskId);
-      updateProgressBar();
-      if (val && allTasks.every(t => progressMap[t.id]?.is_completed)) {
+
+      refreshCard(taskId, num);
+
+      // refresh song header if in song tab
+      if (currentSongId && songCache[currentSongId]?.some(t => t.id === taskId)) {
+        const tasks = songCache[currentSongId];
+        const done  = tasks.filter(t => progressMap[t.id]?.is_completed).length;
+        const song  = allSongs.find(s => s.id === currentSongId);
+        const hdr   = document.getElementById('song-task-area')?.querySelector('.bg-white');
+        if (hdr) {
+          hdr.querySelector('.text-xs').textContent = `${done}/${tasks.length} 課題クリア`;
+          const circles = hdr.querySelectorAll('.step-circle');
+          tasks.forEach((t, i) => {
+            if (circles[i]) circles[i].className = `step-circle${progressMap[t.id]?.is_completed ? ' done' : ''}`;
+          });
+        }
+      }
+
+      // confetti if all done
+      const allIds = [...kotoTasks, ...Object.values(songCache).flat()].map(t => t.id);
+      if (val && allIds.every(id => progressMap[id]?.is_completed)) {
         setTimeout(() => confetti({ particleCount: 200, spread: 80, origin: { y: 0.5 } }), 300);
       }
     }
 
-    function refreshRow(taskId) {
-      const row = document.getElementById(`task-${taskId}`);
-      if (!row) return;
-      const prog = progressMap[taskId];
-      row.className = `task-row${prog.is_completed ? ' done' : ''}`;
-      row.querySelector('.task-check').innerHTML = prog.is_completed ? '<i class="fas fa-check text-xs"></i>' : '';
-      const mb = row.querySelector('.memo-btn');
-      mb.className = `memo-btn${prog.memo ? ' has-memo' : ''}`;
-      mb.innerHTML = `<i class="fas fa-sticky-note mr-0.5"></i>${prog.memo ? 'メモ有' : 'メモ'}`;
-      // song count
-      const sc = row.closest('[id^="song-"]');
-      if (sc) {
-        const sid = sc.id.replace('song-', '');
-        const rows = sc.querySelectorAll('.task-row');
-        const d = Array.from(rows).filter(r => r.classList.contains('done')).length;
-        const el = document.getElementById(`song-count-${sid}`);
-        if (el) el.textContent = `${d}/${rows.length}`;
-      }
-    }
-
-    function updateProgressBar() {
-      const total = allTasks.length;
-      const done  = allTasks.filter(t => progressMap[t.id]?.is_completed).length;
-      const pct   = total ? Math.round(done / total * 100) : 0;
-      document.getElementById('progress-bar').style.width = pct + '%';
-      document.getElementById('progress-pct').textContent = pct + '%';
-      document.getElementById('progress-detail').textContent =
-        total ? `${done} / ${total} 項目完了` : '課題が登録されていません';
-    }
+    // ---- MEMO ----
 
     function openMemo(taskId, title) {
-      memoTarget = taskId;
+      memoTarget = { taskId, title };
       document.getElementById('memo-task-title').textContent = title;
       document.getElementById('memo-text').value = progressMap[taskId]?.memo || '';
       document.getElementById('memo-modal').classList.remove('hidden');
@@ -354,16 +408,32 @@
 
     async function saveMemo() {
       if (!memoTarget) return;
+      const { taskId } = memoTarget;
       const memo = document.getElementById('memo-text').value.trim();
-      if (!progressMap[memoTarget]) progressMap[memoTarget] = { is_completed: false, memo: '' };
-      progressMap[memoTarget].memo = memo;
+      if (!progressMap[taskId]) progressMap[taskId] = { is_completed: false, memo: '' };
+      progressMap[taskId].memo = memo;
+
       await db.from('student_progress').upsert({
         school_id: student.school_id, student_id: student.id,
-        task_db_id: memoTarget, is_completed: progressMap[memoTarget].is_completed,
+        task_db_id: taskId, is_completed: progressMap[taskId].is_completed,
         memo, updated_at: new Date().toISOString()
       }, { onConflict: 'school_id,student_id,task_db_id' });
-      refreshRow(memoTarget);
+
+      const koto = kotoTasks.find(t => t.id === taskId);
+      const num  = koto ? kotoTasks.indexOf(koto) + 1
+        : (songCache[currentSongId]?.findIndex(t => t.id === taskId) ?? -1) + 1;
+      if (num > 0) refreshCard(taskId, num);
       closeMemo();
+    }
+
+    // ---- TABS ----
+
+    function showTab(tab) {
+      document.getElementById('panel-grade').classList.toggle('hidden', tab !== 'grade');
+      document.getElementById('panel-song').classList.toggle('hidden', tab !== 'song');
+      document.getElementById('tab-grade').className = `tab-btn${tab === 'grade' ? ' active' : ''}`;
+      document.getElementById('tab-song').className  = `tab-btn${tab === 'song'  ? ' active' : ''}`;
+      if (tab === 'song') loadSongTab();
     }
 
     function logout() {

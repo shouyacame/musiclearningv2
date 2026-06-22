@@ -172,9 +172,14 @@
         <div class="card p-4">
           <div class="flex items-center justify-between mb-3">
             <div class="section-title mb-0"><i class="fas fa-list-check text-red-500"></i>基礎課題</div>
-            <button class="btn-gray text-xs" onclick="document.getElementById('koto-csv-input').click()">
-              <i class="fas fa-file-import mr-1"></i>CSVインポート
-            </button>
+            <div class="flex gap-1">
+              <button class="btn-gray text-xs" onclick="document.getElementById('koto-csv-input').click()">
+                <i class="fas fa-file-import mr-1"></i>インポート
+              </button>
+              <button class="btn-gray text-xs" onclick="downloadKotoCSV()">
+                <i class="fas fa-file-export mr-1"></i>ダウンロード
+              </button>
+            </div>
             <input type="file" id="koto-csv-input" accept=".csv" class="hidden" onchange="onKotoCSVSelected(event)">
           </div>
           <div id="koto-task-list" class="space-y-2 mb-3"></div>
@@ -363,11 +368,21 @@
     <p class="text-xs text-gray-400 mb-4" id="song-tasks-sub"></p>
     <input type="hidden" id="song-tasks-song-id">
     <div id="song-tasks-list" class="space-y-1 mb-3 max-h-48 overflow-y-auto"></div>
-    <form onsubmit="addSongTask(event)" class="flex gap-2">
+    <form onsubmit="addSongTask(event)" class="flex gap-2 mb-2">
       <input type="text" id="new-song-task-title" class="inp flex-1" placeholder="課題タイトル" required>
       <button type="submit" class="btn-red flex-shrink-0"><i class="fas fa-plus mr-1"></i>追加</button>
     </form>
-    <button class="btn-gray w-full mt-3" onclick="closeModal('song-tasks-modal')">閉じる</button>
+    <div class="flex gap-2 mb-2">
+      <button class="btn-gray flex-1 text-xs" onclick="document.getElementById('song-task-csv-input').click()">
+        <i class="fas fa-file-import mr-1"></i>CSVインポート
+      </button>
+      <button class="btn-gray flex-1 text-xs" onclick="downloadSongTaskCSV()">
+        <i class="fas fa-file-export mr-1"></i>CSVダウンロード
+      </button>
+      <input type="file" id="song-task-csv-input" accept=".csv" class="hidden" onchange="onSongTaskCSVSelected(event)">
+    </div>
+    <p class="text-xs text-gray-400 mb-2">CSV列: 課題番号, 課題名, 達成基準</p>
+    <button class="btn-gray w-full" onclick="closeModal('song-tasks-modal')">閉じる</button>
   </div>
 </div>
 
@@ -746,6 +761,70 @@
     e.target.value = '';
   }
 
+  async function downloadKotoCSV() {
+    const { data } = await db.from('koto_tasks')
+      .select('order_num, title, description')
+      .eq('school_id', T.school_id)
+      .eq('is_active', true)
+      .order('order_num');
+    if (!data?.length) { toast('課題データがありません', 'error'); return; }
+    const rows = [['課題番号', '課題名', '達成基準']];
+    data.forEach(t => rows.push([t.order_num, t.title, t.description || '']));
+    downloadCSVFile(rows, `koto_tasks_${T.school_id}.csv`);
+    toast('CSVをダウンロードしました', 'success');
+  }
+
+  function onSongTaskCSVSelected(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = async ev => {
+      const songId = document.getElementById('song-tasks-song-id').value;
+      const lines  = ev.target.result.replace(/\r/g, '').split('\n').filter(l => l.trim());
+      if (lines.length < 2) { toast('データが見つかりません', 'error'); return; }
+      const headers  = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g, ''));
+      const numIdx   = headers.findIndex(h => /番号|No|number|順番/.test(h));
+      const titleIdx = headers.findIndex(h => /課題名|タイトル|title/.test(h));
+      const descIdx  = headers.findIndex(h => /達成基準|基準|説明|description/.test(h));
+      if (titleIdx < 0) { toast('「課題名」列が見つかりません', 'error'); return; }
+      const rows = lines.slice(1).map((line, i) => {
+        const vals = line.split(',').map(v => v.trim().replace(/^"|"$/g, ''));
+        return { order_num: numIdx >= 0 ? (parseInt(vals[numIdx]) || i + 1) : i + 1, title: vals[titleIdx] || '', description: descIdx >= 0 ? (vals[descIdx] || '') : '' };
+      }).filter(r => r.title);
+      if (!rows.length) { toast('有効なデータがありません', 'error'); return; }
+      if (!confirm(`${rows.length}件の課題をインポートします。`)) return;
+      let ok = 0;
+      for (const row of rows) {
+        const { error } = await db.from('song_tasks').insert({ song_id: songId, school_id: T.school_id, title: row.title, description: row.description, order_num: row.order_num });
+        if (!error) ok++;
+      }
+      await loadSongTasksList(songId);
+      toast(`${ok}件をインポートしました`, 'success');
+    };
+    reader.readAsText(file, 'UTF-8');
+    e.target.value = '';
+  }
+
+  async function downloadSongTaskCSV() {
+    const songId = document.getElementById('song-tasks-song-id').value;
+    const title  = document.getElementById('song-tasks-title').textContent;
+    const { data } = await db.from('song_tasks').select('order_num, title, description').eq('song_id', songId).order('order_num');
+    if (!data?.length) { toast('課題データがありません', 'error'); return; }
+    const rows = [['課題番号', '課題名', '達成基準']];
+    data.forEach(t => rows.push([t.order_num, t.title, t.description || '']));
+    downloadCSVFile(rows, `song_tasks_${title}.csv`);
+    toast('CSVをダウンロードしました', 'success');
+  }
+
+  function downloadCSVFile(rows, filename) {
+    const csv  = rows.map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\n');
+    const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8' });
+    const a    = document.createElement('a');
+    a.href     = URL.createObjectURL(blob);
+    a.download = filename;
+    a.click();
+  }
+
   async function loadSongsManage() {
     const { data } = await db.from('songs').select('*').eq('school_id', T.school_id).eq('is_active', true).order('order_num');
     const el = document.getElementById('songs-manage-list');
@@ -1060,12 +1139,7 @@
     if (!data?.length) { toast('生徒データがありません', 'error'); return; }
     const rows = [['出席番号', '名前', '学年', '組', '学校名', '担当先生']];
     data.forEach(s => rows.push([s.number, s.name || '', s.grade + '年', s.class_name + '組', T.school_name || T.school_id, T.name || T.username]));
-    const csv  = rows.map(r => r.map(v => `"${v}"`).join(',')).join('\n');
-    const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8' });
-    const a    = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = `roster_${T.school_id}_${new Date().toISOString().slice(0,10)}.csv`;
-    a.click();
+    downloadCSVFile(rows, `roster_${T.school_id}_${new Date().toISOString().slice(0,10)}.csv`);
     toast('CSVをダウンロードしました', 'success');
   }
 
