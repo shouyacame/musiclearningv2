@@ -123,6 +123,7 @@
       <button class="tab-btn" id="tab-btn-roster" onclick="switchTab('roster')"><i class="fas fa-users mr-1.5"></i>生徒名簿</button>
       <button class="tab-btn" id="tab-btn-classes" onclick="switchTab('classes')"><i class="fas fa-school mr-1.5"></i>クラス設定</button>
       <button class="tab-btn" id="tab-btn-settings" onclick="switchTab('settings')"><i class="fas fa-cog mr-1.5"></i>設定</button>
+      <button class="tab-btn" id="tab-btn-help" onclick="switchTab('help')"><i class="fas fa-question-circle mr-1.5"></i>使い方</button>
     </div>
   </div>
 
@@ -320,6 +321,112 @@
           </form>
         </div>
       </div>
+
+    <!-- 使い方 -->
+    <div id="tab-help" class="tab-content hidden">
+      <div class="max-w-3xl space-y-4">
+
+        <!-- 初期設定 -->
+        <div class="card p-5">
+          <div class="section-title"><i class="fas fa-rocket text-red-500"></i>はじめてのセットアップ</div>
+          <ol class="space-y-3">
+            <li class="flex gap-3">
+              <span class="w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 mt-0.5">1</span>
+              <div><div class="font-semibold text-sm text-gray-800">クラスを追加する</div><div class="text-xs text-gray-500 mt-0.5">「クラス設定」タブ → 学年・組を入力して追加</div></div>
+            </li>
+            <li class="flex gap-3">
+              <span class="w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 mt-0.5">2</span>
+              <div><div class="font-semibold text-sm text-gray-800">課題を登録する</div><div class="text-xs text-gray-500 mt-0.5">「課題管理」タブ → CSVインポートまたは手動入力</div></div>
+            </li>
+            <li class="flex gap-3">
+              <span class="w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 mt-0.5">3</span>
+              <div><div class="font-semibold text-sm text-gray-800">生徒にURLを配布する</div><div class="text-xs text-gray-500 mt-0.5">「クラス設定」タブ → 「生徒配布URL」をコピーして共有</div></div>
+            </li>
+            <li class="flex gap-3">
+              <span class="w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 mt-0.5">4</span>
+              <div><div class="font-semibold text-sm text-gray-800">（任意）生徒名簿を登録する</div><div class="text-xs text-gray-500 mt-0.5">「生徒名簿」タブ → CSVインポートまたは手動追加</div></div>
+            </li>
+          </ol>
+        </div>
+
+        <!-- CSV形式 -->
+        <div class="card p-5">
+          <div class="section-title"><i class="fas fa-file-csv text-red-500"></i>CSVの形式</div>
+          <div class="space-y-4">
+            <div>
+              <div class="text-sm font-bold text-gray-700 mb-2">基礎課題・曲別課題</div>
+              <div class="bg-gray-50 rounded-xl p-3 font-mono text-xs text-gray-700 overflow-x-auto">課題番号,課題名,達成基準<br>1,爪のはめ方,正しい指に爪をはめられる<br>2,姿勢・構え方,正しい角度で座れている</div>
+            </div>
+            <div>
+              <div class="text-sm font-bold text-gray-700 mb-2">生徒名簿</div>
+              <div class="bg-gray-50 rounded-xl p-3 font-mono text-xs text-gray-700 overflow-x-auto">出席番号,名前<br>1,田中 太郎<br>2,鈴木 花子</div>
+            </div>
+            <div class="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 text-xs text-amber-800">
+              <i class="fas fa-exclamation-triangle mr-1"></i>
+              ExcelでCSV保存するときは <strong>「CSV UTF-8（コンマ区切り）」</strong> を選んでください
+            </div>
+          </div>
+        </div>
+
+        <!-- 各タブの説明 -->
+        <div class="card p-5">
+          <div class="section-title"><i class="fas fa-th-list text-red-500"></i>各タブの機能</div>
+          <div class="space-y-3">
+            <div class="flex gap-3 p-3 bg-gray-50 rounded-xl">
+              <i class="fas fa-home text-red-400 mt-0.5"></i>
+              <div><div class="text-sm font-bold text-gray-800">ダッシュボード</div><div class="text-xs text-gray-500">クラスごとの達成率をグラフで確認できます</div></div>
+            </div>
+            <div class="flex gap-3 p-3 bg-gray-50 rounded-xl">
+              <i class="fas fa-chart-bar text-red-400 mt-0.5"></i>
+              <div><div class="text-sm font-bold text-gray-800">進捗管理</div><div class="text-xs text-gray-500">クラス×課題のマトリクス表示。先生がセルをクリックして手動修正も可能</div></div>
+            </div>
+            <div class="flex gap-3 p-3 bg-gray-50 rounded-xl">
+              <i class="fas fa-tasks text-red-400 mt-0.5"></i>
+              <div><div class="text-sm font-bold text-gray-800">課題管理</div><div class="text-xs text-gray-500">基礎課題と楽曲の登録・編集・CSVインポート/ダウンロード</div></div>
+            </div>
+            <div class="flex gap-3 p-3 bg-gray-50 rounded-xl">
+              <i class="fas fa-bullhorn text-red-400 mt-0.5"></i>
+              <div><div class="text-sm font-bold text-gray-800">お知らせ</div><div class="text-xs text-gray-500">生徒ログイン画面に表示されるお知らせを管理</div></div>
+            </div>
+            <div class="flex gap-3 p-3 bg-gray-50 rounded-xl">
+              <i class="fas fa-users text-red-400 mt-0.5"></i>
+              <div><div class="text-sm font-bold text-gray-800">生徒名簿</div><div class="text-xs text-gray-500">生徒の追加・編集・削除。CSVで一括インポート/ダウンロードも可能</div></div>
+            </div>
+            <div class="flex gap-3 p-3 bg-gray-50 rounded-xl">
+              <i class="fas fa-school text-red-400 mt-0.5"></i>
+              <div><div class="text-sm font-bold text-gray-800">クラス設定</div><div class="text-xs text-gray-500">クラスの追加・削除と生徒配布URLの確認</div></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- よくある質問 -->
+        <div class="card p-5">
+          <div class="section-title"><i class="fas fa-question-circle text-red-500"></i>よくある質問</div>
+          <div class="space-y-3">
+            <details class="bg-gray-50 rounded-xl p-3 cursor-pointer">
+              <summary class="text-sm font-semibold text-gray-800">生徒がパスワードを忘れた</summary>
+              <p class="text-xs text-gray-600 mt-2">このシステムに生徒のパスワードはありません。学年・組・出席番号だけでログインできます。</p>
+            </details>
+            <details class="bg-gray-50 rounded-xl p-3 cursor-pointer">
+              <summary class="text-sm font-semibold text-gray-800">生徒が誤って「完了」を押してしまった</summary>
+              <p class="text-xs text-gray-600 mt-2">「進捗管理」タブのマトリクスで、先生がセルをクリックして未完了に戻せます。</p>
+            </details>
+            <details class="bg-gray-50 rounded-xl p-3 cursor-pointer">
+              <summary class="text-sm font-semibold text-gray-800">複数の先生で同じデータを共有したい</summary>
+              <p class="text-xs text-gray-600 mt-2">新規登録時に同じ「学校ID」を入力すれば、同じクラス・課題・進捗データを共有できます。</p>
+            </details>
+            <details class="bg-gray-50 rounded-xl p-3 cursor-pointer">
+              <summary class="text-sm font-semibold text-gray-800">課題を登録したのに生徒画面に出ない</summary>
+              <p class="text-xs text-gray-600 mt-2">生徒画面をリロード（更新）してください。それでも出ない場合、学校IDが一致しているか確認してください。</p>
+            </details>
+            <details class="bg-gray-50 rounded-xl p-3 cursor-pointer">
+              <summary class="text-sm font-semibold text-gray-800">他の学校のデータと混在しない？</summary>
+              <p class="text-xs text-gray-600 mt-2">学校IDで完全に分離されているため、他校のデータは表示されません。</p>
+            </details>
+          </div>
+        </div>
+
+      </div>
     </div>
 
   </div>
@@ -510,7 +617,7 @@
     document.getElementById(`tab-${name}`)?.classList.remove('hidden');
     if (!tabLoaded[name]) {
       tabLoaded[name] = true;
-      const loaders = { dashboard: loadDashboard, progress: initProgress, tasks: loadTasks, announce: loadAnnounce, roster: initRoster, classes: loadClassesTab, settings: () => {} };
+      const loaders = { dashboard: loadDashboard, progress: initProgress, tasks: loadTasks, announce: loadAnnounce, roster: initRoster, classes: loadClassesTab, settings: () => {}, help: () => {} };
       if (loaders[name]) await loaders[name]();
     }
   }
