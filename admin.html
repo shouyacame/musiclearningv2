@@ -1,0 +1,457 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>三線学習システム - 管理者画面</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
+  <script src="supabase-config.js"></script>
+  <style>
+    body { font-family: 'Noto Sans JP', sans-serif; background: #F0F0FA; }
+    .header-grad { background: linear-gradient(135deg, #0f0c29 0%, #302b63 60%, #24243e 100%); }
+    .nav-bar { background: #fff; border-bottom: 1px solid #e5e7eb; position: sticky; top: 0; z-index: 30; }
+    .tab-btn { padding: 14px 16px; font-size: 13px; font-weight: 500; color: #666; white-space: nowrap; cursor: pointer; border-bottom: 3px solid transparent; transition: all .2s; }
+    .tab-btn:hover { color: #4F46E5; background: #EEF2FF; }
+    .tab-btn.active { color: #4F46E5; border-bottom-color: #4F46E5; font-weight: 700; }
+    .card { background: #fff; border-radius: 16px; box-shadow: 0 4px 20px rgba(0,0,0,.06); }
+    .inp { width: 100%; padding: 9px 12px; border: 2px solid #e5e7eb; border-radius: 8px; font-size: 13px; font-family: 'Noto Sans JP', sans-serif; transition: border-color .2s; }
+    .inp:focus { outline: none; border-color: #4F46E5; }
+    .btn-indigo { background: linear-gradient(135deg, #4F46E5, #7C3AED); color: #fff; border: none; border-radius: 8px; padding: 8px 16px; font-size: 13px; font-weight: 600; cursor: pointer; font-family: 'Noto Sans JP', sans-serif; transition: all .2s; }
+    .btn-indigo:hover { box-shadow: 0 4px 12px rgba(79,70,229,.4); }
+    .btn-gray { background: #f3f4f6; color: #374151; border: none; border-radius: 8px; padding: 8px 14px; font-size: 13px; cursor: pointer; font-family: 'Noto Sans JP', sans-serif; }
+    .btn-gray:hover { background: #e5e7eb; }
+    .btn-sm { padding: 5px 10px; font-size: 11px; border-radius: 6px; border: none; cursor: pointer; font-family: 'Noto Sans JP', sans-serif; font-weight: 600; }
+    .btn-edit { background: #EEF2FF; color: #4338CA; }
+    .btn-edit:hover { background: #E0E7FF; }
+    .btn-del { background: #FEF2F2; color: #DC2626; }
+    .btn-del:hover { background: #fee2e2; }
+    table { width: 100%; border-collapse: collapse; }
+    th { background: #EEF2FF; color: #374151; padding: 9px 12px; text-align: left; font-size: 12px; font-weight: 700; }
+    td { padding: 9px 12px; font-size: 13px; border-bottom: 1px solid #f3f4f6; vertical-align: middle; }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: #FAFAFA; }
+    .section-title { font-size: 15px; font-weight: 700; color: #1f2937; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+    #toast-area { position: fixed; bottom: 20px; right: 20px; z-index: 100; display: flex; flex-direction: column; gap: 8px; }
+    .toast { padding: 12px 18px; border-radius: 12px; font-size: 13px; font-weight: 600; color: #fff; box-shadow: 0 8px 24px rgba(0,0,0,.2); display: flex; align-items: center; gap: 8px; animation: slideIn .3s ease; }
+    @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+    .badge { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 999px; font-size: 11px; font-weight: 600; }
+    .badge-indigo { background: #EEF2FF; color: #4338CA; }
+    .badge-green  { background: #DCFCE7; color: #166534; }
+    .badge-gray   { background: #F3F4F6; color: #6B7280; }
+    select.inp { background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e"); background-repeat: no-repeat; background-position: right 8px center; background-size: 16px; padding-right: 32px; }
+  </style>
+</head>
+<body>
+
+<div id="app" class="hidden min-h-screen">
+
+  <!-- ヘッダー -->
+  <div class="header-grad text-white px-4 py-3">
+    <div class="max-w-7xl mx-auto flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <i class="fas fa-shield-alt text-2xl text-indigo-300"></i>
+        <div>
+          <div class="font-bold text-base">三線学習システム</div>
+          <div class="text-xs opacity-50">管理者ポータル</div>
+        </div>
+      </div>
+      <div class="flex items-center gap-3">
+        <span id="admin-name-label" class="text-sm opacity-70"></span>
+        <button onclick="doLogout()" class="text-xs bg-white/10 hover:bg-white/20 px-3 py-1.5 rounded-lg transition-colors">
+          <i class="fas fa-sign-out-alt mr-1"></i>ログアウト
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- タブナビ -->
+  <div class="nav-bar">
+    <div class="max-w-7xl mx-auto flex overflow-x-auto">
+      <button class="tab-btn active" id="tab-btn-dashboard" onclick="switchTab('dashboard')">
+        <i class="fas fa-chart-pie mr-1.5"></i>ダッシュボード
+      </button>
+      <button class="tab-btn" id="tab-btn-teachers" onclick="switchTab('teachers')">
+        <i class="fas fa-chalkboard-teacher mr-1.5"></i>先生管理
+      </button>
+      <button class="tab-btn" id="tab-btn-admin-settings" onclick="switchTab('admin-settings')">
+        <i class="fas fa-cog mr-1.5"></i>管理者設定
+      </button>
+    </div>
+  </div>
+
+  <!-- コンテンツ -->
+  <div class="max-w-7xl mx-auto p-4 pb-12">
+
+    <!-- ダッシュボード -->
+    <div id="tab-dashboard" class="tab-content space-y-4">
+      <div id="dash-content">
+        <div class="text-center py-12 text-gray-400"><i class="fas fa-spinner fa-spin text-2xl mb-2 block"></i>読み込み中...</div>
+      </div>
+    </div>
+
+    <!-- 先生管理 -->
+    <div id="tab-teachers" class="tab-content hidden space-y-4">
+      <div class="card p-4">
+        <div class="flex flex-wrap gap-3 items-end">
+          <div class="flex-1 min-w-48">
+            <label class="block text-xs font-semibold text-gray-600 mb-1">検索</label>
+            <input type="text" id="teacher-search" class="inp" placeholder="先生ID・名前・学校IDで検索" oninput="renderTeachers()">
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-gray-600 mb-1">学校で絞り込み</label>
+            <select id="teacher-school-filter" class="inp w-48" onchange="renderTeachers()">
+              <option value="">全学校</option>
+            </select>
+          </div>
+          <button class="btn-gray" onclick="loadTeachers()"><i class="fas fa-sync-alt mr-1"></i>更新</button>
+        </div>
+      </div>
+      <div class="card overflow-hidden">
+        <div class="overflow-x-auto">
+          <table>
+            <thead>
+              <tr>
+                <th>先生ID</th>
+                <th>名前</th>
+                <th>学校ID</th>
+                <th>学校名</th>
+                <th>メール</th>
+                <th>登録日</th>
+                <th>操作</th>
+              </tr>
+            </thead>
+            <tbody id="teacher-tbody">
+              <tr><td colspan="7" class="text-center text-gray-400 py-6"><i class="fas fa-spinner fa-spin mr-2"></i>読み込み中...</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div id="teacher-count" class="text-xs text-gray-400 px-4 py-2 border-t border-gray-50"></div>
+      </div>
+    </div>
+
+    <!-- 管理者設定 -->
+    <div id="tab-admin-settings" class="tab-content hidden">
+      <div class="max-w-md space-y-4">
+        <div class="card p-5">
+          <div class="section-title"><i class="fas fa-user-shield text-indigo-500"></i>管理者プロフィール</div>
+          <form onsubmit="saveAdminProfile(event)" class="space-y-3">
+            <div>
+              <label class="block text-xs font-semibold text-gray-600 mb-1">メールアドレス</label>
+              <input type="email" id="set-admin-email" class="inp bg-gray-50" readonly>
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-gray-600 mb-1">管理者名</label>
+              <input type="text" id="set-admin-name" class="inp" placeholder="システム管理者">
+            </div>
+            <button type="submit" class="btn-indigo w-full"><i class="fas fa-save mr-1"></i>保存</button>
+          </form>
+        </div>
+        <div class="card p-5">
+          <div class="section-title"><i class="fas fa-key text-indigo-500"></i>パスワード変更</div>
+          <form onsubmit="changeAdminPassword(event)" class="space-y-3">
+            <div>
+              <label class="block text-xs font-semibold text-gray-600 mb-1">新しいパスワード</label>
+              <input type="password" id="admin-new-pw" class="inp" placeholder="8文字以上" required minlength="8" autocomplete="new-password">
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-gray-600 mb-1">確認</label>
+              <input type="password" id="admin-new-pw-confirm" class="inp" placeholder="もう一度入力" required minlength="8" autocomplete="new-password">
+            </div>
+            <button type="submit" class="btn-indigo w-full"><i class="fas fa-key mr-1"></i>変更する</button>
+          </form>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<div id="toast-area"></div>
+
+<script>
+  let adminProfile = null;
+  let allTeachersData = [];
+  const tabLoaded = {};
+
+  // ---- INIT ----
+
+  async function init() {
+    const { data: { session } } = await db.auth.getSession();
+    if (!session) { window.location.href = 'admin-login.html'; return; }
+
+    const { data: profile } = await db.from('admin_profiles')
+      .select('*').eq('id', session.user.id).maybeSingle();
+
+    if (!profile) {
+      await db.auth.signOut();
+      window.location.href = 'admin-login.html';
+      return;
+    }
+
+    adminProfile = profile;
+    document.getElementById('admin-name-label').textContent = profile.name;
+    document.getElementById('set-admin-email').value = profile.email;
+    document.getElementById('set-admin-name').value  = profile.name || '';
+    document.getElementById('app').classList.remove('hidden');
+    await switchTab('dashboard');
+  }
+
+  async function doLogout() {
+    await db.auth.signOut();
+    window.location.href = 'admin-login.html';
+  }
+
+  // ---- TABS ----
+
+  async function switchTab(name) {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(c => c.classList.add('hidden'));
+    document.getElementById(`tab-btn-${name}`)?.classList.add('active');
+    document.getElementById(`tab-${name}`)?.classList.remove('hidden');
+    if (!tabLoaded[name]) {
+      tabLoaded[name] = true;
+      const loaders = { dashboard: loadDashboard, teachers: loadTeachers, 'admin-settings': () => {} };
+      if (loaders[name]) await loaders[name]();
+    }
+  }
+
+  // ---- DASHBOARD ----
+
+  async function loadDashboard() {
+    const el = document.getElementById('dash-content');
+
+    const [teacherRes, studentRes, classRes] = await Promise.all([
+      db.from('teacher_profiles').select('id, school_id, school_name, created_at'),
+      db.from('students').select('id, school_id'),
+      db.from('classes').select('id, school_id').eq('is_active', true)
+    ]);
+
+    const teachers = teacherRes.data || [];
+    const students = studentRes.data || [];
+    const classes  = classRes.data  || [];
+
+    // 学校ごとに集計
+    const schoolMap = {};
+    teachers.forEach(t => {
+      if (!schoolMap[t.school_id]) {
+        schoolMap[t.school_id] = { school_id: t.school_id, school_name: '', teachers: 0, students: 0, classes: 0 };
+      }
+      schoolMap[t.school_id].teachers++;
+    });
+    // school_nameは先生プロフィールから（最後のものを使用）
+    const teacherFull = (await db.from('teacher_profiles').select('school_id, school_name')).data || [];
+    teacherFull.forEach(t => { if (schoolMap[t.school_id] && t.school_name) schoolMap[t.school_id].school_name = t.school_name; });
+    students.forEach(s => { if (schoolMap[s.school_id]) schoolMap[s.school_id].students++; });
+    classes.forEach(c => { if (schoolMap[c.school_id]) schoolMap[c.school_id].classes++; });
+
+    const schools = Object.values(schoolMap).sort((a, b) => b.teachers - a.teachers);
+
+    // 最近登録した先生（5件）
+    const recent = [...teachers].sort((a, b) => new Date(b.created_at) - new Date(a.created_at)).slice(0, 5);
+    const recentTeacherIds = recent.map(t => t.id);
+    const recentNames = recentTeacherIds.length
+      ? (await db.from('teacher_profiles').select('id, username, name, school_id, created_at').in('id', recentTeacherIds)).data || []
+      : [];
+
+    const schoolRows = schools.map(s => `
+      <tr>
+        <td><code class="text-xs bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded font-mono">${s.school_id}</code></td>
+        <td class="font-medium">${s.school_name || '<span class="text-gray-300">未設定</span>'}</td>
+        <td class="text-center font-semibold text-indigo-600">${s.teachers}</td>
+        <td class="text-center">${s.students}</td>
+        <td class="text-center">${s.classes}</td>
+      </tr>
+    `).join('') || '<tr><td colspan="5" class="text-center text-gray-400 py-6">学校が登録されていません</td></tr>';
+
+    const recentRows = recentNames
+      .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+      .map(t => `
+        <tr>
+          <td class="font-mono text-xs">${t.username}</td>
+          <td>${t.name || '-'}</td>
+          <td><code class="text-xs bg-gray-100 px-1 rounded">${t.school_id}</code></td>
+          <td class="text-xs text-gray-400">${new Date(t.created_at).toLocaleDateString('ja-JP')}</td>
+        </tr>
+      `).join('') || '<tr><td colspan="4" class="text-center text-gray-400 py-4">なし</td></tr>';
+
+    el.innerHTML = `
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+        ${statCard('fa-school',  '学校数',  schools.length  + '校', '#EEF2FF', '#4338CA')}
+        ${statCard('fa-chalkboard-teacher', '先生数', teachers.length + '名', '#F0FDF4', '#166534')}
+        ${statCard('fa-users',   '生徒数',  students.length + '名', '#FEF3C7', '#92400E')}
+        ${statCard('fa-door-open', 'クラス数', classes.length  + 'クラス', '#FEE2E2', '#991B1B')}
+      </div>
+      <div class="grid md:grid-cols-3 gap-4">
+        <div class="card p-4 md:col-span-2">
+          <div class="section-title"><i class="fas fa-school text-indigo-500"></i>学校一覧</div>
+          <div class="overflow-x-auto">
+            <table>
+              <thead><tr><th>学校ID</th><th>学校名</th><th class="text-center">先生</th><th class="text-center">生徒</th><th class="text-center">クラス</th></tr></thead>
+              <tbody>${schoolRows}</tbody>
+            </table>
+          </div>
+        </div>
+        <div class="card p-4">
+          <div class="section-title"><i class="fas fa-user-clock text-indigo-500"></i>最近登録した先生</div>
+          <table>
+            <thead><tr><th>先生ID</th><th>名前</th><th>学校</th><th>日付</th></tr></thead>
+            <tbody>${recentRows}</tbody>
+          </table>
+        </div>
+      </div>`;
+  }
+
+  function statCard(icon, label, val, bg, color) {
+    return `<div class="card p-4 text-center" style="background:${bg}">
+      <i class="fas ${icon} text-2xl mb-2" style="color:${color}"></i>
+      <div class="text-xl font-bold" style="color:${color}">${val}</div>
+      <div class="text-xs font-medium mt-0.5" style="color:${color}">${label}</div>
+    </div>`;
+  }
+
+  // ---- TEACHERS ----
+
+  async function loadTeachers() {
+    document.getElementById('teacher-tbody').innerHTML =
+      '<tr><td colspan="7" class="text-center text-gray-400 py-6"><i class="fas fa-spinner fa-spin mr-2"></i>読み込み中...</td></tr>';
+
+    const { data, error } = await db.from('teacher_profiles')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      toast('読み込み失敗: ' + error.message, 'error');
+      return;
+    }
+
+    allTeachersData = data || [];
+
+    // 学校フィルター用オプション更新
+    const schools = [...new Set(allTeachersData.map(t => t.school_id))].sort();
+    const filter  = document.getElementById('teacher-school-filter');
+    const current = filter.value;
+    filter.innerHTML = '<option value="">全学校</option>';
+    schools.forEach(s => {
+      const o = document.createElement('option');
+      o.value = s; o.textContent = s; filter.appendChild(o);
+    });
+    filter.value = current;
+
+    renderTeachers();
+  }
+
+  function renderTeachers() {
+    const search = document.getElementById('teacher-search').value.toLowerCase();
+    const school = document.getElementById('teacher-school-filter').value;
+
+    let list = allTeachersData;
+    if (search) list = list.filter(t =>
+      (t.username || '').toLowerCase().includes(search) ||
+      (t.name     || '').toLowerCase().includes(search) ||
+      (t.school_id || '').toLowerCase().includes(search) ||
+      (t.school_name || '').toLowerCase().includes(search)
+    );
+    if (school) list = list.filter(t => t.school_id === school);
+
+    const isFakeEmail = email => !email || email.endsWith('.local');
+
+    const rows = list.map(t => {
+      const maskedEmail = t.email ? t.email.replace(/(.{2}).*?(@.*)/, '$1***$2') : '-';
+      const resetBtn = isFakeEmail(t.email)
+        ? `<span class="text-xs text-gray-300" title="CSV登録のため実メールなし">PW reset不可</span>`
+        : `<button class="btn-sm btn-edit" onclick="sendPasswordReset('${t.email}','${(t.name||t.username).replace(/'/g,"\\'")}')"><i class="fas fa-key mr-1"></i>PW</button>`;
+      return `<tr>
+        <td class="font-mono text-xs font-semibold">${t.username || '-'}</td>
+        <td class="font-medium">${t.name || '<span class="text-gray-300">-</span>'}</td>
+        <td><code class="text-xs bg-indigo-50 text-indigo-700 px-1.5 py-0.5 rounded">${t.school_id}</code></td>
+        <td class="text-xs text-gray-500">${t.school_name || '-'}</td>
+        <td class="text-xs text-gray-400">${maskedEmail}</td>
+        <td class="text-xs text-gray-400 whitespace-nowrap">${new Date(t.created_at).toLocaleDateString('ja-JP')}</td>
+        <td>
+          <div class="flex gap-1 flex-wrap">
+            ${resetBtn}
+            <button class="btn-sm btn-del" onclick="deleteTeacher('${t.id}','${(t.name||t.username).replace(/'/g,"\\'")}')">
+              <i class="fas fa-trash"></i>
+            </button>
+          </div>
+        </td>
+      </tr>`;
+    }).join('') || '<tr><td colspan="7" class="text-center text-gray-400 py-6">該当する先生が見つかりません</td></tr>';
+
+    document.getElementById('teacher-tbody').innerHTML = rows;
+    document.getElementById('teacher-count').textContent =
+      list.length < allTeachersData.length
+        ? `${list.length}名表示（全${allTeachersData.length}名）`
+        : `全${allTeachersData.length}名`;
+  }
+
+  async function deleteTeacher(id, name) {
+    if (!confirm(`「${name}」を削除しますか？\nこの先生はログインできなくなります。`)) return;
+    if (!confirm('【確認】この操作は取り消せません。本当に削除しますか？')) return;
+
+    const { error } = await db.from('teacher_profiles').delete().eq('id', id);
+    if (error) { toast('削除失敗: ' + error.message, 'error'); return; }
+
+    allTeachersData = allTeachersData.filter(t => t.id !== id);
+    renderTeachers();
+    tabLoaded['dashboard'] = false;
+    toast(`「${name}」を削除しました`, 'success');
+  }
+
+  async function sendPasswordReset(email, name) {
+    if (!confirm(`「${name}」(${email}) にパスワードリセットメールを送信しますか？`)) return;
+    const redirectTo = `${location.origin}${location.pathname.replace('admin.html', 'teacher-login.html')}`;
+    const { error } = await db.auth.resetPasswordForEmail(email, { redirectTo });
+    if (error) { toast('送信失敗: ' + error.message, 'error'); return; }
+    toast(`${email} にリセットメールを送信しました`, 'success');
+  }
+
+  // ---- ADMIN SETTINGS ----
+
+  async function saveAdminProfile(e) {
+    e.preventDefault();
+    const name = document.getElementById('set-admin-name').value.trim();
+    const { error } = await db.from('admin_profiles').update({ name }).eq('id', adminProfile.id);
+    if (error) { toast('保存失敗: ' + error.message, 'error'); return; }
+    adminProfile.name = name;
+    document.getElementById('admin-name-label').textContent = name;
+    toast('保存しました', 'success');
+  }
+
+  async function changeAdminPassword(e) {
+    e.preventDefault();
+    const pw1 = document.getElementById('admin-new-pw').value;
+    const pw2 = document.getElementById('admin-new-pw-confirm').value;
+    if (pw1 !== pw2) { toast('パスワードが一致しません', 'error'); return; }
+    const { error } = await db.auth.updateUser({ password: pw1 });
+    if (error) { toast('変更失敗: ' + error.message, 'error'); return; }
+    document.getElementById('admin-new-pw').value         = '';
+    document.getElementById('admin-new-pw-confirm').value = '';
+    toast('パスワードを変更しました', 'success');
+  }
+
+  // ---- HELPERS ----
+
+  function toast(msg, type = 'success') {
+    const colors = { success: '#10B981', error: '#EF4444', info: '#4F46E5' };
+    const icons  = { success: 'fa-check-circle', error: 'fa-exclamation-circle', info: 'fa-info-circle' };
+    const el = document.createElement('div');
+    el.className = 'toast';
+    el.style.background = colors[type] || colors.info;
+    el.innerHTML = `<i class="fas ${icons[type] || icons.info} mr-2"></i>${msg}`;
+    document.getElementById('toast-area').appendChild(el);
+    setTimeout(() => {
+      el.style.opacity = '0';
+      el.style.transform = 'translateX(100%)';
+      el.style.transition = 'all .3s';
+      setTimeout(() => el.remove(), 300);
+    }, 3500);
+  }
+
+  document.addEventListener('DOMContentLoaded', init);
+</script>
+</body>
+</html>
