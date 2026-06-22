@@ -76,6 +76,9 @@
       <button class="tab-btn" id="tab-btn-teachers" onclick="switchTab('teachers')">
         <i class="fas fa-chalkboard-teacher mr-1.5"></i>先生管理
       </button>
+      <button class="tab-btn" id="tab-btn-schools" onclick="switchTab('schools')">
+        <i class="fas fa-school mr-1.5"></i>学校管理
+      </button>
       <button class="tab-btn" id="tab-btn-admin-settings" onclick="switchTab('admin-settings')">
         <i class="fas fa-cog mr-1.5"></i>管理者設定
       </button>
@@ -94,6 +97,17 @@
 
     <!-- 先生管理 -->
     <div id="tab-teachers" class="tab-content hidden space-y-4">
+      <div class="card p-4">
+        <div class="flex items-center justify-between mb-3">
+          <div class="section-title mb-0"><i class="fas fa-file-csv text-green-600"></i>先生CSVインポート</div>
+          <button onclick="downloadTeacherCSVTemplate()" class="btn-gray text-xs"><i class="fas fa-download mr-1"></i>テンプレートDL</button>
+        </div>
+        <p class="text-xs text-gray-400 mb-3">CSVで複数の先生アカウントを一括作成できます。列順: <code class="bg-gray-100 px-1 rounded">先生ID, 学校ID, 学校名, 名前, パスワード</code></p>
+        <label class="btn-indigo cursor-pointer inline-flex items-center gap-2 text-sm">
+          <i class="fas fa-upload"></i>CSVファイルを選択してインポート
+          <input type="file" accept=".csv" class="hidden" onchange="onTeacherCSVSelected(event)">
+        </label>
+      </div>
       <div class="card p-4">
         <div class="flex flex-wrap gap-3 items-end">
           <div class="flex-1 min-w-48">
@@ -129,6 +143,17 @@
           </table>
         </div>
         <div id="teacher-count" class="text-xs text-gray-400 px-4 py-2 border-t border-gray-50"></div>
+      </div>
+    </div>
+
+    <!-- 学校管理 -->
+    <div id="tab-schools" class="tab-content hidden space-y-4">
+      <div class="card p-4">
+        <div class="section-title"><i class="fas fa-school text-indigo-500"></i>学校一覧・先生ログインURL</div>
+        <p class="text-xs text-gray-500 mb-4">各学校のURLをコピーして先生に共有してください。先生はそのURLからログインできます。</p>
+        <div id="school-url-content">
+          <div class="text-center py-8 text-gray-400"><i class="fas fa-spinner fa-spin mr-2"></i>読み込み中...</div>
+        </div>
       </div>
     </div>
 
@@ -169,11 +194,50 @@
   </div>
 </div>
 
+<!-- CSVプレビューモーダル -->
+<div id="csv-teacher-modal" class="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 hidden">
+  <div class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col">
+    <div class="p-5 border-b border-gray-100">
+      <div class="flex items-center justify-between">
+        <h3 class="font-bold text-gray-800"><i class="fas fa-file-csv text-green-600 mr-2"></i>CSVプレビュー</h3>
+        <button onclick="closeCSVModal()" class="text-gray-400 hover:text-gray-600"><i class="fas fa-times text-lg"></i></button>
+      </div>
+      <p id="csv-preview-count" class="text-xs text-gray-400 mt-1"></p>
+    </div>
+    <div class="overflow-auto flex-1 p-4">
+      <table class="w-full">
+        <thead><tr><th>先生ID</th><th>学校ID</th><th>学校名</th><th>名前</th><th>パスワード</th></tr></thead>
+        <tbody id="csv-preview-tbody"></tbody>
+      </table>
+    </div>
+    <div class="p-4 border-t border-gray-100 flex gap-3">
+      <button onclick="closeCSVModal()" class="btn-gray flex-1">キャンセル</button>
+      <button onclick="openReauthModal()" class="btn-indigo flex-1"><i class="fas fa-upload mr-1"></i>インポート開始</button>
+    </div>
+  </div>
+</div>
+
+<!-- 管理者再認証モーダル -->
+<div id="reauth-modal" class="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 hidden">
+  <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6">
+    <h3 class="font-bold text-gray-800 mb-1"><i class="fas fa-lock text-indigo-500 mr-2"></i>管理者パスワードを確認</h3>
+    <p class="text-xs text-gray-500 mb-4">インポート後に管理者セッションを自動復元するため、現在のパスワードが必要です。</p>
+    <input type="password" id="reauth-pass" class="inp mb-1" placeholder="管理者パスワード" autocomplete="current-password">
+    <p id="reauth-err" class="text-xs text-red-500 mb-3 hidden"></p>
+    <div class="flex gap-3 mt-4">
+      <button onclick="closeReauthModal()" class="btn-gray flex-1">キャンセル</button>
+      <button onclick="confirmReauthAndImport()" class="btn-indigo flex-1"><i class="fas fa-play mr-1"></i>開始</button>
+    </div>
+  </div>
+</div>
+
 <div id="toast-area"></div>
 
 <script>
   let adminProfile = null;
   let allTeachersData = [];
+  let csvTeacherRows = [];
+  let importAdminPassword = '';
   const tabLoaded = {};
 
   // ---- INIT ----
@@ -213,7 +277,7 @@
     document.getElementById(`tab-${name}`)?.classList.remove('hidden');
     if (!tabLoaded[name]) {
       tabLoaded[name] = true;
-      const loaders = { dashboard: loadDashboard, teachers: loadTeachers, 'admin-settings': () => {} };
+      const loaders = { dashboard: loadDashboard, teachers: loadTeachers, schools: loadSchools, 'admin-settings': () => {} };
       if (loaders[name]) await loaders[name]();
     }
   }
@@ -431,6 +495,190 @@
     document.getElementById('admin-new-pw').value         = '';
     document.getElementById('admin-new-pw-confirm').value = '';
     toast('パスワードを変更しました', 'success');
+  }
+
+  // ---- SCHOOLS ----
+
+  async function loadSchools() {
+    const el = document.getElementById('school-url-content');
+    const { data, error } = await db.from('teacher_profiles').select('school_id, school_name');
+    if (error) { el.innerHTML = `<p class="text-red-500 text-sm">${error.message}</p>`; return; }
+
+    const schoolMap = {};
+    (data || []).forEach(t => {
+      if (!schoolMap[t.school_id]) schoolMap[t.school_id] = { school_id: t.school_id, school_name: '', count: 0 };
+      if (t.school_name) schoolMap[t.school_id].school_name = t.school_name;
+      schoolMap[t.school_id].count++;
+    });
+
+    const schools = Object.values(schoolMap).sort((a, b) => a.school_id.localeCompare(b.school_id));
+
+    if (schools.length === 0) {
+      el.innerHTML = '<p class="text-gray-400 text-center py-8">学校が登録されていません。先生CSVインポートから先生を追加してください。</p>';
+      return;
+    }
+
+    const baseUrl = location.origin + location.pathname.replace('admin.html', '');
+    const rows = schools.map(s => {
+      const url = `${baseUrl}teacher-login.html?school=${encodeURIComponent(s.school_id)}`;
+      const sid = s.school_id.replace(/'/g, "\\'");
+      return `<tr>
+        <td><code class="text-xs bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded font-mono">${s.school_id}</code></td>
+        <td class="font-medium">${s.school_name || '<span class="text-gray-300">未設定</span>'}</td>
+        <td class="text-center text-sm font-semibold text-indigo-600">${s.count}名</td>
+        <td class="text-xs text-gray-400 font-mono max-w-xs" style="word-break:break-all">${url}</td>
+        <td class="whitespace-nowrap">
+          <button class="btn-sm btn-edit" onclick="copySchoolUrl('${sid}')">
+            <i class="fas fa-copy mr-1"></i>コピー
+          </button>
+        </td>
+      </tr>`;
+    }).join('');
+
+    el.innerHTML = `
+      <div class="overflow-x-auto">
+        <table>
+          <thead><tr><th>学校ID</th><th>学校名</th><th class="text-center">先生数</th><th>先生ログインURL</th><th>操作</th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>`;
+  }
+
+  function copySchoolUrl(schoolId) {
+    const baseUrl = location.origin + location.pathname.replace('admin.html', '');
+    const url = `${baseUrl}teacher-login.html?school=${encodeURIComponent(schoolId)}`;
+    navigator.clipboard.writeText(url)
+      .then(() => toast('URLをコピーしました', 'success'))
+      .catch(() => { prompt('URLをコピーしてください:', url); });
+  }
+
+  // ---- TEACHER CSV IMPORT ----
+
+  function downloadTeacherCSVTemplate() {
+    const csv = '先生ID,学校ID,学校名,名前,パスワード\nyamada,naha-jr-2024,那覇中学校,山田花子,password123\n';
+    const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'teacher_import_template.csv';
+    a.click();
+  }
+
+  function onTeacherCSVSelected(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = ev => {
+      const text = ev.target.result.replace(/^﻿/, '');
+      const lines = text.split('\n').map(l => l.trim()).filter(l => l);
+      if (lines.length < 2) { toast('CSVにデータがありません', 'error'); return; }
+      const rows = lines.slice(1).map(line => {
+        const cols = line.split(',').map(c => c.trim().replace(/^"|"$/g, ''));
+        return { username: cols[0] || '', school_id: cols[1] || '', school_name: cols[2] || '', name: cols[3] || '', password: cols[4] || '' };
+      }).filter(r => r.username && r.school_id && r.password);
+      if (rows.length === 0) { toast('有効なデータがありません。フォーマットを確認してください', 'error'); return; }
+      csvTeacherRows = rows;
+      showCSVPreviewModal();
+    };
+    reader.readAsText(file, 'UTF-8');
+    e.target.value = '';
+  }
+
+  function showCSVPreviewModal() {
+    const rows = csvTeacherRows.map(r => `<tr>
+      <td class="font-mono text-xs font-semibold">${r.username}</td>
+      <td class="text-xs">${r.school_id}</td>
+      <td class="text-xs">${r.school_name || '-'}</td>
+      <td class="text-xs">${r.name || '-'}</td>
+      <td class="text-xs text-gray-400">${'•'.repeat(Math.min(r.password.length, 8))}</td>
+    </tr>`).join('');
+    document.getElementById('csv-preview-tbody').innerHTML = rows;
+    document.getElementById('csv-preview-count').textContent = `${csvTeacherRows.length}件のデータが読み込まれました`;
+    document.getElementById('csv-teacher-modal').classList.remove('hidden');
+  }
+
+  function closeCSVModal() { document.getElementById('csv-teacher-modal').classList.add('hidden'); }
+
+  function openReauthModal() {
+    closeCSVModal();
+    document.getElementById('reauth-err').classList.add('hidden');
+    document.getElementById('reauth-pass').value = '';
+    document.getElementById('reauth-modal').classList.remove('hidden');
+    setTimeout(() => document.getElementById('reauth-pass').focus(), 100);
+  }
+
+  function closeReauthModal() { document.getElementById('reauth-modal').classList.add('hidden'); }
+
+  async function confirmReauthAndImport() {
+    const pass = document.getElementById('reauth-pass').value;
+    if (!pass) {
+      document.getElementById('reauth-err').textContent = 'パスワードを入力してください';
+      document.getElementById('reauth-err').classList.remove('hidden');
+      return;
+    }
+    importAdminPassword = pass;
+    closeReauthModal();
+    await doImportTeacherCSV();
+  }
+
+  async function doImportTeacherCSV() {
+    const toastArea = document.getElementById('toast-area');
+    const progressEl = document.createElement('div');
+    progressEl.className = 'toast';
+    progressEl.style.background = '#4F46E5';
+    progressEl.innerHTML = `<i class="fas fa-spinner fa-spin mr-2"></i>インポート中... (0/${csvTeacherRows.length})`;
+    toastArea.appendChild(progressEl);
+
+    let success = 0, skipped = 0, failed = 0;
+    const failedNames = [];
+
+    for (let i = 0; i < csvTeacherRows.length; i++) {
+      const row = csvTeacherRows[i];
+      progressEl.innerHTML = `<i class="fas fa-spinner fa-spin mr-2"></i>インポート中... (${i + 1}/${csvTeacherRows.length})`;
+
+      const { data: dup } = await db.from('teacher_profiles').select('id').eq('username', row.username).maybeSingle();
+      if (dup) { skipped++; continue; }
+
+      const fakeEmail = `${row.username}@${row.school_id}.teachers.local`;
+      const { data: signUpData, error: signUpErr } = await db.auth.signUp({ email: fakeEmail, password: row.password });
+      let userId = signUpData?.user?.id;
+
+      if (!userId) {
+        const { data: siData } = await db.auth.signInWithPassword({ email: fakeEmail, password: row.password });
+        if (!siData?.user) { failed++; failedNames.push(row.username); await db.auth.signOut(); continue; }
+        userId = siData.user.id;
+        const { data: dup2 } = await db.from('teacher_profiles').select('id').eq('id', userId).maybeSingle();
+        if (dup2) { skipped++; await db.auth.signOut(); continue; }
+      }
+
+      const { error: pErr } = await db.from('teacher_profiles').insert({
+        id: userId, username: row.username, email: fakeEmail,
+        name: row.name || row.username,
+        school_id: row.school_id, school_name: row.school_name || '', department: '音楽科'
+      });
+
+      if (pErr) { failed++; failedNames.push(row.username); }
+      else { success++; }
+      await db.auth.signOut();
+    }
+
+    progressEl.remove();
+
+    const { error: reLoginErr } = await db.auth.signInWithPassword({ email: adminProfile.email, password: importAdminPassword });
+    importAdminPassword = '';
+
+    if (reLoginErr) {
+      alert(`インポート完了 (成功: ${success}名, スキップ: ${skipped}名, 失敗: ${failed}名)\n\n管理者パスワードが正しくないためログインページに移動します。`);
+      window.location.href = 'admin-login.html';
+      return;
+    }
+
+    tabLoaded['teachers'] = false;
+    tabLoaded['schools'] = false;
+    tabLoaded['dashboard'] = false;
+
+    const msg = `インポート完了: ${success}名追加, ${skipped}名スキップ` + (failed > 0 ? `, ${failed}名失敗 (${failedNames.join(', ')})` : '');
+    toast(msg, failed > 0 ? 'error' : 'success');
+    await loadTeachers();
   }
 
   // ---- HELPERS ----

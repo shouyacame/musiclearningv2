@@ -70,6 +70,7 @@
       </div>
       <h1 class="text-3xl font-bold text-white">三線学習システム</h1>
       <p class="text-white/60 text-sm mt-1">先生管理画面</p>
+      <p id="school-name-display" class="hidden text-white font-semibold text-sm mt-1 bg-white/10 px-4 py-1 rounded-full"></p>
     </div>
 
     <div class="card p-8">
@@ -293,7 +294,16 @@
 
     document.addEventListener('DOMContentLoaded', async () => {
       const { data } = await db.auth.getSession();
-      if (data?.session) window.location.href = 'teacher.html';
+      if (data?.session) { window.location.href = 'teacher.html'; return; }
+
+      const schoolId = new URLSearchParams(location.search).get('school');
+      if (schoolId) {
+        const { data: tp } = await db.from('teacher_profiles')
+          .select('school_name').eq('school_id', schoolId).limit(1).maybeSingle();
+        const el = document.getElementById('school-name-display');
+        el.textContent = tp?.school_name || schoolId;
+        el.classList.remove('hidden');
+      }
     });
   </script>
 </body>
