@@ -1721,11 +1721,14 @@
 
   // ---- QR CODE ----
 
+  let _qrDataUrl = null;
+
   function generateQR() {
     const url = document.getElementById('student-url').textContent.trim();
     if (!url || typeof QRCode === 'undefined') return;
-    QRCode.toDataURL(url, { width: 200, margin: 2 }, (err, dataUrl) => {
+    QRCode.toDataURL(url, { width: 300, margin: 2 }, (err, dataUrl) => {
       if (err) { console.error('QR生成エラー:', err); return; }
+      _qrDataUrl = dataUrl;
       const el = document.getElementById('student-qr');
       el.src = dataUrl;
       el.style.display = '';
@@ -1733,17 +1736,13 @@
   }
 
   function downloadQR() {
-    const url = document.getElementById('student-url').textContent.trim();
-    if (!url || typeof QRCode === 'undefined') return;
-    QRCode.toDataURL(url, { width: 400, margin: 2 }, (err, dataUrl) => {
-      if (err) { console.error('QR生成エラー:', err); return; }
-      const a = document.createElement('a');
-      a.href = dataUrl;
-      a.download = `qr_${T.school_id}.png`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-    });
+    if (!_qrDataUrl) { toast('QRコードを読み込み中です。少し待ってから再試行してください。', 'info'); return; }
+    const a = document.createElement('a');
+    a.href = _qrDataUrl;
+    a.download = `qr_${T.school_id}.png`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
   }
 
   // ---- CLASS DETAIL ----
