@@ -75,7 +75,7 @@
 
     <div class="card p-8">
       <!-- タブ -->
-      <div class="flex gap-1 mb-6 bg-gray-100 p-1 rounded-xl">
+      <div id="tab-switcher" class="flex gap-1 mb-6 bg-gray-100 p-1 rounded-xl">
         <button id="tab-login" onclick="showTab('login')"
           class="tab-active flex-1 py-2 rounded-lg text-sm font-medium transition-all">ログイン</button>
         <button id="tab-reg" onclick="showTab('reg')"
@@ -303,9 +303,10 @@
         const el = document.getElementById('school-name-display');
         el.textContent = tp?.school_name || schoolId;
         el.classList.remove('hidden');
-        // 学校URLからのアクセス: 新規登録タブを非表示、ログインのみ表示
-        document.getElementById('tab-reg').classList.add('hidden');
-        showTab('login');
+        // 学校URLからのアクセス: タブ切替を丸ごと隠してログインのみ表示
+        document.getElementById('tab-switcher').classList.add('hidden');
+        document.getElementById('panel-login').classList.remove('hidden');
+        document.getElementById('panel-reg').classList.add('hidden');
       }
     });
   </script>

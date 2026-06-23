@@ -696,6 +696,10 @@
       .select('*').eq('id', session.user.id).single();
 
     if (!profile) {
+      // 管理者アカウントなら admin.html へ
+      const { data: adminProf } = await db.from('admin_profiles')
+        .select('id').eq('id', session.user.id).maybeSingle();
+      if (adminProf) { window.location.href = 'admin.html'; return; }
       document.getElementById('setup-overlay').classList.remove('hidden');
       window._authUserId = session.user.id;
       window._authEmail  = session.user.email;
