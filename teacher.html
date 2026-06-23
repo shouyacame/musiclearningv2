@@ -802,16 +802,17 @@
 
   async function loadDashboard() {
     const el = document.getElementById('dash-content');
-    const [classRes, studRes, progRes, taskRes] = await Promise.all([
+    const [classRes, studRes, progRes, taskRes, songTaskRes] = await Promise.all([
       db.from('classes').select('grade, class_name, max_students').eq('school_id', T.school_id).eq('is_active', true).order('grade').order('class_name'),
       db.from('students').select('grade, class_name').eq('school_id', T.school_id),
       db.from('student_progress').select('student_id, is_completed').eq('school_id', T.school_id),
-      db.from('koto_tasks').select('id').eq('school_id', T.school_id).eq('is_active', true)
+      db.from('koto_tasks').select('id').eq('school_id', T.school_id).eq('is_active', true),
+      db.from('song_tasks').select('id').eq('school_id', T.school_id)
     ]);
     const classes = classRes.data || [];
     const students = studRes.data || [];
     const progress = progRes.data || [];
-    const taskCount = taskRes.data?.length || 0;
+    const taskCount = (taskRes.data?.length || 0) + (songTaskRes.data?.length || 0);
 
     const totalStudents = students.length;
     const completedItems = progress.filter(p => p.is_completed).length;
