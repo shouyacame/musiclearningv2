@@ -300,8 +300,11 @@
         </div>
         <p class="text-xs text-gray-400 mt-2">このURLを生徒に配布してください</p>
         <div class="mt-3 flex flex-col items-center gap-2">
+          <p id="qr-status" class="text-xs text-gray-400">読み込み中...</p>
           <img id="student-qr" class="rounded-xl border border-gray-100" alt="QRコード" style="display:none">
-          <button onclick="downloadQR()" class="btn-gray text-xs"><i class="fas fa-download mr-1"></i>QRコードをダウンロード</button>
+          <a id="qr-download-link" class="btn-gray text-xs" style="display:none;text-decoration:none">
+            <i class="fas fa-download mr-1"></i>QRコードをダウンロード
+          </a>
         </div>
       </div>
       <div class="card p-4">
@@ -1721,28 +1724,24 @@
 
   // ---- QR CODE ----
 
-  let _qrDataUrl = null;
-
   function generateQR() {
     const url = document.getElementById('student-url').textContent.trim();
-    if (!url || typeof QRCode === 'undefined') return;
+    const status = document.getElementById('qr-status');
+    if (!url || typeof QRCode === 'undefined') {
+      if (status) status.textContent = 'QRコードを生成できません';
+      return;
+    }
     QRCode.toDataURL(url, { width: 300, margin: 2 }, (err, dataUrl) => {
-      if (err) { console.error('QR生成エラー:', err); return; }
-      _qrDataUrl = dataUrl;
-      const el = document.getElementById('student-qr');
-      el.src = dataUrl;
-      el.style.display = '';
+      if (err) { if (status) status.textContent = 'QR生成エラー'; return; }
+      const img  = document.getElementById('student-qr');
+      img.src = dataUrl;
+      img.style.display = '';
+      if (status) status.style.display = 'none';
+      const link = document.getElementById('qr-download-link');
+      link.href     = dataUrl;
+      link.download = `qr_${T.school_id}.png`;
+      link.style.display = '';
     });
-  }
-
-  function downloadQR() {
-    if (!_qrDataUrl) { toast('QRコードを読み込み中です。少し待ってから再試行してください。', 'info'); return; }
-    const a = document.createElement('a');
-    a.href = _qrDataUrl;
-    a.download = `qr_${T.school_id}.png`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
   }
 
   // ---- CLASS DETAIL ----
