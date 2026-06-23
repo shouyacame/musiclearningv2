@@ -1732,12 +1732,17 @@
   }
 
   function downloadQR() {
-    const el = document.getElementById('student-qr');
-    if (!el.src) return;
-    const a = document.createElement('a');
-    a.href = el.src;
-    a.download = `qr_${T.school_id}.png`;
-    a.click();
+    const url = document.getElementById('student-url').textContent.trim();
+    if (!url || typeof QRCode === 'undefined') return;
+    QRCode.toDataURL(url, { width: 400, margin: 2 }, (err, dataUrl) => {
+      if (err) { console.error('QR生成エラー:', err); return; }
+      const a = document.createElement('a');
+      a.href = dataUrl;
+      a.download = `qr_${T.school_id}.png`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    });
   }
 
   // ---- CLASS DETAIL ----
