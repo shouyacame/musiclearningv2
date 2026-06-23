@@ -11,47 +11,47 @@
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
   <script src="supabase-config.js"></script>
   <style>
-    body { font-family: 'Noto Sans JP', sans-serif; background: #F0F4FF; }
-    .site-header { background: #fff; border-bottom: 2px solid #E8EDFF; }
+    body { font-family: 'Noto Sans JP', sans-serif; background: #F2F9F6; }
+    .site-header { background: #fff; border-bottom: 2px solid #C8E8D8; }
     .tab-nav { background: #fff; border-bottom: 1px solid #e5e7eb; position: sticky; top: 0; z-index: 20; }
     .tab-btn { padding: 13px 20px; font-size: 14px; font-weight: 500; color: #6b7280; cursor: pointer; border-bottom: 3px solid transparent; transition: all .2s; white-space: nowrap; }
-    .tab-btn.active { color: #4B6BFB; border-bottom-color: #4B6BFB; font-weight: 700; }
-    .tab-btn:hover:not(.active) { color: #4B6BFB; background: #F5F7FF; }
+    .tab-btn.active { color: #7BBAA8; border-bottom-color: #7BBAA8; font-weight: 700; }
+    .tab-btn:hover:not(.active) { color: #7BBAA8; background: #EDF7F4; }
 
     /* Task card */
     .task-card { background: #fff; border-radius: 14px; padding: 16px; margin-bottom: 12px; box-shadow: 0 2px 8px rgba(0,0,0,.06); border: 2px solid transparent; transition: all .25s; }
-    .task-card.done { background: #F0FDF4; border-color: #86EFAC; }
-    .task-card.highlight { border-color: #4B6BFB; box-shadow: 0 4px 18px rgba(75,107,251,.2); }
+    .task-card.done { background: #EDF9F5; border-color: #A8DDD0; }
+    .task-card.highlight { border-color: #7BBAA8; box-shadow: 0 4px 18px rgba(123,186,168,.2); }
 
     /* Number badge */
-    .task-num { width: 30px; height: 30px; min-width: 30px; border-radius: 50%; background: #4B6BFB; color: #fff; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700; }
-    .task-card.done .task-num { background: #10B981; }
+    .task-num { width: 30px; height: 30px; min-width: 30px; border-radius: 50%; background: #7BBAA8; color: #fff; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700; }
+    .task-card.done .task-num { background: #5BA090; }
 
     /* Complete button */
-    .kanryo-btn { background: #4B6BFB; color: #fff; border: none; border-radius: 20px; padding: 7px 18px; font-size: 13px; font-weight: 700; cursor: pointer; font-family: 'Noto Sans JP', sans-serif; white-space: nowrap; transition: all .2s; }
-    .kanryo-btn:hover { background: #3B5BDB; box-shadow: 0 4px 12px rgba(75,107,251,.4); }
-    .task-card.done .kanryo-btn { background: #D1FAE5; color: #065F46; }
+    .kanryo-btn { background: #7BBAA8; color: #fff; border: none; border-radius: 20px; padding: 7px 18px; font-size: 13px; font-weight: 700; cursor: pointer; font-family: 'Noto Sans JP', sans-serif; white-space: nowrap; transition: all .2s; }
+    .kanryo-btn:hover { background: #6BAA98; box-shadow: 0 4px 12px rgba(123,186,168,.4); }
+    .task-card.done .kanryo-btn { background: #D0EDE7; color: #2D7568; }
 
     /* Criteria box */
-    .criteria-box { border-left: 3px solid #C7D2FE; padding: 8px 12px; margin-top: 10px; background: #F8F9FF; border-radius: 0 8px 8px 0; }
-    .task-card.done .criteria-box { border-left-color: #86EFAC; background: #F0FDF4; }
+    .criteria-box { border-left: 3px solid #B8DDD4; padding: 8px 12px; margin-top: 10px; background: #F5FBF9; border-radius: 0 8px 8px 0; }
+    .task-card.done .criteria-box { border-left-color: #A8DDD0; background: #EDF9F5; }
 
     /* Song pills */
     .song-pill { background: #fff; border: 2px solid #e5e7eb; border-radius: 20px; padding: 7px 16px; font-size: 13px; font-weight: 600; cursor: pointer; transition: all .2s; color: #374151; }
-    .song-pill.active { background: #4B6BFB; border-color: #4B6BFB; color: #fff; }
-    .song-pill:hover:not(.active) { border-color: #4B6BFB; color: #4B6BFB; }
+    .song-pill.active { background: #7BBAA8; border-color: #7BBAA8; color: #fff; }
+    .song-pill:hover:not(.active) { border-color: #7BBAA8; color: #7BBAA8; }
 
     /* Step circles */
     .step-circle { width: 30px; height: 30px; min-width: 30px; border-radius: 50%; border: 2px solid #d1d5db; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; color: #9ca3af; }
-    .step-circle.done { background: #4B6BFB; border-color: #4B6BFB; color: #fff; }
+    .step-circle.done { background: #7BBAA8; border-color: #7BBAA8; color: #fff; }
 
     /* Memo button */
     .memo-btn { background: transparent; border: 1px solid #e5e7eb; border-radius: 6px; padding: 4px 8px; font-size: 11px; color: #9ca3af; cursor: pointer; white-space: nowrap; transition: all .15s; }
-    .memo-btn:hover { border-color: #4B6BFB; color: #4B6BFB; }
-    .memo-btn.has-memo { background: #EEF2FF; border-color: #c7d2fe; color: #4B6BFB; }
+    .memo-btn:hover { border-color: #7BBAA8; color: #7BBAA8; }
+    .memo-btn.has-memo { background: #EDF9F5; border-color: #A8DDD0; color: #7BBAA8; }
 
     /* Learning points */
-    .tips-box { background: #EEF2FF; border-radius: 16px; padding: 18px 20px; }
+    .tips-box { background: #EDF9F5; border-radius: 16px; padding: 18px 20px; }
 
     /* Modal */
     .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.5); display: flex; align-items: center; justify-content: center; z-index: 50; padding: 16px; }

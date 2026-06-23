@@ -11,22 +11,22 @@
   <script src="supabase-config.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
   <style>
-    body { font-family: 'Noto Sans JP', sans-serif; background: #F5EFE8; }
-    .header-grad { background: linear-gradient(135deg, #5C1010 0%, #C84B31 100%); }
+    body { font-family: 'Noto Sans JP', sans-serif; background: #FFF5F5; }
+    .header-grad { background: linear-gradient(135deg, #C07878 0%, #B06868 100%); }
     .nav-bar { background: #fff; border-bottom: 1px solid #e5e7eb; position: sticky; top: 0; z-index: 30; }
     .tab-btn { padding: 14px 16px; font-size: 13px; font-weight: 500; color: #666; white-space: nowrap; cursor: pointer; border-bottom: 3px solid transparent; transition: all .2s; }
-    .tab-btn:hover { color: #C84B31; background: #fef2f0; }
-    .tab-btn.active { color: #C84B31; border-bottom-color: #C84B31; font-weight: 700; }
+    .tab-btn:hover { color: #C07878; background: #FFF0F0; }
+    .tab-btn.active { color: #C07878; border-bottom-color: #C07878; font-weight: 700; }
     .card { background: #fff; border-radius: 16px; box-shadow: 0 4px 20px rgba(0,0,0,.06); }
     .inp { width: 100%; padding: 9px 12px; border: 2px solid #e5e7eb; border-radius: 8px; font-size: 13px; font-family: 'Noto Sans JP', sans-serif; transition: border-color .2s; }
-    .inp:focus { outline: none; border-color: #C84B31; }
-    .btn-red { background: linear-gradient(135deg, #C84B31, #e8625a); color: #fff; border: none; border-radius: 8px; padding: 8px 16px; font-size: 13px; font-weight: 600; cursor: pointer; font-family: 'Noto Sans JP', sans-serif; transition: all .2s; }
-    .btn-red:hover { box-shadow: 0 4px 12px rgba(200,75,49,.4); }
+    .inp:focus { outline: none; border-color: #C07878; }
+    .btn-red { background: linear-gradient(135deg, #C07878, #D08888); color: #fff; border: none; border-radius: 8px; padding: 8px 16px; font-size: 13px; font-weight: 600; cursor: pointer; font-family: 'Noto Sans JP', sans-serif; transition: all .2s; }
+    .btn-red:hover { box-shadow: 0 4px 12px rgba(192,120,120,.4); }
     .btn-gray { background: #f3f4f6; color: #374151; border: none; border-radius: 8px; padding: 8px 14px; font-size: 13px; cursor: pointer; font-family: 'Noto Sans JP', sans-serif; }
     .btn-gray:hover { background: #e5e7eb; }
     .btn-sm { padding: 5px 10px; font-size: 11px; border-radius: 6px; border: none; cursor: pointer; font-family: 'Noto Sans JP', sans-serif; font-weight: 600; }
-    .btn-edit { background: #EBF5FF; color: #2563EB; }
-    .btn-edit:hover { background: #dbeafe; }
+    .btn-edit { background: #FFF0F0; color: #A05858; }
+    .btn-edit:hover { background: #FFE4E4; }
     .btn-del { background: #FEF2F2; color: #DC2626; }
     .btn-del:hover { background: #fee2e2; }
     .btn-toggle { background: #F0FDF4; color: #16A34A; }
@@ -36,7 +36,7 @@
     .badge-gray { background: #F3F4F6; color: #6B7280; }
     .badge-amber { background: #FEF3C7; color: #92400E; }
     table { width: 100%; border-collapse: collapse; }
-    th { background: #FEF2F0; color: #374151; padding: 9px 12px; text-align: left; font-size: 12px; font-weight: 700; }
+    th { background: #FFF0F0; color: #374151; padding: 9px 12px; text-align: left; font-size: 12px; font-weight: 700; }
     td { padding: 9px 12px; font-size: 13px; border-bottom: 1px solid #f3f4f6; vertical-align: middle; }
     tr:last-child td { border-bottom: none; }
     .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.5); display: flex; align-items: center; justify-content: center; z-index: 50; padding: 16px; }
