@@ -294,14 +294,21 @@
 
     document.addEventListener('DOMContentLoaded', async () => {
       const { data } = await db.auth.getSession();
-      if (data?.session) { window.location.href = 'teacher.html'; return; }
+      if (data?.session) {
+        // 先生として登録済みかチェックしてからリダイレクト
+        const { data: tp } = await db.from('teacher_profiles')
+          .select('id').eq('id', data.session.user.id).maybeSingle();
+        if (tp) { window.location.href = 'teacher.html'; return; }
+        // 先生でない（管理者等）→ サインアウトしてログイン画面を表示
+        await db.auth.signOut();
+      }
 
       const schoolId = new URLSearchParams(location.search).get('school');
       if (schoolId) {
-        const { data: tp } = await db.from('teacher_profiles')
+        const { data: sp } = await db.from('teacher_profiles')
           .select('school_name').eq('school_id', schoolId).limit(1).maybeSingle();
         const el = document.getElementById('school-name-display');
-        el.textContent = tp?.school_name || schoolId;
+        el.textContent = sp?.school_name || schoolId;
         el.classList.remove('hidden');
         // 学校URLからのアクセス: タブ切替を丸ごと隠してログインのみ表示
         document.getElementById('tab-switcher').classList.add('hidden');
