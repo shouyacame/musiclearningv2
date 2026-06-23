@@ -303,6 +303,9 @@
         const el = document.getElementById('school-name-display');
         el.textContent = tp?.school_name || schoolId;
         el.classList.remove('hidden');
+        // 学校URLからのアクセス: 新規登録タブを非表示、ログインのみ表示
+        document.getElementById('tab-reg').classList.add('hidden');
+        showTab('login');
       }
     });
   </script>
