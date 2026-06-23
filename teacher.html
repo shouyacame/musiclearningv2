@@ -795,14 +795,14 @@
 
     const totalStudents = students.length;
     const completedItems = progress.filter(p => p.is_completed).length;
-    const totalItems = progress.length;
+    const totalItems = totalStudents * taskCount;
     const avgPct = totalItems ? Math.round(completedItems / totalItems * 100) : 0;
 
     let classRows = '';
     classes.forEach(c => {
       const studs = students.filter(s => s.grade === c.grade && s.class_name === c.class_name);
       const done  = progress.filter(p => studs.some(s => `${s.grade}${s.class_name}` === p.student_id?.substring(0, p.student_id.length - 2)) && p.is_completed).length;
-      const total = progress.filter(p => studs.some(s => `${s.grade}${s.class_name}` === p.student_id?.substring(0, p.student_id.length - 2))).length;
+      const total = studs.length * taskCount;
       const pct = total ? Math.round(done / total * 100) : 0;
       classRows += `
         <div class="flex items-center gap-3">
@@ -855,55 +855,84 @@
   }
 
   async function loadProgressMatrix() {
-    const grade  = document.getElementById('prog-grade').value;
-    const cls    = document.getElementById('prog-class').value;
-    const type   = document.getElementById('prog-type').value;
-    const wrap   = document.getElementById('matrix-wrap');
+    const grade = document.getElementById('prog-grade').value;
+    const cls   = document.getElementById('prog-class').value;
+    const type  = document.getElementById('prog-type').value;
+    const wrap  = document.getElementById('matrix-wrap');
     if (!grade || !cls) { wrap.innerHTML = '<div class="text-center text-gray-400 text-sm py-6">クラスを選択してください</div>'; return; }
-
     wrap.innerHTML = '<div class="text-center text-gray-400 text-sm py-6"><i class="fas fa-spinner fa-spin mr-2"></i>読み込み中...</div>';
 
-    const prefix = `${grade}${cls}`;
-    const [studRes, taskRes, progRes] = await Promise.all([
-      db.from('students').select('student_id, name, number').eq('school_id', T.school_id).eq('grade', grade).eq('class_name', cls).order('number'),
-      type === 'koto'
-        ? db.from('koto_tasks').select('id, title').eq('school_id', T.school_id).eq('is_active', true).order('order_num')
-        : db.from('song_tasks').select('id, title').eq('school_id', T.school_id).order('order_num'),
-      db.from('student_progress').select('student_id, task_db_id, is_completed').eq('school_id', T.school_id).like('student_id', prefix + '%')
-    ]);
+    const prefix   = `${grade}${cls}`;
+    const studProm = db.from('students').select('student_id, name, number').eq('school_id', T.school_id).eq('grade', grade).eq('class_name', cls).order('number');
+    const progProm = db.from('student_progress').select('student_id, task_db_id, is_completed').eq('school_id', T.school_id).like('student_id', prefix + '%');
 
-    const students = studRes.data || [];
-    const tasks    = taskRes.data || [];
-    const progress = progRes.data || [];
-
-    if (!students.length || !tasks.length) {
-      wrap.innerHTML = '<div class="text-center text-gray-400 text-sm py-6">生徒または課題が登録されていません</div>';
-      return;
+    if (type === 'koto') {
+      const [studRes, taskRes, progRes] = await Promise.all([studProm,
+        db.from('koto_tasks').select('id, title').eq('school_id', T.school_id).eq('is_active', true).order('order_num'),
+        progProm]);
+      renderMatrix(wrap, studRes.data || [], taskRes.data || [], progRes.data || [], 'koto', []);
+    } else {
+      const [studRes, songsRes, stRes, progRes] = await Promise.all([studProm,
+        db.from('songs').select('id, title').eq('school_id', T.school_id).eq('is_active', true).order('order_num'),
+        db.from('song_tasks').select('id, title, song_id').eq('school_id', T.school_id).order('order_num'),
+        progProm]);
+      const groups = (songsRes.data || [])
+        .map(song => ({ song, tasks: (stRes.data || []).filter(t => t.song_id === song.id) }))
+        .filter(g => g.tasks.length);
+      renderMatrix(wrap, studRes.data || [], groups.flatMap(g => g.tasks), progRes.data || [], 'song', groups);
     }
+  }
 
+  function renderMatrix(wrap, students, flatTasks, progress, type, songGroups) {
+    if (!students.length || !flatTasks.length) {
+      wrap.innerHTML = '<div class="text-center text-gray-400 text-sm py-6">生徒または課題が登録されていません</div>'; return;
+    }
     const progMap = {};
     progress.forEach(p => { progMap[`${p.student_id}_${p.task_db_id}`] = p.is_completed; });
 
-    let head = '<tr><th>生徒</th>';
-    tasks.forEach(t => { head += `<th class="text-center" style="min-width:36px" title="${t.title}">${tasks.indexOf(t)+1}</th>`; });
-    head += '</tr>';
+    function taskTh(t, num, topPx) {
+      const s = t.title.length > 7 ? t.title.slice(0, 6) + '…' : t.title;
+      return `<th class="text-center" style="position:sticky;top:${topPx}px;z-index:2;background:#FFF0F0;min-width:46px;padding:2px 3px" title="${escHtml(t.title)}">
+        <div style="font-weight:700;line-height:1.4">${num}</div>
+        <div style="font-size:9px;font-weight:400;color:#888;max-width:46px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis">${escHtml(s)}</div>
+      </th>`;
+    }
 
-    let body = '';
-    students.forEach(s => {
-      body += `<tr><td class="font-medium whitespace-nowrap">${s.number}番 ${s.name || ''}</td>`;
-      tasks.forEach(t => {
+    const SC = 'position:sticky;top:0;left:0;z-index:3;background:#FFF0F0';
+    const ST = 'position:sticky;top:0;z-index:2;background:#FFF0F0';
+
+    let head = '';
+    if (type === 'koto') {
+      head = `<tr><th style="${SC}">生徒</th>${flatTasks.map((t, i) => taskTh(t, i + 1, 0)).join('')}</tr>`;
+    } else {
+      const r1 = `<tr><th rowspan="2" style="${SC}">生徒</th>` +
+        songGroups.map(({ song, tasks }) =>
+          `<th colspan="${tasks.length}" style="${ST};background:#FEF3C7;font-size:11px;border-bottom:1px solid #d1d5db">${escHtml(song.title)}</th>`
+        ).join('') + '</tr>';
+      const r2 = '<tr>' + songGroups.flatMap(({ tasks }) =>
+        tasks.map((t, i) => taskTh(t, i + 1, 26))
+      ).join('') + '</tr>';
+      head = r1 + r2;
+    }
+
+    const body = students.map(s =>
+      `<tr><td class="font-medium whitespace-nowrap" style="position:sticky;left:0;z-index:1;background:#fff;padding:4px 8px">${s.number}番 ${escHtml(s.name || '')}</td>` +
+      flatTasks.map(t => {
         const done = progMap[`${s.student_id}_${t.id}`] || false;
-        body += `<td class="text-center p-1"><div class="matrix-cell ${done ? 'done' : 'todo'} mx-auto" onclick="toggleMatrix('${s.student_id}','${t.id}',this)">${done ? '✓' : ''}</div></td>`;
-      });
-      body += '</tr>';
-    });
+        return `<td class="text-center p-1"><div class="matrix-cell ${done ? 'done' : 'todo'} mx-auto" onclick="toggleMatrix('${s.student_id}','${t.id}',this)">${done ? '✓' : ''}</div></td>`;
+      }).join('') + '</tr>'
+    ).join('');
 
-    let legend = '';
-    tasks.forEach((t, i) => { legend += `<span class="text-xs text-gray-500">${i+1}: ${t.title}</span>`; });
+    const legend = type === 'koto'
+      ? flatTasks.map((t, i) => `<span class="text-xs text-gray-500">${i + 1}: ${escHtml(t.title)}</span>`).join('')
+      : songGroups.map(({ song, tasks }) =>
+          `<span class="text-xs font-semibold text-amber-700 mr-1">【${escHtml(song.title)}】</span>` +
+          tasks.map((t, i) => `<span class="text-xs text-gray-500 mr-3">${i + 1}: ${escHtml(t.title)}</span>`).join('')
+        ).join('');
 
     wrap.innerHTML = `
-      <div class="overflow-x-auto">
-        <table style="font-size:12px"><thead>${head}</thead><tbody>${body}</tbody></table>
+      <div style="overflow:auto;max-height:520px">
+        <table style="font-size:12px;border-collapse:collapse"><thead>${head}</thead><tbody>${body}</tbody></table>
       </div>
       <div class="mt-3 flex flex-wrap gap-x-4 gap-y-1">${legend}</div>`;
   }
@@ -939,8 +968,8 @@
           <button class="btn-sm btn-gray py-0.5 px-1.5 text-gray-400" onclick="moveKotoTask('${t.id}',1)">▼</button>
         </div>
         <div class="flex-1 min-w-0">
-          <div class="text-sm font-semibold">${t.title}</div>
-          ${t.description ? `<div class="text-xs text-gray-400 mt-0.5 truncate">${t.description}</div>` : ''}
+          <div class="text-sm font-semibold">${escHtml(t.title)}</div>
+          ${t.description ? `<div class="text-xs text-gray-400 mt-0.5 truncate">${escHtml(t.description)}</div>` : ''}
         </div>
         <button class="btn-sm btn-edit" onclick="openEditTask('${t.id}','${escQ(t.title)}','${escQ(t.description||'')}')"><i class="fas fa-pen"></i></button>
         <button class="btn-sm btn-del" onclick="deleteKotoTask('${t.id}')"><i class="fas fa-trash"></i></button>
@@ -1110,8 +1139,8 @@
           <button class="btn-sm btn-gray py-0.5 px-1.5 text-gray-400" onclick="moveSong('${s.id}',1)">▼</button>
         </div>
         <div class="flex-1 min-w-0">
-          <div class="text-sm font-semibold truncate">${s.title}</div>
-          ${s.artist ? `<div class="text-xs text-gray-400">${s.artist}</div>` : ''}
+          <div class="text-sm font-semibold truncate">${escHtml(s.title)}</div>
+          ${s.artist ? `<div class="text-xs text-gray-400">${escHtml(s.artist)}</div>` : ''}
         </div>
         <button class="btn-sm btn-edit" onclick="openSongTasks('${s.id}','${escQ(s.title)}')">課題</button>
         <button class="btn-sm btn-del" onclick="deleteSong('${s.id}')"><i class="fas fa-trash"></i></button>
@@ -1201,8 +1230,8 @@
       row.className = 'flex items-center gap-2 p-2 bg-gray-50 rounded-lg';
       row.innerHTML = `
         <div class="flex-1 min-w-0">
-          <div class="text-sm font-semibold">${t.title}</div>
-          ${t.description ? `<div class="text-xs text-gray-400 mt-0.5 truncate">${t.description}</div>` : ''}
+          <div class="text-sm font-semibold">${escHtml(t.title)}</div>
+          ${t.description ? `<div class="text-xs text-gray-400 mt-0.5 truncate">${escHtml(t.description)}</div>` : ''}
         </div>
         <button class="btn-sm btn-del" onclick="deleteSongTask('${t.id}','${songId}')"><i class="fas fa-trash"></i></button>
       `;
@@ -1245,11 +1274,11 @@
       row.innerHTML = `
         <div class="flex-1">
           <div class="flex items-center gap-2 mb-0.5">
-            <span class="font-semibold text-sm">${a.title}</span>
+            <span class="font-semibold text-sm">${escHtml(a.title)}</span>
             ${a.is_pinned ? '<span class="badge badge-amber">📌 固定</span>' : ''}
             <span class="badge ${a.is_active ? 'badge-green' : 'badge-gray'}">${a.is_active ? '公開中' : '非公開'}</span>
           </div>
-          ${a.content ? `<p class="text-xs text-gray-500 mt-1">${a.content}</p>` : ''}
+          ${a.content ? `<p class="text-xs text-gray-500 mt-1">${escHtml(a.content)}</p>` : ''}
           <p class="text-xs text-gray-300 mt-1">${new Date(a.created_at).toLocaleDateString('ja-JP')}</p>
         </div>
         <div class="flex gap-1">
@@ -1336,7 +1365,7 @@
     let html = '<table><thead><tr><th>学年</th><th>組</th><th>番号</th><th>名前</th><th>生徒ID</th><th>操作</th></tr></thead><tbody>';
     data.forEach(s => {
       const nameDisplay = s.name
-        ? `<button class="text-blue-600 hover:underline font-medium text-left" onclick="openStudentDetail('${s.student_id}','${escQ(s.name)}','${s.grade}','${s.class_name}',${s.number})">${s.name}</button>`
+        ? `<button class="text-blue-600 hover:underline font-medium text-left" onclick="openStudentDetail('${s.student_id}','${escQ(s.name)}','${s.grade}','${s.class_name}',${s.number})">${escHtml(s.name)}</button>`
         : '<span class="text-gray-300">未登録</span>';
       html += `<tr>
         <td>${s.grade}年</td><td>${s.class_name}組</td><td>${s.number}番</td>
@@ -1701,7 +1730,7 @@
         const done = progMap[t.id];
         html += `<div class="flex items-center gap-2 p-2 rounded-lg ${done ? 'bg-green-50' : 'bg-gray-50'}">
           <i class="fas ${done ? 'fa-check-circle text-green-500' : 'fa-circle text-gray-300'} text-sm flex-shrink-0"></i>
-          <span class="text-sm ${done ? 'text-green-700 font-medium' : 'text-gray-600'}">${t.title}</span>
+          <span class="text-sm ${done ? 'text-green-700 font-medium' : 'text-gray-600'}">${escHtml(t.title)}</span>
         </div>`;
       });
       html += '</div></div>';
@@ -1723,7 +1752,7 @@
         const done = sts.filter(t => progMap[t.id]).length;
         html += `<div class="border border-amber-100 rounded-xl p-3 bg-amber-50">
           <div class="flex items-center text-sm font-medium text-amber-800 mb-1.5">
-            ${song.title}
+            ${escHtml(song.title)}
             <span class="ml-auto text-xs font-normal text-gray-400">${done} / ${sts.length}</span>
           </div>
           <div class="space-y-1">`;
@@ -1731,7 +1760,7 @@
           const d = progMap[t.id];
           html += `<div class="flex items-center gap-1.5 py-0.5">
             <i class="fas ${d ? 'fa-check-circle text-green-500' : 'fa-circle text-gray-300'} text-xs flex-shrink-0"></i>
-            <span class="text-xs ${d ? 'text-green-700' : 'text-gray-500'}">${t.title}</span>
+            <span class="text-xs ${d ? 'text-green-700' : 'text-gray-500'}">${escHtml(t.title)}</span>
           </div>`;
         });
         html += '</div></div>';
@@ -1884,6 +1913,7 @@
   // ---- HELPERS ----
 
   function escQ(s) { return (s || '').replace(/'/g, "\\'").replace(/"/g, '\\"'); }
+  function escHtml(s) { return (s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 
   function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
 

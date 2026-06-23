@@ -153,30 +153,63 @@ GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO anon, authenticated;
 -- RLSポリシー
 -- =====================================================
 
+-- ヘルパー関数: 認証済み先生の school_id を返す
+CREATE OR REPLACE FUNCTION teacher_school_id()
+RETURNS TEXT LANGUAGE sql SECURITY DEFINER STABLE AS $$
+  SELECT school_id FROM teacher_profiles WHERE id = auth.uid()
+$$;
+GRANT EXECUTE ON FUNCTION teacher_school_id() TO authenticated;
+
 -- teacher_profiles: 匿名はSELECTのみ（ユーザーID→メール変換に必要）
 CREATE POLICY "tp_select" ON teacher_profiles FOR SELECT USING (true);
 CREATE POLICY "tp_insert" ON teacher_profiles FOR INSERT TO authenticated WITH CHECK (auth.uid() = id);
 CREATE POLICY "tp_update" ON teacher_profiles FOR UPDATE TO authenticated USING (auth.uid() = id);
 CREATE POLICY "tp_delete" ON teacher_profiles FOR DELETE TO authenticated USING (auth.uid() = id);
 
--- 各テーブル: 全員読み取り、認証済みは書き込み可
+-- classes: 読み取りは全員可（生徒ログイン画面に必要）、書き込みは自校の先生のみ
 CREATE POLICY "classes_select" ON classes FOR SELECT USING (true);
-CREATE POLICY "classes_write"  ON classes FOR ALL TO authenticated USING (true) WITH CHECK (true);
+CREATE POLICY "classes_write"  ON classes FOR ALL TO authenticated
+  USING (school_id = teacher_school_id())
+  WITH CHECK (school_id = teacher_school_id());
 
-CREATE POLICY "students_select" ON students FOR SELECT USING (true);
-CREATE POLICY "students_write"  ON students FOR ALL TO authenticated USING (true) WITH CHECK (true);
+-- students: 認証済みの自校先生のみ読み書き可（生徒画面は students テーブルを使わない）
+CREATE POLICY "students_select" ON students FOR SELECT TO authenticated
+  USING (school_id = teacher_school_id());
+CREATE POLICY "students_write"  ON students FOR ALL TO authenticated
+  USING (school_id = teacher_school_id())
+  WITH CHECK (school_id = teacher_school_id());
 
+-- koto_tasks: 読み取りは全員可（生徒画面に必要）、書き込みは自校の先生のみ
 CREATE POLICY "koto_select" ON koto_tasks FOR SELECT USING (true);
-CREATE POLICY "koto_write"  ON koto_tasks FOR ALL TO authenticated USING (true) WITH CHECK (true);
+CREATE POLICY "koto_write"  ON koto_tasks FOR ALL TO authenticated
+  USING (school_id = teacher_school_id())
+  WITH CHECK (school_id = teacher_school_id());
 
+-- songs: 同上
 CREATE POLICY "songs_select" ON songs FOR SELECT USING (true);
-CREATE POLICY "songs_write"  ON songs FOR ALL TO authenticated USING (true) WITH CHECK (true);
+CREATE POLICY "songs_write"  ON songs FOR ALL TO authenticated
+  USING (school_id = teacher_school_id())
+  WITH CHECK (school_id = teacher_school_id());
 
+-- song_tasks: 同上
 CREATE POLICY "song_tasks_select" ON song_tasks FOR SELECT USING (true);
-CREATE POLICY "song_tasks_write"  ON song_tasks FOR ALL TO authenticated USING (true) WITH CHECK (true);
+CREATE POLICY "song_tasks_write"  ON song_tasks FOR ALL TO authenticated
+  USING (school_id = teacher_school_id())
+  WITH CHECK (school_id = teacher_school_id());
 
--- student_progress: 誰でも読み書き可（生徒が直接更新する）
-CREATE POLICY "progress_all" ON student_progress FOR ALL USING (true) WITH CHECK (true);
+-- student_progress:
+--   anon（生徒）: SELECT/INSERT/UPDATE のみ可（生徒はSupabase認証を持たないため）
+--                 DELETE は不要なので付与しない
+--   authenticated（先生）: 自校データのみ読み書き可
+CREATE POLICY "progress_anon_select" ON student_progress FOR SELECT TO anon USING (true);
+CREATE POLICY "progress_anon_insert" ON student_progress FOR INSERT TO anon WITH CHECK (true);
+CREATE POLICY "progress_anon_update" ON student_progress FOR UPDATE TO anon USING (true) WITH CHECK (true);
+CREATE POLICY "progress_teacher"     ON student_progress FOR ALL TO authenticated
+  USING (school_id = teacher_school_id())
+  WITH CHECK (school_id = teacher_school_id());
 
+-- announcements: 読み取りは全員可、書き込みは自校の先生のみ
 CREATE POLICY "announce_select" ON announcements FOR SELECT USING (true);
-CREATE POLICY "announce_write"  ON announcements FOR ALL TO authenticated USING (true) WITH CHECK (true);
+CREATE POLICY "announce_write"  ON announcements FOR ALL TO authenticated
+  USING (school_id = teacher_school_id())
+  WITH CHECK (school_id = teacher_school_id());
