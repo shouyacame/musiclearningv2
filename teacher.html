@@ -154,9 +154,15 @@
           </div>
           <div>
             <label class="block text-xs font-semibold text-gray-600 mb-1">種別</label>
-            <select id="prog-type" class="inp w-36" onchange="loadProgressMatrix()">
+            <select id="prog-type" class="inp w-36" onchange="onProgTypeChange()">
               <option value="koto">基礎課題</option>
               <option value="song">楽曲課題</option>
+            </select>
+          </div>
+          <div id="prog-song-wrap" class="hidden">
+            <label class="block text-xs font-semibold text-gray-600 mb-1">曲</label>
+            <select id="prog-song" class="inp w-40" onchange="loadProgressMatrix()">
+              <option value="">すべての曲</option>
             </select>
           </div>
           <button class="btn-red" onclick="loadProgressMatrix()"><i class="fas fa-sync-alt mr-1"></i>表示</button>
@@ -293,7 +299,7 @@
         </div>
         <p class="text-xs text-gray-400 mt-2">このURLを生徒に配布してください</p>
         <div class="mt-3 flex flex-col items-center gap-2">
-          <canvas id="student-qr" class="rounded-xl border border-gray-100"></canvas>
+          <img id="student-qr" class="rounded-xl border border-gray-100" alt="QRコード" style="display:none">
           <button onclick="downloadQR()" class="btn-gray text-xs"><i class="fas fa-download mr-1"></i>QRコードをダウンロード</button>
         </div>
       </div>
@@ -842,6 +848,21 @@
     await loadClassSelectors('prog-grade', 'prog-class');
   }
 
+  async function onProgTypeChange() {
+    const type = document.getElementById('prog-type').value;
+    const wrap = document.getElementById('prog-song-wrap');
+    const sel  = document.getElementById('prog-song');
+    if (type === 'song') {
+      const { data } = await db.from('songs').select('id, title').eq('school_id', T.school_id).eq('is_active', true).order('order_num');
+      sel.innerHTML = '<option value="">すべての曲</option>' +
+        (data || []).map(s => `<option value="${s.id}">${escHtml(s.title)}</option>`).join('');
+      wrap.classList.remove('hidden');
+    } else {
+      wrap.classList.add('hidden');
+    }
+    loadProgressMatrix();
+  }
+
   async function onProgGradeChange() {
     const grade = document.getElementById('prog-grade').value;
     const cls   = document.getElementById('prog-class');
@@ -876,7 +897,9 @@
         db.from('songs').select('id, title').eq('school_id', T.school_id).eq('is_active', true).order('order_num'),
         db.from('song_tasks').select('id, title, song_id').eq('school_id', T.school_id).order('order_num'),
         progProm]);
+      const selectedSongId = document.getElementById('prog-song')?.value || '';
       const groups = (songsRes.data || [])
+        .filter(song => !selectedSongId || song.id === selectedSongId)
         .map(song => ({ song, tasks: (stRes.data || []).filter(t => t.song_id === song.id) }))
         .filter(g => g.tasks.length);
       renderMatrix(wrap, studRes.data || [], groups.flatMap(g => g.tasks), progRes.data || [], 'song', groups);
@@ -1682,17 +1705,21 @@
   // ---- QR CODE ----
 
   function generateQR() {
-    const url = document.getElementById('student-url').textContent;
-    if (!url) return;
-    QRCode.toCanvas(document.getElementById('student-qr'), url, { width: 180, margin: 1 }, err => {
-      if (err) console.error(err);
+    const url = document.getElementById('student-url').textContent.trim();
+    if (!url || typeof QRCode === 'undefined') return;
+    QRCode.toDataURL(url, { width: 200, margin: 2 }, (err, dataUrl) => {
+      if (err) { console.error('QR生成エラー:', err); return; }
+      const el = document.getElementById('student-qr');
+      el.src = dataUrl;
+      el.style.display = '';
     });
   }
 
   function downloadQR() {
-    const canvas = document.getElementById('student-qr');
+    const el = document.getElementById('student-qr');
+    if (!el.src) return;
     const a = document.createElement('a');
-    a.href = canvas.toDataURL('image/png');
+    a.href = el.src;
     a.download = `qr_${T.school_id}.png`;
     a.click();
   }
