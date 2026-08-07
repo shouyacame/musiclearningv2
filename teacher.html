@@ -124,6 +124,7 @@
       <button class="tab-btn" id="tab-btn-announce" onclick="switchTab('announce')"><i class="fas fa-bullhorn mr-1.5"></i>お知らせ</button>
       <button class="tab-btn" id="tab-btn-roster" onclick="switchTab('roster')"><i class="fas fa-users mr-1.5"></i>生徒名簿</button>
       <button class="tab-btn" id="tab-btn-classes" onclick="switchTab('classes')"><i class="fas fa-school mr-1.5"></i>クラス設定</button>
+      <button class="tab-btn" id="tab-btn-study" onclick="switchTab('study')"><i class="fas fa-book mr-1.5"></i>学習コンテンツ</button>
       <button class="tab-btn" id="tab-btn-settings" onclick="switchTab('settings')"><i class="fas fa-cog mr-1.5"></i>設定</button>
       <button class="tab-btn" id="tab-btn-help" onclick="switchTab('help')"><i class="fas fa-question-circle mr-1.5"></i>使い方</button>
     </div>
@@ -321,6 +322,20 @@
           <input type="number" id="add-class-max" class="inp w-24" placeholder="最大人数" value="40">
           <button type="submit" class="btn-red"><i class="fas fa-plus mr-1"></i>追加</button>
         </form>
+      </div>
+    </div>
+
+    <!-- 学習コンテンツ -->
+    <div id="tab-study" class="tab-content hidden space-y-4">
+      <div class="card p-4">
+        <div class="flex items-center justify-between mb-3">
+          <div class="section-title mb-0"><i class="fas fa-book text-red-500"></i>学習トピック</div>
+          <button class="btn-red text-sm" onclick="openStudyTopicModal()"><i class="fas fa-plus mr-1"></i>トピック追加</button>
+        </div>
+        <p class="text-xs text-gray-400 mb-3">「読み物」はテキスト＋画像のコンテンツ、「穴埋め」は画像＋採点クイズです</p>
+        <div id="study-topics-list" class="space-y-2">
+          <p class="text-sm text-gray-400 text-center py-4">読み込み中...</p>
+        </div>
       </div>
     </div>
 
@@ -649,6 +664,105 @@
   </div>
 </div>
 
+<!-- モーダル：学習トピック 追加/編集 -->
+<div id="study-topic-modal" class="modal-overlay hidden">
+  <div class="modal-box" style="max-width:480px">
+    <h3 class="font-bold text-gray-800 mb-4" id="study-topic-modal-title">トピックを追加</h3>
+    <form onsubmit="saveStudyTopic(event)" class="space-y-3">
+      <div>
+        <label class="block text-xs font-semibold text-gray-600 mb-1">タイトル <span class="text-red-500">*</span></label>
+        <input type="text" id="st-title" class="inp" placeholder="例: 三線の歴史" required>
+      </div>
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label class="block text-xs font-semibold text-gray-600 mb-1">アイコン（絵文字）</label>
+          <input type="text" id="st-icon" class="inp" placeholder="📚" value="📚">
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-gray-600 mb-1">種類 <span class="text-red-500">*</span></label>
+          <select id="st-type" class="inp">
+            <option value="content">📖 読み物</option>
+            <option value="quiz">✏️ 穴埋めクイズ</option>
+          </select>
+        </div>
+      </div>
+      <div class="flex items-center gap-2">
+        <input type="checkbox" id="st-active" checked class="w-4 h-4">
+        <label class="text-sm text-gray-700" for="st-active">公開する</label>
+      </div>
+      <input type="hidden" id="st-id">
+      <div class="flex gap-2 mt-2">
+        <button type="submit" class="btn-red flex-1">保存</button>
+        <button type="button" class="btn-gray flex-1" onclick="closeModal('study-topic-modal')">キャンセル</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- モーダル：コンテンツ管理（読み物セクション） -->
+<div id="study-content-modal" class="modal-overlay hidden">
+  <div class="modal-box" style="max-width:700px;width:95vw;max-height:90vh;overflow-y:auto">
+    <div class="flex items-center justify-between mb-4">
+      <h3 class="font-bold text-gray-800" id="study-content-modal-title">コンテンツ管理</h3>
+      <button onclick="closeModal('study-content-modal')" class="text-gray-400 hover:text-gray-600 text-2xl leading-none">&times;</button>
+    </div>
+    <div id="study-sections-list" class="space-y-3 mb-4"></div>
+    <div class="border-t pt-4">
+      <p class="text-xs font-semibold text-gray-500 mb-2">セクションを追加</p>
+      <div class="space-y-2">
+        <input type="text" id="ns-title" class="inp" placeholder="見出し（例: ①起源と由来）">
+        <textarea id="ns-body" class="inp" rows="3" placeholder="説明文（改行可）" style="resize:vertical"></textarea>
+        <input type="text" id="ns-image" class="inp" placeholder="画像URL（Googleドライブ共有リンク等）">
+        <input type="text" id="ns-caption" class="inp" placeholder="画像キャプション（例: 図1 三絃の例）">
+        <button class="btn-red w-full" onclick="addStudySection()"><i class="fas fa-plus mr-1"></i>セクション追加</button>
+      </div>
+    </div>
+    <button class="btn-gray w-full mt-3" onclick="closeModal('study-content-modal')">閉じる</button>
+  </div>
+</div>
+
+<!-- モーダル：クイズ管理（穴埋め） -->
+<div id="study-quiz-modal" class="modal-overlay hidden">
+  <div class="modal-box" style="max-width:700px;width:95vw;max-height:90vh;overflow-y:auto">
+    <div class="flex items-center justify-between mb-4">
+      <h3 class="font-bold text-gray-800" id="study-quiz-modal-title">クイズ管理</h3>
+      <button onclick="closeModal('study-quiz-modal')" class="text-gray-400 hover:text-gray-600 text-2xl leading-none">&times;</button>
+    </div>
+    <div id="study-quizsets-list" class="space-y-4 mb-4"></div>
+    <div class="border-t pt-4">
+      <p class="text-xs font-semibold text-gray-500 mb-2">クイズセットを追加</p>
+      <div class="space-y-2">
+        <input type="text" id="nqs-title" class="inp" placeholder="セットのタイトル（例: ①各部の名称）">
+        <input type="text" id="nqs-image" class="inp" placeholder="画像URL（Googleドライブ共有リンク等）">
+        <input type="text" id="nqs-caption" class="inp" placeholder="画像キャプション">
+        <button class="btn-red w-full" onclick="addQuizSet()"><i class="fas fa-plus mr-1"></i>クイズセット追加</button>
+      </div>
+    </div>
+    <button class="btn-gray w-full mt-3" onclick="closeModal('study-quiz-modal')">閉じる</button>
+  </div>
+</div>
+
+<!-- モーダル：問題管理 -->
+<div id="study-questions-modal" class="modal-overlay hidden">
+  <div class="modal-box" style="max-width:560px;max-height:90vh;overflow-y:auto">
+    <div class="flex items-center justify-between mb-4">
+      <h3 class="font-bold text-gray-800" id="study-questions-modal-title">問題管理</h3>
+      <button onclick="closeModal('study-questions-modal')" class="text-gray-400 hover:text-gray-600 text-2xl leading-none">&times;</button>
+    </div>
+    <div id="study-questions-list" class="space-y-2 mb-4"></div>
+    <div class="border-t pt-4">
+      <p class="text-xs font-semibold text-gray-500 mb-2">問題を追加</p>
+      <div class="space-y-2">
+        <input type="text" id="nq-text" class="inp" placeholder="問題文（例: ①弦の調整をする部分）">
+        <input type="text" id="nq-answer" class="inp" placeholder="正解（例: カラクイ）">
+        <input type="text" id="nq-hint" class="inp" placeholder="ヒント（任意）">
+        <button class="btn-red w-full" onclick="addQuizQuestion()"><i class="fas fa-plus mr-1"></i>問題追加</button>
+      </div>
+    </div>
+    <button class="btn-gray w-full mt-3" onclick="closeModal('study-questions-modal')">閉じる</button>
+  </div>
+</div>
+
 <!-- モーダル：クラス詳細進捗 -->
 <div id="class-detail-modal" class="modal-overlay hidden">
   <div class="modal-box" style="max-width:960px;width:95vw;max-height:90vh;overflow-y:auto">
@@ -797,7 +911,7 @@
     document.getElementById(`tab-${name}`)?.classList.remove('hidden');
     if (!tabLoaded[name]) {
       tabLoaded[name] = true;
-      const loaders = { dashboard: loadDashboard, progress: initProgress, tasks: loadTasks, announce: loadAnnounce, roster: initRoster, classes: loadClassesTab, settings: () => {}, help: () => {} };
+      const loaders = { dashboard: loadDashboard, progress: initProgress, tasks: loadTasks, announce: loadAnnounce, roster: initRoster, classes: loadClassesTab, study: loadStudyTab, settings: () => {}, help: () => {} };
       if (loaders[name]) await loaders[name]();
     }
   }
@@ -1764,6 +1878,246 @@
       console.error('QR生成エラー:', e);
       if (status) status.textContent = 'QR生成に失敗しました: ' + e.message;
     }
+  }
+
+  // ---- STUDY CONTENT ----
+
+  let _studyTopicId = null;   // 現在操作中のトピックID
+  let _quizSetId    = null;   // 現在操作中のクイズセットID
+
+  function gdriveSrc(url) {
+    if (!url) return '';
+    const m = url.match(/\/file\/d\/([^\/\?]+)/);
+    if (m) return `https://drive.google.com/file/d/${m[1]}/preview`;
+    return url;
+  }
+
+  async function loadStudyTab() {
+    await renderStudyTopicsList();
+  }
+
+  async function renderStudyTopicsList() {
+    const el = document.getElementById('study-topics-list');
+    const { data, error } = await db.from('study_topics')
+      .select('*').eq('school_id', T.school_id).order('order_num');
+    if (error || !data?.length) {
+      el.innerHTML = '<p class="text-sm text-gray-400 text-center py-4">トピックがありません。「トピック追加」から作成してください。</p>';
+      return;
+    }
+    el.innerHTML = data.map(t => `
+      <div class="flex items-center gap-2 bg-gray-50 rounded-xl px-3 py-2">
+        <span class="text-lg">${escHtml(t.icon||'📚')}</span>
+        <div class="flex-1 min-w-0">
+          <div class="text-sm font-semibold text-gray-800">${escHtml(t.title)}</div>
+          <div class="text-xs text-gray-400">${t.topic_type==='quiz'?'✏️ 穴埋めクイズ':'📖 読み物'} ${t.is_active?'・公開中':'・非公開'}</div>
+        </div>
+        <button class="btn-sm btn-edit" onclick="openStudyContentModal('${t.id}','${escHtml(t.title)}','${t.topic_type}')">
+          <i class="fas fa-list mr-1"></i>${t.topic_type==='quiz'?'クイズ':'コンテンツ'}
+        </button>
+        <button class="btn-sm btn-edit" onclick="openStudyTopicModal('${t.id}')"><i class="fas fa-edit"></i></button>
+        <button class="btn-sm btn-del" onclick="deleteStudyTopic('${t.id}')"><i class="fas fa-trash"></i></button>
+      </div>`).join('');
+  }
+
+  function openStudyTopicModal(id = null) {
+    document.getElementById('study-topic-modal-title').textContent = id ? 'トピックを編集' : 'トピックを追加';
+    document.getElementById('st-id').value = id || '';
+    if (!id) {
+      document.getElementById('st-title').value = '';
+      document.getElementById('st-icon').value  = '📚';
+      document.getElementById('st-type').value  = 'content';
+      document.getElementById('st-active').checked = true;
+    } else {
+      db.from('study_topics').select('*').eq('id', id).single().then(({ data }) => {
+        if (!data) return;
+        document.getElementById('st-title').value = data.title;
+        document.getElementById('st-icon').value  = data.icon || '📚';
+        document.getElementById('st-type').value  = data.topic_type;
+        document.getElementById('st-active').checked = data.is_active;
+      });
+    }
+    document.getElementById('study-topic-modal').classList.remove('hidden');
+  }
+
+  async function saveStudyTopic(e) {
+    e.preventDefault();
+    const id     = document.getElementById('st-id').value;
+    const payload = {
+      school_id:  T.school_id,
+      title:      document.getElementById('st-title').value.trim(),
+      icon:       document.getElementById('st-icon').value.trim() || '📚',
+      topic_type: document.getElementById('st-type').value,
+      is_active:  document.getElementById('st-active').checked,
+    };
+    const { error } = id
+      ? await db.from('study_topics').update(payload).eq('id', id)
+      : await db.from('study_topics').insert(payload);
+    if (error) { toast('保存失敗: ' + error.message, 'error'); return; }
+    toast('保存しました', 'success');
+    closeModal('study-topic-modal');
+    renderStudyTopicsList();
+  }
+
+  async function deleteStudyTopic(id) {
+    if (!confirm('このトピックと全コンテンツを削除しますか？')) return;
+    const { error } = await db.from('study_topics').delete().eq('id', id);
+    if (error) { toast('削除失敗', 'error'); return; }
+    toast('削除しました', 'success');
+    renderStudyTopicsList();
+  }
+
+  async function openStudyContentModal(topicId, topicTitle, topicType) {
+    _studyTopicId = topicId;
+    if (topicType === 'quiz') {
+      document.getElementById('study-quiz-modal-title').textContent = `${topicTitle} — クイズ管理`;
+      document.getElementById('study-quiz-modal').classList.remove('hidden');
+      await renderQuizSetsList();
+    } else {
+      document.getElementById('study-content-modal-title').textContent = `${topicTitle} — コンテンツ管理`;
+      document.getElementById('study-content-modal').classList.remove('hidden');
+      await renderSectionsList();
+    }
+  }
+
+  // ---- SECTIONS (content type) ----
+
+  async function renderSectionsList() {
+    const el = document.getElementById('study-sections-list');
+    const { data } = await db.from('study_sections')
+      .select('*').eq('topic_id', _studyTopicId).order('order_num');
+    if (!data?.length) { el.innerHTML = '<p class="text-sm text-gray-400">セクションがありません</p>'; return; }
+    el.innerHTML = data.map(s => `
+      <div class="border border-gray-200 rounded-xl p-3">
+        <div class="flex items-start justify-between gap-2">
+          <div class="font-semibold text-sm text-gray-800">${escHtml(s.title)}</div>
+          <button class="btn-sm btn-del flex-shrink-0" onclick="deleteSection('${s.id}')"><i class="fas fa-trash"></i></button>
+        </div>
+        ${s.body ? `<p class="text-xs text-gray-500 mt-1 whitespace-pre-wrap">${escHtml(s.body)}</p>` : ''}
+        ${s.image_url ? `<p class="text-xs text-blue-500 mt-1 truncate">${escHtml(s.image_url)}</p>` : ''}
+        ${s.image_caption ? `<p class="text-xs text-gray-400">${escHtml(s.image_caption)}</p>` : ''}
+      </div>`).join('');
+  }
+
+  async function addStudySection() {
+    const title   = document.getElementById('ns-title').value.trim();
+    const body    = document.getElementById('ns-body').value.trim();
+    const image   = document.getElementById('ns-image').value.trim();
+    const caption = document.getElementById('ns-caption').value.trim();
+    if (!title) { toast('見出しを入力してください', 'error'); return; }
+    const { data: existing } = await db.from('study_sections').select('order_num').eq('topic_id', _studyTopicId).order('order_num', { ascending: false }).limit(1);
+    const order_num = (existing?.[0]?.order_num || 0) + 1;
+    const { error } = await db.from('study_sections').insert({
+      topic_id: _studyTopicId, school_id: T.school_id,
+      title, body, image_url: image, image_caption: caption, order_num
+    });
+    if (error) { toast('追加失敗', 'error'); return; }
+    ['ns-title','ns-body','ns-image','ns-caption'].forEach(id => document.getElementById(id).value = '');
+    toast('追加しました', 'success');
+    renderSectionsList();
+  }
+
+  async function deleteSection(id) {
+    if (!confirm('このセクションを削除しますか？')) return;
+    await db.from('study_sections').delete().eq('id', id);
+    renderSectionsList();
+  }
+
+  // ---- QUIZ SETS ----
+
+  async function renderQuizSetsList() {
+    const el = document.getElementById('study-quizsets-list');
+    const { data: sets } = await db.from('quiz_sets')
+      .select('*').eq('topic_id', _studyTopicId).order('order_num');
+    if (!sets?.length) { el.innerHTML = '<p class="text-sm text-gray-400">クイズセットがありません</p>'; return; }
+    el.innerHTML = '';
+    for (const s of sets) {
+      const { data: qs } = await db.from('quiz_questions').select('id,question_text,correct_answer,hint').eq('quiz_set_id', s.id).order('order_num');
+      const div = document.createElement('div');
+      div.className = 'border border-gray-200 rounded-xl p-3';
+      div.innerHTML = `
+        <div class="flex items-center justify-between mb-2">
+          <div class="font-semibold text-sm text-gray-800">${escHtml(s.title)}</div>
+          <div class="flex gap-1">
+            <button class="btn-sm btn-edit" onclick="openQuestionsModal('${s.id}','${escHtml(s.title)}')"><i class="fas fa-list-check mr-1"></i>問題(${qs?.length||0})</button>
+            <button class="btn-sm btn-del" onclick="deleteQuizSet('${s.id}')"><i class="fas fa-trash"></i></button>
+          </div>
+        </div>
+        ${s.image_url ? `<p class="text-xs text-blue-500 truncate">${escHtml(s.image_url)}</p>` : ''}
+        ${s.image_caption ? `<p class="text-xs text-gray-400">${escHtml(s.image_caption)}</p>` : ''}`;
+      el.appendChild(div);
+    }
+  }
+
+  async function addQuizSet() {
+    const title   = document.getElementById('nqs-title').value.trim();
+    const image   = document.getElementById('nqs-image').value.trim();
+    const caption = document.getElementById('nqs-caption').value.trim();
+    if (!title) { toast('タイトルを入力してください', 'error'); return; }
+    const { data: existing } = await db.from('quiz_sets').select('order_num').eq('topic_id', _studyTopicId).order('order_num', { ascending: false }).limit(1);
+    const order_num = (existing?.[0]?.order_num || 0) + 1;
+    const { error } = await db.from('quiz_sets').insert({
+      topic_id: _studyTopicId, school_id: T.school_id,
+      title, image_url: image, image_caption: caption, order_num
+    });
+    if (error) { toast('追加失敗', 'error'); return; }
+    ['nqs-title','nqs-image','nqs-caption'].forEach(id => document.getElementById(id).value = '');
+    toast('追加しました', 'success');
+    renderQuizSetsList();
+  }
+
+  async function deleteQuizSet(id) {
+    if (!confirm('このクイズセットと問題をすべて削除しますか？')) return;
+    await db.from('quiz_sets').delete().eq('id', id);
+    renderQuizSetsList();
+  }
+
+  // ---- QUIZ QUESTIONS ----
+
+  async function openQuestionsModal(setId, setTitle) {
+    _quizSetId = setId;
+    document.getElementById('study-questions-modal-title').textContent = `${setTitle} — 問題管理`;
+    document.getElementById('study-questions-modal').classList.remove('hidden');
+    await renderQuestionsList();
+  }
+
+  async function renderQuestionsList() {
+    const el = document.getElementById('study-questions-list');
+    const { data } = await db.from('quiz_questions')
+      .select('*').eq('quiz_set_id', _quizSetId).order('order_num');
+    if (!data?.length) { el.innerHTML = '<p class="text-sm text-gray-400">問題がありません</p>'; return; }
+    el.innerHTML = data.map((q, i) => `
+      <div class="flex items-start gap-2 bg-gray-50 rounded-lg px-3 py-2">
+        <span class="text-xs text-gray-400 font-bold mt-0.5">${i+1}</span>
+        <div class="flex-1 min-w-0">
+          <div class="text-sm text-gray-800">${escHtml(q.question_text)}</div>
+          <div class="text-xs text-green-700 font-semibold">答: ${escHtml(q.correct_answer)}</div>
+          ${q.hint ? `<div class="text-xs text-gray-400">ヒント: ${escHtml(q.hint)}</div>` : ''}
+        </div>
+        <button class="btn-sm btn-del flex-shrink-0" onclick="deleteQuizQuestion('${q.id}')"><i class="fas fa-trash"></i></button>
+      </div>`).join('');
+  }
+
+  async function addQuizQuestion() {
+    const text   = document.getElementById('nq-text').value.trim();
+    const answer = document.getElementById('nq-answer').value.trim();
+    const hint   = document.getElementById('nq-hint').value.trim();
+    if (!text || !answer) { toast('問題文と正解を入力してください', 'error'); return; }
+    const { data: existing } = await db.from('quiz_questions').select('order_num').eq('quiz_set_id', _quizSetId).order('order_num', { ascending: false }).limit(1);
+    const order_num = (existing?.[0]?.order_num || 0) + 1;
+    const { error } = await db.from('quiz_questions').insert({
+      quiz_set_id: _quizSetId, school_id: T.school_id,
+      question_text: text, correct_answer: answer, hint, order_num
+    });
+    if (error) { toast('追加失敗', 'error'); return; }
+    ['nq-text','nq-answer','nq-hint'].forEach(id => document.getElementById(id).value = '');
+    toast('追加しました', 'success');
+    renderQuestionsList();
+  }
+
+  async function deleteQuizQuestion(id) {
+    if (!confirm('この問題を削除しますか？')) return;
+    await db.from('quiz_questions').delete().eq('id', id);
+    renderQuestionsList();
   }
 
   // ---- CLASS DETAIL ----

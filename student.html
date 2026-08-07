@@ -55,6 +55,7 @@
 
     /* Modal */
     .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.5); display: flex; align-items: center; justify-content: center; z-index: 50; padding: 16px; }
+    .modal-overlay.hidden { display: none !important; }
     .modal-box { background: #fff; border-radius: 16px; padding: 24px; width: 100%; max-width: 400px; box-shadow: 0 20px 60px rgba(0,0,0,.3); }
     textarea { font-family: 'Noto Sans JP', sans-serif; }
 
@@ -84,12 +85,28 @@
   <!-- タブ -->
   <div class="tab-nav">
     <div class="max-w-2xl mx-auto flex">
+      <button class="tab-btn" id="tab-study" onclick="showTab('study')">
+        <i class="fas fa-book mr-1.5"></i>学習
+      </button>
       <button class="tab-btn active" id="tab-grade" onclick="showTab('grade')">
         <i class="fas fa-graduation-cap mr-1.5"></i>学年別課題
       </button>
       <button class="tab-btn" id="tab-song" onclick="showTab('song')">
         <i class="fas fa-music mr-1.5"></i>曲別課題
       </button>
+    </div>
+  </div>
+
+  <!-- 学習コンテンツ -->
+  <div id="panel-study" class="hidden max-w-2xl mx-auto px-4 py-4">
+    <!-- トピック一覧 -->
+    <div id="study-topic-list"></div>
+    <!-- コンテンツ表示 -->
+    <div id="study-detail" class="hidden">
+      <button onclick="backToTopics()" class="flex items-center gap-1 text-sm text-teal-600 font-semibold mb-4 hover:underline">
+        <i class="fas fa-chevron-left"></i> トピック一覧に戻る
+      </button>
+      <div id="study-detail-inner"></div>
     </div>
   </div>
 
@@ -428,12 +445,178 @@
 
     // ---- TABS ----
 
+    let studyTabLoaded = false;
+
     function showTab(tab) {
       document.getElementById('panel-grade').classList.toggle('hidden', tab !== 'grade');
       document.getElementById('panel-song').classList.toggle('hidden', tab !== 'song');
-      document.getElementById('tab-grade').className = `tab-btn${tab === 'grade' ? ' active' : ''}`;
-      document.getElementById('tab-song').className  = `tab-btn${tab === 'song'  ? ' active' : ''}`;
-      if (tab === 'song') loadSongTab();
+      document.getElementById('panel-study').classList.toggle('hidden', tab !== 'study');
+      document.getElementById('tab-grade').className = `tab-btn${tab === 'grade'  ? ' active' : ''}`;
+      document.getElementById('tab-song').className  = `tab-btn${tab === 'song'   ? ' active' : ''}`;
+      document.getElementById('tab-study').className = `tab-btn${tab === 'study'  ? ' active' : ''}`;
+      if (tab === 'song'  && !songTabLoaded)  loadSongTab();
+      if (tab === 'study' && !studyTabLoaded) { studyTabLoaded = true; loadStudyTopics(); }
+    }
+
+    // ---- STUDY ----
+
+    function escH(s) { return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+    function mediaHtml(url, caption) {
+      if (!url) return '';
+      const m = url.match(/\/file\/d\/([^\/\?]+)/);
+      const src = m ? `https://drive.google.com/file/d/${m[1]}/preview` : url;
+      const tag = m
+        ? `<iframe src="${escH(src)}" class="w-full rounded-xl" style="height:260px;border:1px solid #e5e7eb" allowfullscreen></iframe>`
+        : `<img src="${escH(src)}" alt="${escH(caption)}" class="w-full rounded-xl object-contain max-h-64">`;
+      return `<div class="my-3">${tag}${caption?`<p class="text-xs text-center text-gray-400 mt-1">${escH(caption)}</p>`:''}</div>`;
+    }
+
+    async function loadStudyTopics() {
+      const el = document.getElementById('study-topic-list');
+      el.innerHTML = '<p class="text-center text-gray-400 py-8 text-sm">読み込み中...</p>';
+      const { data } = await db.from('study_topics')
+        .select('*').eq('school_id', student.school_id).eq('is_active', true).order('order_num');
+      if (!data?.length) {
+        el.innerHTML = '<p class="text-center text-gray-400 py-8 text-sm">学習コンテンツがありません</p>';
+        return;
+      }
+      el.innerHTML = data.map(t => `
+        <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 mb-3 flex items-center gap-3 cursor-pointer hover:border-teal-300 transition-colors"
+             onclick="openStudyTopic('${t.id}','${escH(t.title)}','${t.topic_type}')">
+          <span class="text-3xl">${escH(t.icon||'📚')}</span>
+          <div>
+            <div class="font-bold text-gray-800">${escH(t.title)}</div>
+            <div class="text-xs text-gray-400 mt-0.5">${t.topic_type==='quiz'?'✏️ 穴埋めクイズ':'📖 読み物'}</div>
+          </div>
+          <i class="fas fa-chevron-right ml-auto text-gray-300"></i>
+        </div>`).join('');
+    }
+
+    async function openStudyTopic(topicId, topicTitle, topicType) {
+      document.getElementById('study-topic-list').classList.add('hidden');
+      document.getElementById('study-detail').classList.remove('hidden');
+      const inner = document.getElementById('study-detail-inner');
+      inner.innerHTML = '<p class="text-center text-gray-400 py-8">読み込み中...</p>';
+      if (topicType === 'content') {
+        await renderContentTopic(topicId, topicTitle, inner);
+      } else {
+        await renderQuizTopic(topicId, topicTitle, inner);
+      }
+    }
+
+    function backToTopics() {
+      document.getElementById('study-topic-list').classList.remove('hidden');
+      document.getElementById('study-detail').classList.add('hidden');
+    }
+
+    async function renderContentTopic(topicId, title, el) {
+      const { data } = await db.from('study_sections')
+        .select('*').eq('topic_id', topicId).order('order_num');
+      if (!data?.length) { el.innerHTML = '<p class="text-gray-400 text-sm">コンテンツがまだありません</p>'; return; }
+      el.innerHTML = `<h2 class="text-lg font-bold text-gray-800 mb-4">${escH(title)}</h2>` +
+        data.map(s => `
+          <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 mb-4">
+            <div class="flex items-center gap-2 mb-2">
+              <div class="w-1 h-5 rounded-full bg-teal-500"></div>
+              <h3 class="font-bold text-gray-800 text-sm">${escH(s.title)}</h3>
+            </div>
+            ${s.body ? `<p class="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap mb-2">${escH(s.body)}</p>` : ''}
+            ${mediaHtml(s.image_url, s.image_caption)}
+          </div>`).join('');
+    }
+
+    async function renderQuizTopic(topicId, title, el) {
+      const { data: sets } = await db.from('quiz_sets')
+        .select('*').eq('topic_id', topicId).order('order_num');
+      if (!sets?.length) { el.innerHTML = '<p class="text-gray-400 text-sm">クイズがまだありません</p>'; return; }
+
+      // 全問題を取得
+      const allQids = [];
+      for (const s of sets) {
+        const { data: qs } = await db.from('quiz_questions').select('*').eq('quiz_set_id', s.id).order('order_num');
+        s._questions = qs || [];
+        s._questions.forEach(q => allQids.push(q.id));
+      }
+
+      // 回答履歴取得
+      const { data: answers } = allQids.length
+        ? await db.from('quiz_answers').select('question_id, is_correct')
+            .eq('school_id', student.school_id).eq('student_id', student.id).in('question_id', allQids)
+        : { data: [] };
+      const answerMap = {};
+      (answers||[]).forEach(a => { answerMap[a.question_id] = a.is_correct; });
+
+      const totalQ   = allQids.length;
+      const correctN = Object.values(answerMap).filter(Boolean).length;
+
+      el.innerHTML = `
+        <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 mb-4">
+          <div class="flex items-center justify-between">
+            <h2 class="font-bold text-gray-800">${escH(title)}</h2>
+            <span class="text-teal-600 font-bold text-sm" id="quiz-score">${correctN}/${totalQ} 問正解</span>
+          </div>
+          <p class="text-xs text-gray-400 mt-1">空欄に入る言葉を入力して「採点」を押しましょう</p>
+        </div>` +
+        sets.map(s => `
+          <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 mb-4">
+            <div class="flex items-center gap-2 mb-3">
+              <div class="w-1 h-5 rounded-full bg-teal-500"></div>
+              <h3 class="font-bold text-gray-800 text-sm">${escH(s.title)}</h3>
+            </div>
+            ${mediaHtml(s.image_url, s.image_caption)}
+            <div class="space-y-3 mt-2">
+              ${s._questions.map(q => {
+                const prev = answerMap[q.id];
+                const borderCls = prev === true ? 'border-green-400' : prev === false ? 'border-red-300' : 'border-gray-200';
+                const iconHtml  = prev === true ? '<i class="fas fa-check-circle text-green-500 ml-1"></i>' : prev === false ? '<i class="fas fa-times-circle text-red-400 ml-1"></i>' : '';
+                return `
+                  <div class="flex items-center gap-2">
+                    <label class="text-sm text-gray-700 flex-1">${escH(q.question_text)}${iconHtml}</label>
+                    <input id="qi-${q.id}" type="text" class="border-2 ${borderCls} rounded-lg px-3 py-1.5 text-sm w-32 focus:outline-none focus:border-teal-400"
+                           placeholder="入力" ${prev === true ? 'disabled value="✓正解"' : ''}>
+                    ${prev !== true ? `<button onclick="gradeQuestion('${q.id}','${escH(q.correct_answer)}','${escH(q.hint)}')"
+                      class="bg-teal-500 text-white text-xs font-bold px-3 py-1.5 rounded-lg hover:bg-teal-600 whitespace-nowrap">採点</button>` : ''}
+                    ${q.hint && prev !== true ? `<button onclick="showHint('${escH(q.hint)}')" class="text-gray-300 hover:text-gray-500"><i class="fas fa-lightbulb"></i></button>` : ''}
+                  </div>`;
+              }).join('')}
+            </div>
+          </div>`).join('');
+    }
+
+    async function gradeQuestion(questionId, correctAnswer, hint) {
+      const input = document.getElementById(`qi-${questionId}`);
+      if (!input) return;
+      const val = input.value.trim();
+      if (!val) { input.focus(); return; }
+      const isCorrect = val === correctAnswer || val.toLowerCase() === correctAnswer.toLowerCase();
+
+      await db.from('quiz_answers').upsert({
+        school_id: student.school_id, student_id: student.id,
+        question_id: questionId, is_correct: isCorrect,
+        answered_at: new Date().toISOString()
+      }, { onConflict: 'school_id,student_id,question_id' });
+
+      if (isCorrect) {
+        input.disabled = true;
+        input.value = '✓正解';
+        input.className = input.className.replace(/border-\w+-\d+/g, '') + ' border-green-400 bg-green-50';
+      } else {
+        input.className = input.className.replace(/border-\w+-\d+/g, '') + ' border-red-300';
+        input.select();
+        if (hint) showHint(hint);
+      }
+      // スコア更新
+      const scoreEl = document.getElementById('quiz-score');
+      if (scoreEl) {
+        const all    = document.querySelectorAll('[id^="qi-"]');
+        const doneN  = document.querySelectorAll('[id^="qi-"][disabled]').length;
+        scoreEl.textContent = `${doneN}/${all.length} 問正解`;
+      }
+    }
+
+    function showHint(hint) {
+      alert(`💡 ヒント: ${hint}`);
     }
 
     function logout() {
