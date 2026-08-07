@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>学習コンテンツ プレビュー</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
+  <style>
+    body { font-family: 'Noto Sans JP', sans-serif; background: #F2F9F6; }
+    .site-header { background: #fff; border-bottom: 2px solid #C8E8D8; }
+    .tab-nav { background: #fff; border-bottom: 1px solid #e5e7eb; position: sticky; top: 0; z-index: 20; }
+    .tab-btn { padding: 13px 20px; font-size: 14px; font-weight: 500; color: #6b7280; cursor: pointer;
+               border-bottom: 3px solid transparent; transition: all .2s; white-space: nowrap; background: none; border-top: none; border-left: none; border-right: none; }
+    .tab-btn.active { color: #7BBAA8; border-bottom-color: #7BBAA8; font-weight: 700; }
+    .tab-btn:hover:not(.active) { color: #7BBAA8; background: #EDF7F4; }
+    .card { background: #fff; border-radius: 16px; box-shadow: 0 2px 8px rgba(0,0,0,.06); border: 1px solid #f0f0f0; }
+    .section-bar { width: 4px; height: 20px; border-radius: 2px; background: #7BBAA8; flex-shrink: 0; }
+    .img-placeholder { background: #f3f4f6; border-radius: 12px; display: flex; flex-direction: column;
+                       align-items: center; justify-content: center; color: #9ca3af; }
+    .score-badge { background: #EDF9F5; color: #2D7568; border-radius: 20px; padding: 4px 14px; font-weight: 700; font-size: 14px; }
+    .inp-quiz { border: 2px solid #e5e7eb; border-radius: 8px; padding: 6px 12px; font-size: 14px;
+                font-family: 'Noto Sans JP', sans-serif; outline: none; transition: border-color .2s; width: 130px; }
+    .inp-quiz:focus { border-color: #7BBAA8; }
+    .inp-quiz.correct { border-color: #10B981; background: #ECFDF5; color: #065F46; }
+    .inp-quiz.wrong   { border-color: #EF4444; background: #FEF2F2; }
+    .btn-grade { background: #7BBAA8; color: #fff; border: none; border-radius: 8px; padding: 6px 14px;
+                 font-size: 13px; font-weight: 700; cursor: pointer; white-space: nowrap; font-family: inherit; transition: background .2s; }
+    .btn-grade:hover { background: #5BA090; }
+    .btn-hint  { background: none; border: none; cursor: pointer; color: #d1d5db; font-size: 16px; transition: color .2s; }
+    .btn-hint:hover { color: #F59E0B; }
+    .topic-card { background: #fff; border-radius: 16px; padding: 16px; margin-bottom: 12px;
+                  border: 2px solid transparent; cursor: pointer; transition: all .2s;
+                  box-shadow: 0 2px 8px rgba(0,0,0,.06); display: flex; align-items: center; gap: 12px; }
+    .topic-card:hover { border-color: #7BBAA8; box-shadow: 0 4px 16px rgba(123,186,168,.2); }
+    .type-badge { font-size: 11px; border-radius: 12px; padding: 2px 10px; font-weight: 600; }
+    .badge-content { background: #EDF7F4; color: #2D7568; }
+    .badge-quiz    { background: #FEF3C7; color: #92400E; }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    th { background: #EDF7F4; color: #2D7568; font-weight: 700; padding: 8px 12px; text-align: left; border: 1px solid #C8E8D8; }
+    td { padding: 8px 12px; border: 1px solid #e5e7eb; color: #374151; }
+    tr:nth-child(even) td { background: #F9FFFE; }
+    .tips-box { background: #EDF9F5; border-radius: 16px; padding: 18px 20px; }
+  </style>
+</head>
+<body>
+
+<div class="site-header px-4 py-3">
+  <div class="max-w-2xl mx-auto flex items-center justify-between">
+    <div class="font-bold text-gray-800 text-base">三線学習システム</div>
+    <div class="flex items-center gap-3">
+      <div class="text-right">
+        <div class="text-xs font-semibold text-gray-500">1年1組 出席番号:1番</div>
+        <span class="inline-block bg-blue-100 text-blue-700 text-xs font-bold px-2 py-0.5 rounded-full mt-0.5">1年生</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="tab-nav">
+  <div class="max-w-2xl mx-auto flex overflow-x-auto">
+    <button class="tab-btn active" id="tab-study" onclick="showTab('study')">
+      <i class="fas fa-book mr-1.5"></i>学習
+    </button>
+    <button class="tab-btn" id="tab-grade" onclick="showTab('grade')">
+      <i class="fas fa-graduation-cap mr-1.5"></i>学年別課題
+    </button>
+    <button class="tab-btn" id="tab-song" onclick="showTab('song')">
+      <i class="fas fa-music mr-1.5"></i>曲別課題
+    </button>
+  </div>
+</div>
+
+<!-- 学習タブ -->
+<div id="panel-study" class="max-w-2xl mx-auto px-4 py-4">
+
+  <!-- トピック一覧 -->
+  <div id="study-topic-list">
+    <div class="topic-card" onclick="openTopic('content')">
+      <span style="font-size:28px">🎵</span>
+      <div class="flex-1">
+        <div class="font-bold text-gray-800">三線の歴史</div>
+        <div class="mt-0.5">
+          <span class="type-badge badge-content">📖 読み物</span>
+        </div>
+      </div>
+      <i class="fas fa-chevron-right text-gray-300"></i>
+    </div>
+    <div class="topic-card" onclick="openTopic('quiz')">
+      <span style="font-size:28px">📋</span>
+      <div class="flex-1">
+        <div class="font-bold text-gray-800">楽器の基礎知識</div>
+        <div class="mt-0.5">
+          <span class="type-badge badge-quiz">✏️ 穴埋めクイズ</span>
+        </div>
+      </div>
+      <i class="fas fa-chevron-right text-gray-300"></i>
+    </div>
+  </div>
+
+  <!-- 詳細表示エリア -->
+  <div id="study-detail" class="hidden">
+    <button onclick="backToList()" class="flex items-center gap-1 text-sm text-teal-600 font-semibold mb-4 hover:underline">
+      <i class="fas fa-chevron-left"></i> トピック一覧に戻る
+    </button>
+    <div id="study-detail-inner"></div>
+  </div>
+</div>
+
+<!-- 他タブ（ダミー） -->
+<div id="panel-grade" class="hidden max-w-2xl mx-auto px-4 py-8 text-center text-gray-400">学年別課題タブ</div>
+<div id="panel-song"  class="hidden max-w-2xl mx-auto px-4 py-8 text-center text-gray-400">曲別課題タブ</div>
+
+<!-- ヒントモーダル -->
+<div id="hint-modal" class="hidden" style="position:fixed;inset:0;background:rgba(0,0,0,.4);display:none;align-items:center;justify-content:center;z-index:50;padding:16px">
+  <div style="background:#fff;border-radius:16px;padding:24px;max-width:360px;width:100%;text-align:center">
+    <div style="font-size:32px;margin-bottom:8px">💡</div>
+    <p class="font-bold text-gray-800 mb-2">ヒント</p>
+    <p id="hint-text" class="text-gray-600 text-sm mb-4"></p>
+    <button onclick="closeHint()" style="background:#7BBAA8;color:#fff;border:none;border-radius:10px;padding:8px 24px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit">閉じる</button>
+  </div>
+</div>
+
+<script>
+  // ---- タブ切替 ----
+  function showTab(tab) {
+    ['study','grade','song'].forEach(t => {
+      document.getElementById('panel-' + t).classList.toggle('hidden', t !== tab);
+      document.getElementById('tab-'   + t).className = 'tab-btn' + (t === tab ? ' active' : '');
+    });
+  }
+
+  function backToList() {
+    document.getElementById('study-topic-list').classList.remove('hidden');
+    document.getElementById('study-detail').classList.add('hidden');
+  }
+
+  function openTopic(type) {
+    document.getElementById('study-topic-list').classList.add('hidden');
+    document.getElementById('study-detail').classList.remove('hidden');
+    const inner = document.getElementById('study-detail-inner');
+    if (type === 'content') renderContent(inner);
+    else renderQuiz(inner);
+  }
+
+  // ---- 読み物：三線の歴史 ----
+  function renderContent(el) {
+    el.innerHTML = `
+      <h2 class="text-lg font-bold text-gray-800 mb-4">🎵 三線の歴史</h2>
+
+      ${section('① 起源と由来', `
+        三線は、沖縄の伝統楽器です。もとは中国の『三絃（さんげん）』という三本の弦をもつ楽器が、琉球に伝わって生まれたと考えられています。
+        <br><br>
+        つまり、『三絃 → 三線』という流れです。琉球で歌や文化に合わせて使われるうちに、沖縄らしい楽器として広まりました。
+        <br><br>
+        <span class="text-xs font-bold text-teal-700">時期とできごと</span>
+        <table class="mt-2">
+          <tr><th>時期</th><th>できごと</th></tr>
+          <tr><td>14〜15世紀ごろ</td><td>中国の三絃が琉球に伝わる</td></tr>
+          <tr><td>15〜16世紀ごろ</td><td>琉球で三線として広まる</td></tr>
+          <tr><td>17世紀以降</td><td>日本本土へ三味線として伝わる</td></tr>
+        </table>
+        ${imgPlaceholder('図1・図2 三絃と三線の例（ここに画像が入ります）')}
+      `)}
+
+      ${section('② 三味線との違い', `
+        三味線は、三線が日本本土に伝わったあとに広まった楽器です。伝わった場所がちがうので、形や材料、音の感じにちがいが生まれました。
+        <br><br>
+        沖縄では三線として、本土では三味線として発展した、と考えるとわかりやすいです。
+        <br><br>
+        <span class="text-xs font-bold text-teal-700">比較表</span>
+        <table class="mt-2">
+          <tr><th>項目</th><th>三線</th><th>三味線</th></tr>
+          <tr><td>広まった地域</td><td>沖縄・琉球</td><td>日本本土</td></tr>
+          <tr><td>皮</td><td>蛇皮が伝統的</td><td>猫皮や犬皮が伝統的</td></tr>
+          <tr><td>音の感じ</td><td>やわらかい、あたたかみがある</td><td>はっきりしている、するどさがある</td></tr>
+        </table>
+        ${imgPlaceholder('図3 三線と三味線の比較イメージ（ここに画像が入ります）')}
+      `)}
+
+      ${section('③ カンカラ三線', `
+        カンカラ三線は、第二次世界大戦後の沖縄で生まれました。戦後は物が足りず、ふつうの三線を作る材料も手に入りにくかったため、空き缶などを使って作られました。
+        <br><br>
+        身近な物で楽器を作ろうとした工夫から生まれたのが、カンカラ三線です。
+        ${imgPlaceholder('図4 カンカラ三線の例（ここに画像が入ります）')}
+      `)}
+
+      <div class="tips-box mt-4">
+        <div class="flex items-center gap-2 mb-3">
+          <span class="text-xl">💡</span>
+          <span class="font-bold text-teal-800 text-sm">学習のポイント</span>
+        </div>
+        <ul class="space-y-1.5">
+          <li class="text-xs text-teal-700 flex gap-2"><span>•</span><span>三線の起源は中国の三絃にあることを覚えましょう</span></li>
+          <li class="text-xs text-teal-700 flex gap-2"><span>•</span><span>三線と三味線の違いを比較表で整理しましょう</span></li>
+          <li class="text-xs text-teal-700 flex gap-2"><span>•</span><span>カンカラ三線が生まれた背景も理解しましょう</span></li>
+        </ul>
+      </div>
+    `;
+  }
+
+  function section(title, body) {
+    return `<div class="card p-4 mb-4">
+      <div class="flex items-center gap-2 mb-3">
+        <div class="section-bar"></div>
+        <h3 class="font-bold text-gray-800 text-sm">${title}</h3>
+      </div>
+      <div class="text-sm text-gray-700 leading-relaxed">${body}</div>
+    </div>`;
+  }
+
+  function imgPlaceholder(label) {
+    return `<div class="img-placeholder mt-3" style="height:160px">
+      <i class="fas fa-image" style="font-size:28px;margin-bottom:8px"></i>
+      <span class="text-xs text-center px-4">${label}</span>
+    </div>`;
+  }
+
+  // ---- 穴埋めクイズ ----
+  const quizData = [
+    {
+      title: '① 各部の名称',
+      image: null,
+      imageLabel: '三線の各部位の図（ここに画像が入ります）',
+      questions: [
+        { id: 'q1', text: '① 弦の調整をする部分', answer: 'カラクイ', hint: '沖縄語で「唐杙」。弦を巻く小さな棒のことです。' },
+        { id: 'q2', text: '② 弦が巻かれている部分', answer: '野坂', hint: '棹の上部にある部分です。' },
+        { id: 'q3', text: '③ 棹の根元の本体部分', answer: '胴', hint: '皮が張られている箱型の部分です。' },
+        { id: 'q4', text: '④ 弦を支えている部分', answer: 'ウマ', hint: '胴の上に置かれた小さな台のことです。「駒」ともいいます。' },
+      ]
+    },
+    {
+      title: '② 弦の名称（読み方）',
+      image: null,
+      imageLabel: '三線の弦の図（ここに画像が入ります）',
+      questions: [
+        { id: 'q5', text: '① 男弦（読み方は？）', answer: 'をぅとぅじる', hint: '一番太い弦。低い音を出します。' },
+        { id: 'q6', text: '② 中弦（読み方は？）', answer: 'なかじる', hint: '真ん中の弦です。' },
+        { id: 'q7', text: '③ 女弦（読み方は？）', answer: 'みーじる', hint: '一番細い弦。高い音を出します。' },
+      ]
+    },
+    {
+      title: '③ 皮の種類',
+      image: null,
+      imageLabel: '胴の断面イメージ（ここに画像が入ります）',
+      questions: [
+        { id: 'q8', text: '本物の蛇皮を使う。音が良いが高価な皮の種類は？', answer: '本皮', hint: '「本物の皮」を使っているのでそのままの名前です。' },
+        { id: 'q9', text: '合成素材で作られた初心者向けの皮の種類は？', answer: '人工皮', hint: '「人工的に作られた皮」です。' },
+      ]
+    },
+  ];
+
+  let scoreMap = {};
+
+  function renderQuiz(el) {
+    const totalQ = quizData.reduce((s, set) => s + set.questions.length, 0);
+
+    el.innerHTML = `
+      <div class="card p-4 mb-4">
+        <div class="flex items-center justify-between">
+          <h2 class="font-bold text-gray-800">📋 楽器の基礎知識</h2>
+          <span class="score-badge" id="quiz-score">0 / ${totalQ} 問正解</span>
+        </div>
+        <p class="text-xs text-gray-400 mt-1">空欄に入る言葉を入力して「採点」を押しましょう。正解すると自動的に達成済みになります。</p>
+      </div>` +
+      quizData.map(set => `
+        <div class="card p-4 mb-4">
+          <div class="flex items-center gap-2 mb-3">
+            <div class="section-bar"></div>
+            <h3 class="font-bold text-gray-800 text-sm">${set.title}</h3>
+          </div>
+          <div class="img-placeholder mb-4" style="height:160px">
+            <i class="fas fa-image" style="font-size:28px;margin-bottom:8px"></i>
+            <span class="text-xs text-center px-4">${set.imageLabel}</span>
+          </div>
+          <div class="space-y-3">
+            ${set.questions.map(q => `
+              <div class="flex items-center gap-2 flex-wrap">
+                <label class="text-sm text-gray-700 flex-1" style="min-width:160px">${q.text}</label>
+                <div class="flex items-center gap-1.5">
+                  <input type="text" id="${q.id}" class="inp-quiz" placeholder="入力">
+                  <button onclick="grade('${q.id}','${q.answer}','${q.hint.replace(/'/g,"\\'")}') " class="btn-grade">採点</button>
+                  <button onclick="showHint('${q.hint.replace(/'/g,"\\'")}') " class="btn-hint" title="ヒント"><i class="fas fa-lightbulb"></i></button>
+                </div>
+              </div>`).join('')}
+          </div>
+        </div>`).join('') +
+      `<div class="tips-box mt-2">
+        <div class="flex items-center gap-2 mb-2">
+          <span class="text-xl">💡</span>
+          <span class="font-bold text-teal-800 text-sm">学習のポイント</span>
+        </div>
+        <ul class="space-y-1.5">
+          <li class="text-xs text-teal-700 flex gap-2"><span>•</span><span>【楽器の基礎知識】タブでは、ワークシートの穴埋め問題に答えて理解度を確認できます</span></li>
+          <li class="text-xs text-teal-700 flex gap-2"><span>•</span><span>分からないときは💡ヒントボタンを活用しましょう</span></li>
+        </ul>
+      </div>`;
+  }
+
+  function grade(qid, answer, hint) {
+    const input = document.getElementById(qid);
+    if (!input || input.disabled) return;
+    const val = input.value.trim();
+    if (!val) { input.focus(); return; }
+    const ok = val === answer || val.toLowerCase() === answer.toLowerCase();
+    if (ok) {
+      input.value = '✓ ' + answer;
+      input.disabled = true;
+      input.className = 'inp-quiz correct';
+      scoreMap[qid] = true;
+    } else {
+      input.className = 'inp-quiz wrong';
+      input.select();
+      if (hint) showHint(hint);
+    }
+    updateScore();
+  }
+
+  function updateScore() {
+    const total   = quizData.reduce((s, set) => s + set.questions.length, 0);
+    const correct = Object.values(scoreMap).filter(Boolean).length;
+    const el = document.getElementById('quiz-score');
+    if (el) el.textContent = `${correct} / ${total} 問正解`;
+  }
+
+  function showHint(hint) {
+    document.getElementById('hint-text').textContent = hint;
+    const m = document.getElementById('hint-modal');
+    m.style.display = 'flex';
+  }
+  function closeHint() {
+    document.getElementById('hint-modal').style.display = 'none';
+  }
+</script>
+</body>
+</html>

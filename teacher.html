@@ -361,6 +361,15 @@
               <label class="block text-xs font-semibold text-gray-600 mb-1">学校名</label>
               <input type="text" id="set-school-name" class="inp" placeholder="那覇中学校">
             </div>
+            <div>
+              <label class="block text-xs font-semibold text-gray-600 mb-1">楽器種別</label>
+              <select id="set-instrument" class="inp">
+                <option value="三線">三線（さんしん）</option>
+                <option value="箏">箏（こと）</option>
+                <option value="三味線">三味線（しゃみせん）</option>
+                <option value="その他">その他</option>
+              </select>
+            </div>
             <button type="submit" class="btn-red w-full"><i class="fas fa-save mr-1"></i>保存</button>
           </form>
         </div>
@@ -567,11 +576,29 @@
 <!-- モーダル：課題編集 -->
 <div id="edit-task-modal" class="modal-overlay hidden">
   <div class="modal-box">
-    <h3 class="font-bold text-gray-800 mb-4">課題を編集</h3>
+    <h3 class="font-bold text-gray-800 mb-4" id="edit-task-modal-title">課題を編集</h3>
     <input type="hidden" id="edit-task-id">
+    <input type="hidden" id="edit-task-type">
     <div class="space-y-2">
       <div><label class="text-xs font-semibold text-gray-600 mb-1 block">タイトル</label><input type="text" id="edit-task-title" class="inp"></div>
       <div><label class="text-xs font-semibold text-gray-600 mb-1 block">達成基準（省略可）</label><textarea id="edit-task-desc" class="inp resize-none" rows="2"></textarea></div>
+      <div class="border-t pt-3 mt-1">
+        <label class="block text-xs font-semibold text-gray-600 mb-2">達成レベル設定</label>
+        <select id="edit-task-level-count" class="inp mb-2" onchange="onTaskLevelCountChange()">
+          <option value="1">レベルなし（単一完了）</option>
+          <option value="2">2段階（Level 1〜2）</option>
+          <option value="3">3段階（Level 1〜3）</option>
+        </select>
+        <div id="edit-level-fields" class="space-y-1 hidden">
+          <input type="text" id="edit-task-l1" class="inp" placeholder="Level.1 達成基準（例: 止まらずゆっくり弾けた）">
+          <input type="text" id="edit-task-l2" class="inp" placeholder="Level.2 達成基準">
+          <input type="text" id="edit-task-l3" class="inp hidden" placeholder="Level.3 達成基準">
+        </div>
+      </div>
+      <div>
+        <label class="block text-xs font-semibold text-gray-600 mb-1">YouTube URL（任意）</label>
+        <input type="text" id="edit-task-yt" class="inp" placeholder="https://www.youtube.com/watch?v=...">
+      </div>
     </div>
     <div class="flex gap-2 mt-4">
       <button class="btn-gray flex-1" onclick="closeModal('edit-task-modal')">キャンセル</button>
@@ -690,6 +717,10 @@
         <input type="checkbox" id="st-active" checked class="w-4 h-4">
         <label class="text-sm text-gray-700" for="st-active">公開する</label>
       </div>
+      <div>
+        <label class="block text-xs font-semibold text-gray-600 mb-1">先生メモ（授業準備用・生徒には非表示）</label>
+        <textarea id="st-memo" class="inp resize-none text-sm" rows="3" placeholder="授業で説明するポイント、参考資料など"></textarea>
+      </div>
       <input type="hidden" id="st-id">
       <div class="flex gap-2 mt-2">
         <button type="submit" class="btn-red flex-1">保存</button>
@@ -714,6 +745,11 @@
         <textarea id="ns-body" class="inp" rows="3" placeholder="説明文（改行可）" style="resize:vertical"></textarea>
         <input type="text" id="ns-image" class="inp" placeholder="画像URL（Googleドライブ共有リンク等）">
         <input type="text" id="ns-caption" class="inp" placeholder="画像キャプション（例: 図1 三絃の例）">
+        <input type="text" id="ns-youtube" class="inp" placeholder="YouTube URL（任意）">
+        <label class="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+          <input type="checkbox" id="ns-visible" checked class="w-4 h-4">
+          <span>生徒に表示する（チェックを外すと非表示）</span>
+        </label>
         <button class="btn-red w-full" onclick="addStudySection()"><i class="fas fa-plus mr-1"></i>セクション追加</button>
       </div>
     </div>
@@ -755,6 +791,7 @@
       <div class="space-y-2">
         <input type="text" id="nq-text" class="inp" placeholder="問題文（例: ①弦の調整をする部分）">
         <input type="text" id="nq-answer" class="inp" placeholder="正解（例: カラクイ）">
+        <input type="text" id="nq-alts" class="inp" placeholder="別解（カンマ区切り、例: からくい,カラクイ）">
         <input type="text" id="nq-hint" class="inp" placeholder="ヒント（任意）">
         <button class="btn-red w-full" onclick="addQuizQuestion()"><i class="fas fa-plus mr-1"></i>問題追加</button>
       </div>
@@ -887,10 +924,12 @@
     document.getElementById('school-label').textContent  = T.school_name || T.school_id;
     const url = `${location.origin}${location.pathname.replace('teacher.html', 'index.html')}?school=${T.school_id}`;
     document.getElementById('student-url').textContent = url;
-    document.getElementById('set-username').value   = T.username || '';
-    document.getElementById('set-name').value       = T.name || '';
-    document.getElementById('set-school-id').value  = T.school_id;
+    document.getElementById('set-username').value    = T.username || '';
+    document.getElementById('set-name').value        = T.name || '';
+    document.getElementById('set-school-id').value   = T.school_id;
     document.getElementById('set-school-name').value = T.school_name || '';
+    const instrEl = document.getElementById('set-instrument');
+    if (instrEl && T.instrument_type) instrEl.value = T.instrument_type;
     document.getElementById('app').classList.remove('hidden');
     switchTab('dashboard');
   }
@@ -1128,7 +1167,7 @@
           <div class="text-sm font-semibold">${escHtml(t.title)}</div>
           ${t.description ? `<div class="text-xs text-gray-400 mt-0.5 truncate">${escHtml(t.description)}</div>` : ''}
         </div>
-        <button class="btn-sm btn-edit" onclick="openEditTask('${t.id}','${escQ(t.title)}','${escQ(t.description||'')}')"><i class="fas fa-pen"></i></button>
+        <button class="btn-sm btn-edit" onclick="openEditTask('${t.id}','koto')"><i class="fas fa-pen"></i></button>
         <button class="btn-sm btn-del" onclick="deleteKotoTask('${t.id}')"><i class="fas fa-trash"></i></button>
       `;
       el.appendChild(row);
@@ -1150,21 +1189,56 @@
     toast('課題を追加しました', 'success');
   }
 
-  function openEditTask(id, title, desc) {
-    document.getElementById('edit-task-id').value    = id;
-    document.getElementById('edit-task-title').value = title;
-    document.getElementById('edit-task-desc').value  = desc;
+  function onTaskLevelCountChange() {
+    const lc = parseInt(document.getElementById('edit-task-level-count').value);
+    document.getElementById('edit-level-fields').classList.toggle('hidden', lc < 2);
+    document.getElementById('edit-task-l3').classList.toggle('hidden', lc < 3);
+  }
+
+  async function openEditTask(id, taskType) {
+    document.getElementById('edit-task-id').value   = id;
+    document.getElementById('edit-task-type').value = taskType || 'koto';
+    document.getElementById('edit-task-modal-title').textContent = '課題を編集';
+    const table = (taskType === 'song') ? 'song_tasks' : 'koto_tasks';
+    const { data } = await db.from(table).select('*').eq('id', id).single();
+    if (!data) { toast('課題の取得に失敗しました', 'error'); return; }
+    document.getElementById('edit-task-title').value = data.title || '';
+    document.getElementById('edit-task-desc').value  = data.description || '';
+    const lc = data.level_count || 1;
+    document.getElementById('edit-task-level-count').value = String(lc);
+    document.getElementById('edit-task-l1').value = data.level_1_text || '';
+    document.getElementById('edit-task-l2').value = data.level_2_text || '';
+    document.getElementById('edit-task-l3').value = data.level_3_text || '';
+    document.getElementById('edit-task-yt').value  = data.youtube_url  || '';
+    document.getElementById('edit-level-fields').classList.toggle('hidden', lc < 2);
+    document.getElementById('edit-task-l3').classList.toggle('hidden', lc < 3);
     document.getElementById('edit-task-modal').classList.remove('hidden');
   }
 
   async function saveTaskEdit() {
-    const id    = document.getElementById('edit-task-id').value;
-    const title = document.getElementById('edit-task-title').value.trim();
-    const desc  = document.getElementById('edit-task-desc').value.trim();
-    const { error } = await db.from('koto_tasks').update({ title, description: desc }).eq('id', id);
+    const id       = document.getElementById('edit-task-id').value;
+    const taskType = document.getElementById('edit-task-type').value;
+    const title    = document.getElementById('edit-task-title').value.trim();
+    const desc     = document.getElementById('edit-task-desc').value.trim();
+    const lc       = parseInt(document.getElementById('edit-task-level-count').value) || 1;
+    const payload  = {
+      title, description: desc,
+      level_count:  lc,
+      level_1_text: document.getElementById('edit-task-l1').value.trim(),
+      level_2_text: document.getElementById('edit-task-l2').value.trim(),
+      level_3_text: document.getElementById('edit-task-l3').value.trim(),
+      youtube_url:  document.getElementById('edit-task-yt').value.trim(),
+    };
+    const table = (taskType === 'song') ? 'song_tasks' : 'koto_tasks';
+    const { error } = await db.from(table).update(payload).eq('id', id);
     if (error) { toast('保存失敗', 'error'); return; }
     closeModal('edit-task-modal');
-    await loadKotoTasks();
+    if (taskType === 'song') {
+      const songId = document.getElementById('song-tasks-song-id').value;
+      await loadSongTasksList(songId);
+    } else {
+      await loadKotoTasks();
+    }
     toast('保存しました', 'success');
   }
 
@@ -1390,6 +1464,7 @@
           <div class="text-sm font-semibold">${escHtml(t.title)}</div>
           ${t.description ? `<div class="text-xs text-gray-400 mt-0.5 truncate">${escHtml(t.description)}</div>` : ''}
         </div>
+        <button class="btn-sm btn-edit" onclick="openEditTask('${t.id}','song')"><i class="fas fa-pen"></i></button>
         <button class="btn-sm btn-del" onclick="deleteSongTask('${t.id}','${songId}')"><i class="fas fa-trash"></i></button>
       `;
       el.appendChild(row);
@@ -1728,11 +1803,12 @@
 
   async function saveTeacherProfile(e) {
     e.preventDefault();
-    const name        = document.getElementById('set-name').value.trim();
-    const school_name = document.getElementById('set-school-name').value.trim();
-    const { error } = await db.from('teacher_profiles').update({ name, school_name }).eq('id', T.id);
+    const name            = document.getElementById('set-name').value.trim();
+    const school_name     = document.getElementById('set-school-name').value.trim();
+    const instrument_type = document.getElementById('set-instrument')?.value || '三線';
+    const { error } = await db.from('teacher_profiles').update({ name, school_name, instrument_type }).eq('id', T.id);
     if (error) { toast('保存失敗', 'error'); return; }
-    T.name = name; T.school_name = school_name;
+    T.name = name; T.school_name = school_name; T.instrument_type = instrument_type;
     document.getElementById('teacher-label').textContent = name || T.username;
     document.getElementById('school-label').textContent  = school_name || T.school_id;
     toast('保存しました', 'success');
@@ -1927,13 +2003,15 @@
       document.getElementById('st-icon').value  = '📚';
       document.getElementById('st-type').value  = 'content';
       document.getElementById('st-active').checked = true;
+      document.getElementById('st-memo').value  = '';
     } else {
       db.from('study_topics').select('*').eq('id', id).single().then(({ data }) => {
         if (!data) return;
-        document.getElementById('st-title').value = data.title;
-        document.getElementById('st-icon').value  = data.icon || '📚';
-        document.getElementById('st-type').value  = data.topic_type;
+        document.getElementById('st-title').value    = data.title;
+        document.getElementById('st-icon').value     = data.icon || '📚';
+        document.getElementById('st-type').value     = data.topic_type;
         document.getElementById('st-active').checked = data.is_active;
+        document.getElementById('st-memo').value     = data.teacher_memo || '';
       });
     }
     document.getElementById('study-topic-modal').classList.remove('hidden');
@@ -1943,11 +2021,12 @@
     e.preventDefault();
     const id     = document.getElementById('st-id').value;
     const payload = {
-      school_id:  T.school_id,
-      title:      document.getElementById('st-title').value.trim(),
-      icon:       document.getElementById('st-icon').value.trim() || '📚',
-      topic_type: document.getElementById('st-type').value,
-      is_active:  document.getElementById('st-active').checked,
+      school_id:   T.school_id,
+      title:       document.getElementById('st-title').value.trim(),
+      icon:        document.getElementById('st-icon').value.trim() || '📚',
+      topic_type:  document.getElementById('st-type').value,
+      is_active:   document.getElementById('st-active').checked,
+      teacher_memo: document.getElementById('st-memo').value.trim(),
     };
     const { error } = id
       ? await db.from('study_topics').update(payload).eq('id', id)
@@ -1986,16 +2065,28 @@
     const { data } = await db.from('study_sections')
       .select('*').eq('topic_id', _studyTopicId).order('order_num');
     if (!data?.length) { el.innerHTML = '<p class="text-sm text-gray-400">セクションがありません</p>'; return; }
-    el.innerHTML = data.map(s => `
+    el.innerHTML = data.map(s => {
+      const visible = s.is_visible !== false;
+      return `
       <div class="border border-gray-200 rounded-xl p-3">
         <div class="flex items-start justify-between gap-2">
           <div class="font-semibold text-sm text-gray-800">${escHtml(s.title)}</div>
-          <button class="btn-sm btn-del flex-shrink-0" onclick="deleteSection('${s.id}')"><i class="fas fa-trash"></i></button>
+          <div class="flex gap-1 flex-shrink-0">
+            <button class="btn-sm ${visible ? 'btn-toggle' : 'btn-toggle off'}" onclick="toggleSectionVisible('${s.id}',${visible})">${visible ? '表示中' : '非表示'}</button>
+            <button class="btn-sm btn-del" onclick="deleteSection('${s.id}')"><i class="fas fa-trash"></i></button>
+          </div>
         </div>
         ${s.body ? `<p class="text-xs text-gray-500 mt-1 whitespace-pre-wrap">${escHtml(s.body)}</p>` : ''}
         ${s.image_url ? `<p class="text-xs text-blue-500 mt-1 truncate">${escHtml(s.image_url)}</p>` : ''}
         ${s.image_caption ? `<p class="text-xs text-gray-400">${escHtml(s.image_caption)}</p>` : ''}
-      </div>`).join('');
+        ${s.youtube_url ? `<p class="text-xs text-red-400 mt-1 truncate"><i class="fab fa-youtube mr-1"></i>${escHtml(s.youtube_url)}</p>` : ''}
+      </div>`;
+    }).join('');
+  }
+
+  async function toggleSectionVisible(id, current) {
+    await db.from('study_sections').update({ is_visible: !current }).eq('id', id);
+    renderSectionsList();
   }
 
   async function addStudySection() {
@@ -2003,15 +2094,19 @@
     const body    = document.getElementById('ns-body').value.trim();
     const image   = document.getElementById('ns-image').value.trim();
     const caption = document.getElementById('ns-caption').value.trim();
+    const youtube = document.getElementById('ns-youtube').value.trim();
+    const visible = document.getElementById('ns-visible').checked;
     if (!title) { toast('見出しを入力してください', 'error'); return; }
     const { data: existing } = await db.from('study_sections').select('order_num').eq('topic_id', _studyTopicId).order('order_num', { ascending: false }).limit(1);
     const order_num = (existing?.[0]?.order_num || 0) + 1;
     const { error } = await db.from('study_sections').insert({
       topic_id: _studyTopicId, school_id: T.school_id,
-      title, body, image_url: image, image_caption: caption, order_num
+      title, body, image_url: image, image_caption: caption,
+      youtube_url: youtube, is_visible: visible, order_num
     });
     if (error) { toast('追加失敗', 'error'); return; }
-    ['ns-title','ns-body','ns-image','ns-caption'].forEach(id => document.getElementById(id).value = '');
+    ['ns-title','ns-body','ns-image','ns-caption','ns-youtube'].forEach(id => document.getElementById(id).value = '');
+    document.getElementById('ns-visible').checked = true;
     toast('追加しました', 'success');
     renderSectionsList();
   }
@@ -2091,6 +2186,7 @@
         <div class="flex-1 min-w-0">
           <div class="text-sm text-gray-800">${escHtml(q.question_text)}</div>
           <div class="text-xs text-green-700 font-semibold">答: ${escHtml(q.correct_answer)}</div>
+          ${q.alt_answers ? `<div class="text-xs text-blue-500">別解: ${escHtml(q.alt_answers)}</div>` : ''}
           ${q.hint ? `<div class="text-xs text-gray-400">ヒント: ${escHtml(q.hint)}</div>` : ''}
         </div>
         <button class="btn-sm btn-del flex-shrink-0" onclick="deleteQuizQuestion('${q.id}')"><i class="fas fa-trash"></i></button>
@@ -2100,16 +2196,17 @@
   async function addQuizQuestion() {
     const text   = document.getElementById('nq-text').value.trim();
     const answer = document.getElementById('nq-answer').value.trim();
+    const alts   = document.getElementById('nq-alts').value.trim();
     const hint   = document.getElementById('nq-hint').value.trim();
     if (!text || !answer) { toast('問題文と正解を入力してください', 'error'); return; }
     const { data: existing } = await db.from('quiz_questions').select('order_num').eq('quiz_set_id', _quizSetId).order('order_num', { ascending: false }).limit(1);
     const order_num = (existing?.[0]?.order_num || 0) + 1;
     const { error } = await db.from('quiz_questions').insert({
       quiz_set_id: _quizSetId, school_id: T.school_id,
-      question_text: text, correct_answer: answer, hint, order_num
+      question_text: text, correct_answer: answer, alt_answers: alts, hint, order_num
     });
     if (error) { toast('追加失敗', 'error'); return; }
-    ['nq-text','nq-answer','nq-hint'].forEach(id => document.getElementById(id).value = '');
+    ['nq-text','nq-answer','nq-alts','nq-hint'].forEach(id => document.getElementById(id).value = '');
     toast('追加しました', 'success');
     renderQuestionsList();
   }
