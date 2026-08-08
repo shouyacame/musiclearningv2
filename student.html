@@ -42,8 +42,10 @@
     .song-pill:hover:not(.active) { border-color: #7BBAA8; color: #7BBAA8; }
 
     /* Step circles */
-    .step-circle { width: 30px; height: 30px; min-width: 30px; border-radius: 50%; border: 2px solid #d1d5db; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; color: #9ca3af; }
+    .step-circle { width: 30px; height: 30px; min-width: 30px; border-radius: 50%; border: 2px solid #d1d5db; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; color: #9ca3af; cursor: pointer; background: none; padding: 0; transition: all .15s; }
+    .step-circle:hover { border-color: #7BBAA8; color: #7BBAA8; transform: scale(1.15); }
     .step-circle.done { background: #7BBAA8; border-color: #7BBAA8; color: #fff; }
+    .step-circle.done:hover { background: #5fa390; border-color: #5fa390; }
 
     /* Memo button */
     .memo-btn { background: transparent; border: 1px solid #e5e7eb; border-radius: 6px; padding: 4px 8px; font-size: 11px; color: #9ca3af; cursor: pointer; white-space: nowrap; transition: all .15s; }
@@ -320,7 +322,7 @@
           <div class="text-xs text-gray-400 mt-0.5">${done}/${tasks.length} 課題クリア</div>
         </div>
         <div class="flex gap-1.5 flex-shrink-0">
-          ${tasks.map((t, i) => `<div class="step-circle${progressMap[t.id]?.is_completed ? ' done' : ''}">${i + 1}</div>`).join('')}
+          ${tasks.map((t, i) => `<button class="step-circle${progressMap[t.id]?.is_completed ? ' done' : ''}" onclick="document.getElementById('card-${t.id}')?.scrollIntoView({behavior:'smooth',block:'nearest'})" title="課題${i+1}へ">${i + 1}</button>`).join('')}
         </div>
       `;
       area.appendChild(hdr);
