@@ -1233,6 +1233,11 @@
       is_active: document.getElementById('adm-st-active').checked,
       teacher_memo: document.getElementById('adm-st-memo').value.trim(),
     };
+    if (!id) {
+      const { data: last } = await db.from('study_topics').select('order_num')
+        .eq('school_id', adminSchoolId).order('order_num', { ascending: false }).limit(1);
+      payload.order_num = (last?.[0]?.order_num || 0) + 1;
+    }
     const { error } = id
       ? await db.from('study_topics').update(payload).eq('id', id)
       : await db.from('study_topics').insert(payload);
