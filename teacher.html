@@ -328,9 +328,15 @@
     <!-- 学習コンテンツ -->
     <div id="tab-study" class="tab-content hidden space-y-4">
       <div class="card p-4">
-        <div class="flex items-center justify-between mb-3">
-          <div class="section-title mb-0"><i class="fas fa-book text-red-500"></i>学習トピック</div>
+        <div class="flex flex-wrap items-center gap-2 mb-3">
+          <div class="section-title mb-0 mr-auto"><i class="fas fa-book text-red-500"></i>学習トピック</div>
+          <button class="btn-gray text-xs" onclick="downloadStudyContentTemplate()"><i class="fas fa-file-download mr-1"></i>読み物テンプレ</button>
+          <button class="btn-gray text-xs" onclick="downloadStudyQuizTemplate()"><i class="fas fa-file-download mr-1"></i>クイズテンプレ</button>
+          <button class="btn-gray text-xs" onclick="document.getElementById('study-content-csv-input').click()"><i class="fas fa-file-import mr-1"></i>読み物CSV</button>
+          <button class="btn-gray text-xs" onclick="document.getElementById('study-quiz-csv-input').click()"><i class="fas fa-file-import mr-1"></i>クイズCSV</button>
           <button class="btn-red text-sm" onclick="openStudyTopicModal()"><i class="fas fa-plus mr-1"></i>トピック追加</button>
+          <input type="file" id="study-content-csv-input" accept=".csv" class="hidden" onchange="onStudyContentCSVSelected(event)">
+          <input type="file" id="study-quiz-csv-input" accept=".csv" class="hidden" onchange="onStudyQuizCSVSelected(event)">
         </div>
         <p class="text-xs text-gray-400 mb-3">「読み物」はテキスト＋画像のコンテンツ、「穴埋め」は画像＋採点クイズです</p>
         <div id="study-topics-list" class="space-y-2">
@@ -1954,6 +1960,245 @@
       console.error('QR生成エラー:', e);
       if (status) status.textContent = 'QR生成に失敗しました: ' + e.message;
     }
+  }
+
+  // ---- STUDY CSV IMPORT / EXPORT ----
+
+  function downloadStudyContentTemplate() {
+    const rows = [
+      ['トピック名', 'アイコン', '先生メモ', '見出し', '本文', '画像URL', '画像キャプション', 'YouTubeURL'],
+      ['三線の歴史', '📚', '授業で使う参考資料：○○', '①起源と由来', '三線は沖縄の伝統的な楽器です。', '', '', ''],
+      ['三線の歴史', '📚', '', '②各部の名称', '棹・胴・弦の3つで構成されます。', 'https://drive.google.com/...', '図1 各部の名称', ''],
+      ['三線の歴史', '📚', '', '③演奏の基本', '爪（つめ）を使って弦を弾きます。', '', '', 'https://www.youtube.com/watch?v=...'],
+    ];
+    downloadCSVFile(rows, 'study_content_template.csv');
+    toast('読み物テンプレートをダウンロードしました', 'success');
+  }
+
+  function downloadStudyQuizTemplate() {
+    const rows = [
+      ['トピック名', 'アイコン', '先生メモ', 'クイズセット名', 'クイズセット画像URL', '問題文', '正解', '別解（カンマ区切り）', 'ヒント'],
+      ['各部の名称クイズ', '🎵', '', '①各部の名前を答えよう', '', '弦の張りを調整する部品', 'カラクイ', 'からくい,カラクイ', 'ペグとも呼ばれる'],
+      ['各部の名称クイズ', '🎵', '', '①各部の名前を答えよう', '', '三線の本体（胴）を覆う皮', 'チーガ', 'ちーが', ''],
+      ['各部の名称クイズ', '🎵', '', '②演奏用語', '', '三線を弾くための道具', '爪（つめ）', 'つめ,ツメ', '指に装着する'],
+    ];
+    downloadCSVFile(rows, 'study_quiz_template.csv');
+    toast('クイズテンプレートをダウンロードしました', 'success');
+  }
+
+  async function onStudyContentCSVSelected(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = async ev => {
+      const lines = ev.target.result.replace(/\r/g, '').split('\n').filter(l => l.trim());
+      if (lines.length < 2) { toast('データが見つかりません', 'error'); return; }
+
+      const headers = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g, ''));
+      const idx = {
+        topic:   headers.findIndex(h => /トピック名|topic/.test(h)),
+        icon:    headers.findIndex(h => /アイコン|icon/.test(h)),
+        memo:    headers.findIndex(h => /先生メモ|memo/.test(h)),
+        heading: headers.findIndex(h => /見出し|heading|section/.test(h)),
+        body:    headers.findIndex(h => /本文|body/.test(h)),
+        image:   headers.findIndex(h => /画像URL|image/.test(h)),
+        caption: headers.findIndex(h => /キャプション|caption/.test(h)),
+        youtube: headers.findIndex(h => /YouTube|youtube/.test(h)),
+      };
+      if (idx.topic < 0 || idx.heading < 0) { toast('「トピック名」「見出し」列が必要です', 'error'); return; }
+
+      const rows = lines.slice(1).map(line => {
+        const v = parseCSVLine(line);
+        return {
+          topic:   v[idx.topic]   || '',
+          icon:    v[idx.icon]    || '📚',
+          memo:    v[idx.memo]    || '',
+          heading: v[idx.heading] || '',
+          body:    v[idx.body]    || '',
+          image:   v[idx.image]   || '',
+          caption: v[idx.caption] || '',
+          youtube: v[idx.youtube] || '',
+        };
+      }).filter(r => r.topic && r.heading);
+
+      if (!rows.length) { toast('有効なデータがありません', 'error'); return; }
+
+      // トピック名でグループ化
+      const topicMap = {};
+      rows.forEach(r => { if (!topicMap[r.topic]) topicMap[r.topic] = r; });
+      const topicNames = [...new Set(rows.map(r => r.topic))];
+
+      if (!confirm(`${topicNames.length}トピック、${rows.length}セクションをインポートします。\n既存の同名トピックは再利用します。`)) return;
+
+      let ok = 0, skip = 0;
+      for (const topicName of topicNames) {
+        const meta = topicMap[topicName];
+
+        // 既存トピック検索
+        let { data: existing } = await db.from('study_topics')
+          .select('id').eq('school_id', T.school_id).eq('title', topicName).maybeSingle();
+
+        let topicId = existing?.id;
+        if (!topicId) {
+          const { data: newTopic, error: tErr } = await db.from('study_topics').insert({
+            school_id: T.school_id, title: topicName,
+            icon: meta.icon || '📚', topic_type: 'content',
+            teacher_memo: meta.memo, is_active: true
+          }).select('id').single();
+          if (tErr) { skip++; continue; }
+          topicId = newTopic.id;
+        }
+
+        // 既存セクション数取得（order_num用）
+        const { data: existSecs } = await db.from('study_sections')
+          .select('order_num').eq('topic_id', topicId).order('order_num', { ascending: false }).limit(1);
+        let orderNum = (existSecs?.[0]?.order_num || 0);
+
+        // このトピックのセクションを追加
+        const secs = rows.filter(r => r.topic === topicName);
+        for (const sec of secs) {
+          orderNum++;
+          const { error: sErr } = await db.from('study_sections').insert({
+            topic_id: topicId, school_id: T.school_id,
+            title: sec.heading, body: sec.body,
+            image_url: sec.image, image_caption: sec.caption,
+            youtube_url: sec.youtube, is_visible: true, order_num: orderNum
+          });
+          if (sErr) skip++; else ok++;
+        }
+      }
+
+      e.target.value = '';
+      await renderStudyTopicsList();
+      toast(`${ok}セクションをインポートしました${skip ? `（${skip}件エラー）` : ''}`, ok > 0 ? 'success' : 'error');
+    };
+    reader.readAsText(file, 'UTF-8');
+  }
+
+  async function onStudyQuizCSVSelected(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = async ev => {
+      const lines = ev.target.result.replace(/\r/g, '').split('\n').filter(l => l.trim());
+      if (lines.length < 2) { toast('データが見つかりません', 'error'); return; }
+
+      const headers = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g, ''));
+      const idx = {
+        topic:    headers.findIndex(h => /トピック名|topic/.test(h)),
+        icon:     headers.findIndex(h => /アイコン|icon/.test(h)),
+        memo:     headers.findIndex(h => /先生メモ|memo/.test(h)),
+        setTitle: headers.findIndex(h => /クイズセット名|セット名|set/.test(h)),
+        setImage: headers.findIndex(h => /クイズセット画像|セット画像|set.image/.test(h)),
+        qtext:    headers.findIndex(h => /問題文|question/.test(h)),
+        answer:   headers.findIndex(h => /^正解$|^answer$/.test(h)),
+        alts:     headers.findIndex(h => /別解|alt/.test(h)),
+        hint:     headers.findIndex(h => /ヒント|hint/.test(h)),
+      };
+      if (idx.topic < 0 || idx.qtext < 0 || idx.answer < 0) { toast('「トピック名」「問題文」「正解」列が必要です', 'error'); return; }
+
+      const rows = lines.slice(1).map(line => {
+        const v = parseCSVLine(line);
+        return {
+          topic:    v[idx.topic]    || '',
+          icon:     v[idx.icon]     || '🎵',
+          memo:     v[idx.memo]     || '',
+          setTitle: v[idx.setTitle] || '問題',
+          setImage: idx.setImage >= 0 ? (v[idx.setImage] || '') : '',
+          qtext:    v[idx.qtext]    || '',
+          answer:   v[idx.answer]   || '',
+          alts:     idx.alts >= 0   ? (v[idx.alts] || '') : '',
+          hint:     idx.hint >= 0   ? (v[idx.hint] || '') : '',
+        };
+      }).filter(r => r.topic && r.qtext && r.answer);
+
+      if (!rows.length) { toast('有効なデータがありません', 'error'); return; }
+
+      const topicNames = [...new Set(rows.map(r => r.topic))];
+      if (!confirm(`${topicNames.length}トピック、${rows.length}問をインポートします。`)) return;
+
+      let okQ = 0, skip = 0;
+      const topicMetaMap = {};
+      rows.forEach(r => { if (!topicMetaMap[r.topic]) topicMetaMap[r.topic] = r; });
+
+      for (const topicName of topicNames) {
+        const meta = topicMetaMap[topicName];
+
+        let { data: existing } = await db.from('study_topics')
+          .select('id').eq('school_id', T.school_id).eq('title', topicName).maybeSingle();
+        let topicId = existing?.id;
+        if (!topicId) {
+          const { data: nt, error: tErr } = await db.from('study_topics').insert({
+            school_id: T.school_id, title: topicName,
+            icon: meta.icon || '🎵', topic_type: 'quiz',
+            teacher_memo: meta.memo, is_active: true
+          }).select('id').single();
+          if (tErr) { skip++; continue; }
+          topicId = nt.id;
+        }
+
+        // クイズセットでグループ化
+        const setNames = [...new Set(rows.filter(r => r.topic === topicName).map(r => r.setTitle))];
+        const { data: existSets } = await db.from('quiz_sets')
+          .select('order_num').eq('topic_id', topicId).order('order_num', { ascending: false }).limit(1);
+        let setOrder = (existSets?.[0]?.order_num || 0);
+
+        for (const setName of setNames) {
+          setOrder++;
+          const setRows = rows.filter(r => r.topic === topicName && r.setTitle === setName);
+          const setImageUrl = setRows[0]?.setImage || '';
+
+          let { data: existSet } = await db.from('quiz_sets')
+            .select('id').eq('topic_id', topicId).eq('title', setName).maybeSingle();
+          let setId = existSet?.id;
+          if (!setId) {
+            const { data: ns, error: sErr } = await db.from('quiz_sets').insert({
+              topic_id: topicId, school_id: T.school_id,
+              title: setName, image_url: setImageUrl, order_num: setOrder
+            }).select('id').single();
+            if (sErr) { skip++; continue; }
+            setId = ns.id;
+          }
+
+          const { data: existQs } = await db.from('quiz_questions')
+            .select('order_num').eq('quiz_set_id', setId).order('order_num', { ascending: false }).limit(1);
+          let qOrder = (existQs?.[0]?.order_num || 0);
+
+          for (const row of setRows) {
+            qOrder++;
+            const { error: qErr } = await db.from('quiz_questions').insert({
+              quiz_set_id: setId, school_id: T.school_id,
+              question_text: row.qtext, correct_answer: row.answer,
+              alt_answers: row.alts, hint: row.hint, order_num: qOrder
+            });
+            if (qErr) skip++; else okQ++;
+          }
+        }
+      }
+
+      e.target.value = '';
+      await renderStudyTopicsList();
+      toast(`${okQ}問をインポートしました${skip ? `（${skip}件エラー）` : ''}`, okQ > 0 ? 'success' : 'error');
+    };
+    reader.readAsText(file, 'UTF-8');
+  }
+
+  function parseCSVLine(line) {
+    const result = [];
+    let cur = '', inQ = false;
+    for (let i = 0; i < line.length; i++) {
+      const c = line[i];
+      if (c === '"') {
+        if (inQ && line[i+1] === '"') { cur += '"'; i++; }
+        else inQ = !inQ;
+      } else if (c === ',' && !inQ) {
+        result.push(cur.trim()); cur = '';
+      } else {
+        cur += c;
+      }
+    }
+    result.push(cur.trim());
+    return result;
   }
 
   // ---- STUDY CONTENT ----
