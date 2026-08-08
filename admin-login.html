@@ -164,37 +164,83 @@
       btn.disabled = true;
       btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>作成中...';
 
-      // Step1: Supabase Authアカウント作成（既存の場合はスキップ）
-      const { error: signUpErr } = await db.auth.signUp({ email, password: pass1 });
-      // signUpErr は「既に登録済み」の場合も出るが次のsignInで対応するため無視
-
-      // Step2: 必ずsignInしてセッションを確立（INSERTにはauthenticated権限が必要）
-      const { data: siData, error: siErr } = await db.auth.signInWithPassword({ email, password: pass1 });
-      if (siErr || !siData?.user) {
-        const msg = siErr?.message || '';
-        let userMsg = '';
-        if (msg.toLowerCase().includes('confirm') || msg.toLowerCase().includes('verified') || msg.toLowerCase().includes('email')) {
-          userMsg = `📧 メール確認が必要です。<br><br>Gmailに届いた <strong>Supabaseからの確認メール</strong> のリンクをクリックしてから、もう一度「管理者アカウントを作成」を押してください。<br><br><small style="color:#888">または Supabase Dashboard → Authentication → Providers → Email → 「Confirm email」をOFFにしてください。</small>`;
-        } else {
-          userMsg = `ログイン失敗: ${msg}<br><br><small style="color:#888">このメールアドレスで先生アカウントを作ったことがある場合は、そのパスワードを入力してください。</small>`;
-        }
-        errEl.innerHTML = userMsg;
+      const showErr = (html) => {
+        errEl.innerHTML = html;
         errEl.classList.remove('hidden');
         btn.disabled = false;
         btn.innerHTML = '<i class="fas fa-user-shield mr-2"></i>管理者アカウントを作成';
+      };
+
+      // Step1: まず既存アカウントでのログインを試みる
+      let userId = null;
+      const { data: siFirst, error: siFirstErr } = await db.auth.signInWithPassword({ email, password: pass1 });
+
+      if (siFirst?.user) {
+        // 既存アカウントでログイン成功
+        userId = siFirst.user.id;
+      } else {
+        const firstMsg = siFirstErr?.message || '';
+
+        if (firstMsg === 'Failed to fetch' || firstMsg.includes('fetch')) {
+          showErr('⚠️ Supabaseに接続できません。<br><br>' +
+            '<strong>確認事項：</strong><br>' +
+            '① <a href="https://supabase.com/dashboard" target="_blank" style="color:#8B7BC8">Supabase Dashboard</a> でプロジェクトが起動中か確認<br>' +
+            '② プロジェクトが「Paused」になっている場合は「Restore」をクリック<br>' +
+            '③ <code>sql/admin_setup.sql</code> をSQL Editorで実行済みか確認');
+          return;
+        }
+
+        // ログイン失敗 → 新規アカウント作成を試みる
+        const { data: suData, error: suErr } = await db.auth.signUp({ email, password: pass1 });
+
+        if (suErr) {
+          const m = suErr.message || '';
+          if (m === 'Failed to fetch' || m.includes('fetch')) {
+            showErr('⚠️ Supabaseに接続できません。ネットワークを確認するか、Supabase Dashboardでプロジェクトが起動中か確認してください。');
+          } else if (m.includes('already') || m.includes('exists')) {
+            showErr('このメールアドレスは登録済みです。パスワードが正しくない可能性があります。<br><small style="color:#888">Supabase Dashboard → Authentication → Users から確認できます。</small>');
+          } else {
+            showErr('アカウント作成に失敗しました: ' + m);
+          }
+          return;
+        }
+
+        if (!suData?.user) {
+          showErr('📧 確認メールを送信しました。<br><br>メールボックスを確認してリンクをクリックした後、もう一度「管理者アカウントを作成」を押してください。<br><br><small style="color:#888">メールが届かない場合は Supabase Dashboard → Authentication → Providers → Email → "Confirm email" をOFFにしてください。</small>');
+          return;
+        }
+
+        // signUp成功後に再ログイン
+        const { data: siData2, error: siErr2 } = await db.auth.signInWithPassword({ email, password: pass1 });
+        if (siErr2 || !siData2?.user) {
+          const m2 = siErr2?.message || '';
+          if (m2.toLowerCase().includes('confirm') || m2.toLowerCase().includes('verif') || m2.toLowerCase().includes('email')) {
+            showErr('📧 確認メールが送信されました。<br><br>受信箱の <strong>Supabaseからのメール</strong> を開き、確認リンクをクリックしてからもう一度お試しください。<br><br><small style="color:#888">メールが来ない場合は、Supabase Dashboard → Authentication → Providers → Email → "Confirm email" を <strong>OFF</strong> にしてください。</small>');
+          } else {
+            showErr('ログインに失敗しました: ' + m2);
+          }
+          return;
+        }
+        userId = siData2.user.id;
+      }
+
+      // Step2: admin_profiles に登録（既に存在する場合はスキップ）
+      const { data: existing } = await db.from('admin_profiles').select('id').eq('id', userId).maybeSingle();
+      if (existing) {
+        window.location.href = 'admin.html';
         return;
       }
 
-      // Step3: セッション確立後にadmin_profilesへ登録
-      const { error: insertErr } = await db.from('admin_profiles').insert({
-        id: siData.user.id, email, name
-      });
+      const { error: insertErr } = await db.from('admin_profiles').insert({ id: userId, email, name });
       if (insertErr) {
-        errEl.textContent = '登録に失敗しました: ' + insertErr.message;
-        errEl.classList.remove('hidden');
+        const m = insertErr.message || '';
+        if (m.includes('does not exist') || m.includes('relation')) {
+          showErr('⚠️ <code>admin_profiles</code> テーブルが存在しません。<br><br>' +
+            '<strong>Supabase SQL Editor</strong> で <code>sql/admin_setup.sql</code> を実行してからもう一度お試しください。');
+        } else {
+          showErr('登録に失敗しました: ' + m);
+        }
         await db.auth.signOut();
-        btn.disabled = false;
-        btn.innerHTML = '<i class="fas fa-user-shield mr-2"></i>管理者アカウントを作成';
         return;
       }
 
