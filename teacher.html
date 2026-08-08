@@ -2948,13 +2948,21 @@
       el.innerHTML = '<div class="card p-6 text-center text-gray-400 text-sm">課題が登録されていません</div>';
       return;
     }
-    el.innerHTML = previewKotoTasks.map((t, i) => {
+    const header = `
+      <div class="flex items-center gap-2 px-1 pb-1">
+        <input type="checkbox" id="pg-select-all" onchange="toggleAllGradeTasks(this)" class="w-4 h-4 cursor-pointer flex-shrink-0">
+        <label for="pg-select-all" class="text-xs text-gray-500 cursor-pointer select-none">全選択</label>
+        <button id="pg-bulk-del-btn" onclick="deleteSelectedGradeTasks()"
+          class="btn-sm btn-del ml-auto hidden"><i class="fas fa-trash mr-1"></i>選択を削除</button>
+      </div>`;
+    const cards = previewKotoTasks.map((t, i) => {
       const lc = t.level_count || 1;
       const lvls = lc > 1 ? [t.level_1_text, t.level_2_text, t.level_3_text]
         .slice(0, lc).filter(Boolean)
         .map((l, j) => `<span class="inline-block bg-indigo-50 text-indigo-600 text-xs rounded px-1 mr-0.5">L${j+1}: ${escHtml(l)}</span>`).join('') : '';
       return `
       <div class="prev-card flex items-center gap-3${t.is_active ? '' : ' opacity-55'}">
+        <input type="checkbox" class="grade-task-cb w-4 h-4 cursor-pointer flex-shrink-0" data-id="${t.id}" onchange="onGradeTaskCbChange()">
         <div class="w-7 h-7 rounded-full bg-teal-400 text-white flex items-center justify-center text-xs font-bold flex-shrink-0">${i + 1}</div>
         <div class="flex-1 min-w-0">
           <div class="font-semibold text-sm text-gray-800">${escHtml(t.title)}</div>
@@ -2972,6 +2980,62 @@
         </div>
       </div>`;
     }).join('');
+    el.innerHTML = header + cards;
+  }
+
+  function onGradeTaskCbChange() {
+    const checked = document.querySelectorAll('.grade-task-cb:checked').length;
+    const total   = document.querySelectorAll('.grade-task-cb').length;
+    const btn = document.getElementById('pg-bulk-del-btn');
+    const all = document.getElementById('pg-select-all');
+    if (btn) btn.classList.toggle('hidden', checked === 0);
+    if (btn && checked > 0) btn.innerHTML = `<i class="fas fa-trash mr-1"></i>${checked}件を削除`;
+    if (all) all.indeterminate = checked > 0 && checked < total;
+    if (all) all.checked = total > 0 && checked === total;
+  }
+
+  function toggleAllGradeTasks(masterCb) {
+    document.querySelectorAll('.grade-task-cb').forEach(cb => { cb.checked = masterCb.checked; });
+    onGradeTaskCbChange();
+  }
+
+  async function deleteSelectedGradeTasks() {
+    const ids = [...document.querySelectorAll('.grade-task-cb:checked')].map(cb => cb.dataset.id);
+    if (!ids.length) return;
+    if (!confirm(`選択した ${ids.length} 件の課題を削除しますか？`)) return;
+    const { error } = await db.from('koto_tasks').delete().in('id', ids);
+    if (error) { toast('削除失敗: ' + error.message, 'error'); return; }
+    toast(`${ids.length}件を削除しました`, 'success');
+    if (tabLoaded['tasks']) tabLoaded['tasks'] = false;
+    await loadPreviewGradeTab();
+  }
+
+  function onSongTaskCbChange(songId) {
+    const checked = document.querySelectorAll(`.song-task-cb[data-song="${songId}"]:checked`).length;
+    const total   = document.querySelectorAll(`.song-task-cb[data-song="${songId}"]`).length;
+    const btn = document.getElementById(`ps-bulk-del-btn-${songId}`);
+    const all = document.getElementById(`ps-select-all-${songId}`);
+    if (btn) btn.classList.toggle('hidden', checked === 0);
+    if (btn && checked > 0) btn.innerHTML = `<i class="fas fa-trash mr-1"></i>${checked}件を削除`;
+    if (all) all.indeterminate = checked > 0 && checked < total;
+    if (all) all.checked = total > 0 && checked === total;
+  }
+
+  function toggleAllSongTasks(songId, masterCb) {
+    document.querySelectorAll(`.song-task-cb[data-song="${songId}"]`).forEach(cb => { cb.checked = masterCb.checked; });
+    onSongTaskCbChange(songId);
+  }
+
+  async function deleteSelectedSongTasks(songId) {
+    const ids = [...document.querySelectorAll(`.song-task-cb[data-song="${songId}"]:checked`)].map(cb => cb.dataset.id);
+    if (!ids.length) return;
+    if (!confirm(`選択した ${ids.length} 件の課題を削除しますか？`)) return;
+    const { error } = await db.from('song_tasks').delete().in('id', ids);
+    if (error) { toast('削除失敗: ' + error.message, 'error'); return; }
+    toast(`${ids.length}件を削除しました`, 'success');
+    previewSongTaskCache[songId] = null;
+    if (tabLoaded['tasks']) tabLoaded['tasks'] = false;
+    await loadPreviewSongTasks(songId);
   }
 
   async function movePreviewKotoTask(id, dir) {
@@ -3048,6 +3112,17 @@
     el   = el   || document.getElementById('preview-song-body');
     song = song || previewSongs.find(s => s.id === songId);
     const tasks = previewSongTaskCache[songId] || [];
+    const songHeader = tasks.length ? `
+      <div class="flex items-center gap-2 mb-2">
+        <span class="text-xl">🎵</span>
+        <span class="font-semibold text-gray-700 text-sm flex-1">${escHtml(song?.title || '')}</span>
+      </div>
+      <div class="flex items-center gap-2 px-1 pb-1">
+        <input type="checkbox" id="ps-select-all-${songId}" onchange="toggleAllSongTasks('${songId}',this)" class="w-4 h-4 cursor-pointer flex-shrink-0">
+        <label for="ps-select-all-${songId}" class="text-xs text-gray-500 cursor-pointer select-none">全選択</label>
+        <button id="ps-bulk-del-btn-${songId}" onclick="deleteSelectedSongTasks('${songId}')"
+          class="btn-sm btn-del ml-auto hidden"><i class="fas fa-trash mr-1"></i>選択を削除</button>
+      </div>` : '';
     const taskCards = tasks.map((t, i) => {
       const lc = t.level_count || 1;
       const lvls = lc > 1 ? [t.level_1_text, t.level_2_text, t.level_3_text]
@@ -3055,6 +3130,7 @@
         .map((l, j) => `<span class="inline-block bg-indigo-50 text-indigo-600 text-xs rounded px-1 mr-0.5">L${j+1}: ${escHtml(l)}</span>`).join('') : '';
       return `
         <div class="prev-card flex items-center gap-3 mb-2">
+          <input type="checkbox" class="song-task-cb w-4 h-4 cursor-pointer flex-shrink-0" data-id="${t.id}" data-song="${songId}" onchange="onSongTaskCbChange('${songId}')">
           <div class="w-7 h-7 rounded-full bg-amber-400 text-white flex items-center justify-center text-xs font-bold flex-shrink-0">${i + 1}</div>
           <div class="flex-1 min-w-0">
             <div class="font-semibold text-sm text-gray-800">${escHtml(t.title)}</div>
@@ -3091,9 +3167,7 @@
           <button class="btn-red w-full" onclick="addPreviewSongTask('${songId}')"><i class="fas fa-plus mr-1"></i>課題を追加</button>
         </div>
       </div>`;
-    el.innerHTML = (tasks.length
-      ? `<div class="font-semibold text-gray-700 text-sm mb-3 flex items-center gap-2"><span class="text-xl">🎵</span>${escHtml(song?.title || '')}</div>` + taskCards
-      : '') + addForm;
+    el.innerHTML = (tasks.length ? songHeader + taskCards : '') + addForm;
   }
 
   async function movePreviewSong(id, dir) {
