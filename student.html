@@ -66,8 +66,10 @@
     .logout-btn:hover { background: #FEE2E2; }
 
     /* Achievement level circles */
-    .level-circle { width:26px; height:26px; min-width:26px; border-radius:50%; border:2px solid #d1d5db; display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:700; color:#9ca3af; }
+    .level-circle { width:26px; height:26px; min-width:26px; border-radius:50%; border:2px solid #d1d5db; display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:700; color:#9ca3af; cursor:pointer; background:none; padding:0; transition:all .15s; }
+    .level-circle:hover { border-color:#7BBAA8; color:#7BBAA8; transform:scale(1.15); }
     .level-circle.done { background:#7BBAA8; border-color:#7BBAA8; color:#fff; }
+    .level-circle.done:hover { background:#5fa390; border-color:#5fa390; }
     .level-circle.next { border-color:#7BBAA8; color:#7BBAA8; }
     .level-row { display:flex; align-items:flex-start; gap:8px; padding:5px 0; border-bottom:1px solid #f0f0f0; }
     .level-row:last-child { border-bottom:none; }
@@ -353,7 +355,7 @@
         levelCirclesHtml = Array.from({length: lc}, (_, i) => {
           const lvl = i + 1;
           const cls = lvl <= cl ? 'done' : (lvl === cl + 1 && !isDone ? 'next' : '');
-          return `<div class="level-circle ${cls}">${lvl}</div>`;
+          return `<button class="level-circle ${cls}" onclick="setTaskLevelCircle('${taskId}',${lvl},${lc},${num})" title="Level ${lvl}">${lvl}</button>`;
         }).join('');
       }
 
@@ -381,7 +383,7 @@
       if (isDone) {
         btnLabel = '<i class="fas fa-check mr-1"></i>済み';
       } else if (lc >= 2) {
-        btnLabel = `Level ${cl + 1} 達成`;
+        btnLabel = cl >= lc ? '完了' : `Level ${cl + 1} 達成`;
       } else {
         btnLabel = '完了';
       }
@@ -482,10 +484,15 @@
         return;
       }
       if (levelCount >= 2) {
-        const cl       = prog.completed_level || 0;
-        const newLevel = cl + 1;
-        const newDone  = newLevel >= levelCount;
-        await setLevelProgress(taskId, num, newLevel, newDone, levelCount);
+        const cl = prog.completed_level || 0;
+        if (cl >= levelCount) {
+          // 円ボタンで全レベル済み → 正式に完了確定
+          await setLevelProgress(taskId, num, cl, true, levelCount);
+        } else {
+          const newLevel = cl + 1;
+          const newDone  = newLevel >= levelCount;
+          await setLevelProgress(taskId, num, newLevel, newDone, levelCount);
+        }
       } else {
         await setCompleted(taskId, num, true);
         const card = document.getElementById(`card-${taskId}`);
@@ -513,11 +520,11 @@
         const btnEl   = document.getElementById(`done-btn-${taskId}`);
         const circEl  = document.getElementById(`lvlcirc-${taskId}`);
         if (tnumEl) tnumEl.innerHTML = isDone ? '<i class="fas fa-check text-xs"></i>' : num;
-        if (btnEl)  btnEl.innerHTML  = isDone ? '<i class="fas fa-check mr-1"></i>済み' : `Level ${newLevel + 1} 達成`;
+        if (btnEl)  btnEl.innerHTML  = isDone ? '<i class="fas fa-check mr-1"></i>済み' : (newLevel >= levelCount ? '完了' : `Level ${newLevel + 1} 達成`);
         if (circEl) circEl.innerHTML = Array.from({length: levelCount}, (_, i) => {
           const lvl = i + 1;
           const cls = lvl <= newLevel ? 'done' : (lvl === newLevel + 1 && !isDone ? 'next' : '');
-          return `<div class="level-circle ${cls}">${lvl}</div>`;
+          return `<button class="level-circle ${cls}" onclick="setTaskLevelCircle('${taskId}',${lvl},${levelCount},${num})" title="Level ${lvl}">${lvl}</button>`;
         }).join('');
         // Update level tag styles
         el.querySelectorAll('.level-tag').forEach((tag, i) => {
@@ -545,6 +552,23 @@
             if (circles[i]) circles[i].className = `step-circle${progressMap[t.id]?.is_completed ? ' done' : ''}`;
           });
         }
+      }
+    }
+
+    async function setTaskLevelCircle(taskId, targetLevel, levelCount, num) {
+      const prog = progressMap[taskId] || { is_completed: false, completed_level: 0 };
+      if (prog.is_completed) return; // 完了済みは変更不可
+      const cl = prog.completed_level || 0;
+      if (targetLevel > cl) {
+        // 前進：is_completed は絶対に立てない（達成ボタン専用）
+        await setLevelProgress(taskId, num, targetLevel, false, levelCount);
+      } else {
+        // すでに達成済み → ロールバック確認
+        uncheckTarget = { taskId, num, levelCount, rollbackTo: targetLevel - 1 };
+        const rb = targetLevel - 1;
+        document.getElementById('confirm-title').textContent = rb === 0 ? '達成を取り消しますか？' : `Level ${targetLevel} を取り消しますか？`;
+        document.getElementById('confirm-sub').textContent   = rb === 0 ? 'このレベルの達成をリセットします' : `Level ${rb} までの達成に戻します`;
+        document.getElementById('confirm-modal').classList.remove('hidden');
       }
     }
 
