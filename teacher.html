@@ -132,7 +132,6 @@
       <button class="tab-btn" id="tab-btn-announce" onclick="switchTab('announce')"><i class="fas fa-bullhorn mr-1.5"></i>お知らせ</button>
       <button class="tab-btn" id="tab-btn-roster" onclick="switchTab('roster')"><i class="fas fa-users mr-1.5"></i>生徒名簿</button>
       <button class="tab-btn" id="tab-btn-classes" onclick="switchTab('classes')"><i class="fas fa-school mr-1.5"></i>クラス設定</button>
-      <button class="tab-btn" id="tab-btn-study" onclick="switchTab('study')"><i class="fas fa-book mr-1.5"></i>学習コンテンツ</button>
       <button class="tab-btn" id="tab-btn-settings" onclick="switchTab('settings')"><i class="fas fa-cog mr-1.5"></i>設定</button>
       <button class="tab-btn" id="tab-btn-help" onclick="switchTab('help')"><i class="fas fa-question-circle mr-1.5"></i>使い方</button>
     </div>
@@ -333,29 +332,33 @@
       </div>
     </div>
 
-    <!-- 基礎知識プレビュー -->
+    <!-- 基礎知識 -->
     <div id="tab-preview-content" class="tab-content hidden space-y-3">
       <div class="card p-4 flex items-center gap-2 flex-wrap">
         <div class="section-title mb-0 mr-auto"><i class="fas fa-book-open text-red-500"></i>基礎知識</div>
-        <button class="btn-gray text-xs" onclick="switchTab('study')"><i class="fas fa-file-import mr-1"></i>CSVで追加・管理</button>
-        <button class="btn-red text-xs" onclick="openStudyTopicModal()"><i class="fas fa-plus mr-1"></i>トピック追加</button>
+        <button class="btn-gray text-xs" onclick="downloadStudyContentTemplate()"><i class="fas fa-file-download mr-1"></i>テンプレ</button>
+        <button class="btn-gray text-xs" onclick="document.getElementById('pc-csv-input').click()"><i class="fas fa-file-import mr-1"></i>CSVインポート</button>
+        <button class="btn-red text-xs" onclick="openStudyTopicModal(null,'content')"><i class="fas fa-plus mr-1"></i>トピック追加</button>
+        <input type="file" id="pc-csv-input" accept=".csv" class="hidden" onchange="onStudyContentCSVSelected(event)">
       </div>
       <div class="card p-4">
-        <p class="text-xs text-gray-400 mb-2">トピック（▲▼で並び替え、公開/非公開で表示切替）</p>
+        <p class="text-xs text-gray-400 mb-2">トピック（▲▼で並び替え、公開/非公開で切替）</p>
         <div id="preview-content-topic-list" class="flex gap-3 overflow-x-auto pb-2 flex-wrap"></div>
       </div>
       <div id="preview-content-body" class="space-y-3"></div>
     </div>
 
-    <!-- 穴埋めクイズプレビュー -->
+    <!-- 穴埋めクイズ -->
     <div id="tab-preview-quiz" class="tab-content hidden space-y-3">
       <div class="card p-4 flex items-center gap-2 flex-wrap">
         <div class="section-title mb-0 mr-auto"><i class="fas fa-pencil-alt text-red-500"></i>穴埋めクイズ</div>
-        <button class="btn-gray text-xs" onclick="switchTab('study')"><i class="fas fa-file-import mr-1"></i>CSVで追加・管理</button>
-        <button class="btn-red text-xs" onclick="openStudyTopicModal()"><i class="fas fa-plus mr-1"></i>トピック追加</button>
+        <button class="btn-gray text-xs" onclick="downloadStudyQuizTemplate()"><i class="fas fa-file-download mr-1"></i>テンプレ</button>
+        <button class="btn-gray text-xs" onclick="document.getElementById('pq-csv-input').click()"><i class="fas fa-file-import mr-1"></i>CSVインポート</button>
+        <button class="btn-red text-xs" onclick="openStudyTopicModal(null,'quiz')"><i class="fas fa-plus mr-1"></i>トピック追加</button>
+        <input type="file" id="pq-csv-input" accept=".csv" class="hidden" onchange="onStudyQuizCSVSelected(event)">
       </div>
       <div class="card p-4">
-        <p class="text-xs text-gray-400 mb-2">トピック（▲▼で並び替え、公開/非公開で表示切替）</p>
+        <p class="text-xs text-gray-400 mb-2">トピック（▲▼で並び替え、公開/非公開で切替）</p>
         <div id="preview-quiz-topic-list" class="flex gap-3 overflow-x-auto pb-2 flex-wrap"></div>
       </div>
       <div id="preview-quiz-body" class="space-y-3"></div>
@@ -384,26 +387,6 @@
       </div>
       <div id="preview-song-body" class="space-y-2">
         <div class="text-center py-8 text-gray-400 text-sm">楽曲を選択してください</div>
-      </div>
-    </div>
-
-    <!-- 学習コンテンツ -->
-    <div id="tab-study" class="tab-content hidden space-y-4">
-      <div class="card p-4">
-        <div class="flex flex-wrap items-center gap-2 mb-3">
-          <div class="section-title mb-0 mr-auto"><i class="fas fa-book text-red-500"></i>学習トピック</div>
-          <button class="btn-gray text-xs" onclick="downloadStudyContentTemplate()"><i class="fas fa-file-download mr-1"></i>読み物テンプレ</button>
-          <button class="btn-gray text-xs" onclick="downloadStudyQuizTemplate()"><i class="fas fa-file-download mr-1"></i>クイズテンプレ</button>
-          <button class="btn-gray text-xs" onclick="document.getElementById('study-content-csv-input').click()"><i class="fas fa-file-import mr-1"></i>読み物CSV</button>
-          <button class="btn-gray text-xs" onclick="document.getElementById('study-quiz-csv-input').click()"><i class="fas fa-file-import mr-1"></i>クイズCSV</button>
-          <button class="btn-red text-sm" onclick="openStudyTopicModal()"><i class="fas fa-plus mr-1"></i>トピック追加</button>
-          <input type="file" id="study-content-csv-input" accept=".csv" class="hidden" onchange="onStudyContentCSVSelected(event)">
-          <input type="file" id="study-quiz-csv-input" accept=".csv" class="hidden" onchange="onStudyQuizCSVSelected(event)">
-        </div>
-        <p class="text-xs text-gray-400 mb-3">「読み物」はテキスト＋画像のコンテンツ、「穴埋め」は画像＋採点クイズです</p>
-        <div id="study-topics-list" class="space-y-2">
-          <p class="text-sm text-gray-400 text-center py-4">読み込み中...</p>
-        </div>
       </div>
     </div>
 
@@ -798,53 +781,6 @@
   </div>
 </div>
 
-<!-- モーダル：コンテンツ管理（読み物セクション） -->
-<div id="study-content-modal" class="modal-overlay hidden">
-  <div class="modal-box" style="max-width:700px;width:95vw;max-height:90vh;overflow-y:auto">
-    <div class="flex items-center justify-between mb-4">
-      <h3 class="font-bold text-gray-800" id="study-content-modal-title">コンテンツ管理</h3>
-      <button onclick="closeModal('study-content-modal')" class="text-gray-400 hover:text-gray-600 text-2xl leading-none">&times;</button>
-    </div>
-    <div id="study-sections-list" class="space-y-3 mb-4"></div>
-    <div class="border-t pt-4">
-      <p class="text-xs font-semibold text-gray-500 mb-2">セクションを追加</p>
-      <div class="space-y-2">
-        <input type="text" id="ns-title" class="inp" placeholder="見出し（例: ①起源と由来）">
-        <textarea id="ns-body" class="inp" rows="3" placeholder="説明文（改行可）" style="resize:vertical"></textarea>
-        <input type="text" id="ns-image" class="inp" placeholder="画像URL（Googleドライブ共有リンク等）">
-        <input type="text" id="ns-caption" class="inp" placeholder="画像キャプション（例: 図1 三絃の例）">
-        <input type="text" id="ns-youtube" class="inp" placeholder="YouTube URL（任意）">
-        <label class="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
-          <input type="checkbox" id="ns-visible" checked class="w-4 h-4">
-          <span>生徒に表示する（チェックを外すと非表示）</span>
-        </label>
-        <button class="btn-red w-full" onclick="addStudySection()"><i class="fas fa-plus mr-1"></i>セクション追加</button>
-      </div>
-    </div>
-    <button class="btn-gray w-full mt-3" onclick="closeModal('study-content-modal')">閉じる</button>
-  </div>
-</div>
-
-<!-- モーダル：クイズ管理（穴埋め） -->
-<div id="study-quiz-modal" class="modal-overlay hidden">
-  <div class="modal-box" style="max-width:700px;width:95vw;max-height:90vh;overflow-y:auto">
-    <div class="flex items-center justify-between mb-4">
-      <h3 class="font-bold text-gray-800" id="study-quiz-modal-title">クイズ管理</h3>
-      <button onclick="closeModal('study-quiz-modal')" class="text-gray-400 hover:text-gray-600 text-2xl leading-none">&times;</button>
-    </div>
-    <div id="study-quizsets-list" class="space-y-4 mb-4"></div>
-    <div class="border-t pt-4">
-      <p class="text-xs font-semibold text-gray-500 mb-2">クイズセットを追加</p>
-      <div class="space-y-2">
-        <input type="text" id="nqs-title" class="inp" placeholder="セットのタイトル（例: ①各部の名称）">
-        <input type="text" id="nqs-image" class="inp" placeholder="画像URL（Googleドライブ共有リンク等）">
-        <input type="text" id="nqs-caption" class="inp" placeholder="画像キャプション">
-        <button class="btn-red w-full" onclick="addQuizSet()"><i class="fas fa-plus mr-1"></i>クイズセット追加</button>
-      </div>
-    </div>
-    <button class="btn-gray w-full mt-3" onclick="closeModal('study-quiz-modal')">閉じる</button>
-  </div>
-</div>
 
 <!-- モーダル：問題管理 -->
 <div id="study-questions-modal" class="modal-overlay hidden">
@@ -1021,7 +957,7 @@
       const loaders = {
         dashboard: loadDashboard, progress: initProgress, tasks: loadTasks,
         announce: loadAnnounce, roster: initRoster, classes: loadClassesTab,
-        study: loadStudyTab, settings: () => {}, help: () => {},
+        settings: () => {}, help: () => {},
         'preview-content': loadPreviewContentTab,
         'preview-quiz':    loadPreviewQuizTab,
         'preview-grade':   loadPreviewGradeTab,
@@ -2139,7 +2075,7 @@
       }
 
       e.target.value = '';
-      await renderStudyTopicsList();
+      await loadPreviewContentTab();
       toast(`${ok}セクションをインポートしました${skip ? `（${skip}件エラー）` : ''}`, ok > 0 ? 'success' : 'error');
     };
     reader.readAsText(file, 'UTF-8');
@@ -2247,7 +2183,7 @@
       }
 
       e.target.value = '';
-      await renderStudyTopicsList();
+      await loadPreviewQuizTab();
       toast(`${okQ}問をインポートしました${skip ? `（${skip}件エラー）` : ''}`, okQ > 0 ? 'success' : 'error');
     };
     reader.readAsText(file, 'UTF-8');
@@ -2273,8 +2209,7 @@
 
   // ---- STUDY CONTENT ----
 
-  let _studyTopicId = null;   // 現在操作中のトピックID
-  let _quizSetId    = null;   // 現在操作中のクイズセットID
+  let _quizSetId = null;
 
   function gdriveSrc(url) {
     if (!url) return '';
@@ -2283,40 +2218,13 @@
     return url;
   }
 
-  async function loadStudyTab() {
-    await renderStudyTopicsList();
-  }
-
-  async function renderStudyTopicsList() {
-    const el = document.getElementById('study-topics-list');
-    const { data, error } = await db.from('study_topics')
-      .select('*').eq('school_id', T.school_id).order('order_num');
-    if (error || !data?.length) {
-      el.innerHTML = '<p class="text-sm text-gray-400 text-center py-4">トピックがありません。「トピック追加」から作成してください。</p>';
-      return;
-    }
-    el.innerHTML = data.map(t => `
-      <div class="flex items-center gap-2 bg-gray-50 rounded-xl px-3 py-2">
-        <span class="text-lg">${escHtml(t.icon||'📚')}</span>
-        <div class="flex-1 min-w-0">
-          <div class="text-sm font-semibold text-gray-800">${escHtml(t.title)}</div>
-          <div class="text-xs text-gray-400">${t.topic_type==='quiz'?'✏️ 穴埋めクイズ':'📖 読み物'} ${t.is_active?'・公開中':'・非公開'}</div>
-        </div>
-        <button class="btn-sm btn-edit" onclick="openStudyContentModal('${t.id}','${escHtml(t.title)}','${t.topic_type}')">
-          <i class="fas fa-list mr-1"></i>${t.topic_type==='quiz'?'クイズ':'コンテンツ'}
-        </button>
-        <button class="btn-sm btn-edit" onclick="openStudyTopicModal('${t.id}')"><i class="fas fa-edit"></i></button>
-        <button class="btn-sm btn-del" onclick="deleteStudyTopic('${t.id}')"><i class="fas fa-trash"></i></button>
-      </div>`).join('');
-  }
-
-  function openStudyTopicModal(id = null) {
+  function openStudyTopicModal(id = null, defaultType = 'content') {
     document.getElementById('study-topic-modal-title').textContent = id ? 'トピックを編集' : 'トピックを追加';
     document.getElementById('st-id').value = id || '';
     if (!id) {
       document.getElementById('st-title').value = '';
-      document.getElementById('st-icon').value  = '📚';
-      document.getElementById('st-type').value  = 'content';
+      document.getElementById('st-icon').value  = defaultType === 'quiz' ? '🎵' : '📚';
+      document.getElementById('st-type').value  = defaultType;
       document.getElementById('st-active').checked = true;
       document.getElementById('st-memo').value  = '';
     } else {
@@ -2349,7 +2257,8 @@
     if (error) { toast('保存失敗: ' + error.message, 'error'); return; }
     toast('保存しました', 'success');
     closeModal('study-topic-modal');
-    renderStudyTopicsList();
+    if (payload.topic_type === 'quiz') await loadPreviewQuizTab();
+    else await loadPreviewContentTab();
   }
 
   async function deleteStudyTopic(id) {
@@ -2357,128 +2266,56 @@
     const { error } = await db.from('study_topics').delete().eq('id', id);
     if (error) { toast('削除失敗', 'error'); return; }
     toast('削除しました', 'success');
-    renderStudyTopicsList();
+    if (tabLoaded['preview-content']) await loadPreviewContentTab();
+    if (tabLoaded['preview-quiz']) await loadPreviewQuizTab();
   }
 
-  async function openStudyContentModal(topicId, topicTitle, topicType) {
-    _studyTopicId = topicId;
-    if (topicType === 'quiz') {
-      document.getElementById('study-quiz-modal-title').textContent = `${topicTitle} — クイズ管理`;
-      document.getElementById('study-quiz-modal').classList.remove('hidden');
-      await renderQuizSetsList();
-    } else {
-      document.getElementById('study-content-modal-title').textContent = `${topicTitle} — コンテンツ管理`;
-      document.getElementById('study-content-modal').classList.remove('hidden');
-      await renderSectionsList();
-    }
-  }
-
-  // ---- SECTIONS (content type) ----
-
-  async function renderSectionsList() {
-    const el = document.getElementById('study-sections-list');
-    const { data } = await db.from('study_sections')
-      .select('*').eq('topic_id', _studyTopicId).order('order_num');
-    if (!data?.length) { el.innerHTML = '<p class="text-sm text-gray-400">セクションがありません</p>'; return; }
-    el.innerHTML = data.map(s => {
-      const visible = s.is_visible !== false;
-      return `
-      <div class="border border-gray-200 rounded-xl p-3">
-        <div class="flex items-start justify-between gap-2">
-          <div class="font-semibold text-sm text-gray-800">${escHtml(s.title)}</div>
-          <div class="flex gap-1 flex-shrink-0">
-            <button class="btn-sm ${visible ? 'btn-toggle' : 'btn-toggle off'}" onclick="toggleSectionVisible('${s.id}',${visible})">${visible ? '表示中' : '非表示'}</button>
-            <button class="btn-sm btn-del" onclick="deleteSection('${s.id}')"><i class="fas fa-trash"></i></button>
-          </div>
-        </div>
-        ${s.body ? `<p class="text-xs text-gray-500 mt-1 whitespace-pre-wrap">${escHtml(s.body)}</p>` : ''}
-        ${s.image_url ? `<p class="text-xs text-blue-500 mt-1 truncate">${escHtml(s.image_url)}</p>` : ''}
-        ${s.image_caption ? `<p class="text-xs text-gray-400">${escHtml(s.image_caption)}</p>` : ''}
-        ${s.youtube_url ? `<p class="text-xs text-red-400 mt-1 truncate"><i class="fab fa-youtube mr-1"></i>${escHtml(s.youtube_url)}</p>` : ''}
-      </div>`;
-    }).join('');
-  }
-
-  async function toggleSectionVisible(id, current) {
-    await db.from('study_sections').update({ is_visible: !current }).eq('id', id);
-    renderSectionsList();
-  }
-
-  async function addStudySection() {
-    const title   = document.getElementById('ns-title').value.trim();
-    const body    = document.getElementById('ns-body').value.trim();
-    const image   = document.getElementById('ns-image').value.trim();
-    const caption = document.getElementById('ns-caption').value.trim();
-    const youtube = document.getElementById('ns-youtube').value.trim();
-    const visible = document.getElementById('ns-visible').checked;
+  async function addPreviewSection(topicId) {
+    const title   = document.getElementById('pc-ns-title').value.trim();
+    const body    = document.getElementById('pc-ns-body').value.trim();
+    const image   = document.getElementById('pc-ns-image').value.trim();
+    const caption = document.getElementById('pc-ns-caption').value.trim();
+    const youtube = document.getElementById('pc-ns-youtube').value.trim();
+    const visible = document.getElementById('pc-ns-visible').checked;
     if (!title) { toast('見出しを入力してください', 'error'); return; }
-    const { data: existing } = await db.from('study_sections').select('order_num').eq('topic_id', _studyTopicId).order('order_num', { ascending: false }).limit(1);
+    const { data: existing } = await db.from('study_sections').select('order_num').eq('topic_id', topicId).order('order_num', { ascending: false }).limit(1);
     const order_num = (existing?.[0]?.order_num || 0) + 1;
     const { error } = await db.from('study_sections').insert({
-      topic_id: _studyTopicId, school_id: T.school_id,
+      topic_id: topicId, school_id: T.school_id,
       title, body, image_url: image, image_caption: caption,
       youtube_url: youtube, is_visible: visible, order_num
     });
     if (error) { toast('追加失敗', 'error'); return; }
-    ['ns-title','ns-body','ns-image','ns-caption','ns-youtube'].forEach(id => document.getElementById(id).value = '');
-    document.getElementById('ns-visible').checked = true;
     toast('追加しました', 'success');
-    renderSectionsList();
+    await loadPreviewContentSections(topicId);
   }
 
-  async function deleteSection(id) {
+  async function deletePreviewSection(id, topicId) {
     if (!confirm('このセクションを削除しますか？')) return;
     await db.from('study_sections').delete().eq('id', id);
-    renderSectionsList();
+    await loadPreviewContentSections(topicId);
   }
 
-  // ---- QUIZ SETS ----
-
-  async function renderQuizSetsList() {
-    const el = document.getElementById('study-quizsets-list');
-    const { data: sets } = await db.from('quiz_sets')
-      .select('*').eq('topic_id', _studyTopicId).order('order_num');
-    if (!sets?.length) { el.innerHTML = '<p class="text-sm text-gray-400">クイズセットがありません</p>'; return; }
-    el.innerHTML = '';
-    for (const s of sets) {
-      const { data: qs } = await db.from('quiz_questions').select('id,question_text,correct_answer,hint').eq('quiz_set_id', s.id).order('order_num');
-      const div = document.createElement('div');
-      div.className = 'border border-gray-200 rounded-xl p-3';
-      div.innerHTML = `
-        <div class="flex items-center justify-between mb-2">
-          <div class="font-semibold text-sm text-gray-800">${escHtml(s.title)}</div>
-          <div class="flex gap-1">
-            <button class="btn-sm btn-edit" onclick="openQuestionsModal('${s.id}','${escHtml(s.title)}')"><i class="fas fa-list-check mr-1"></i>問題(${qs?.length||0})</button>
-            <button class="btn-sm btn-del" onclick="deleteQuizSet('${s.id}')"><i class="fas fa-trash"></i></button>
-          </div>
-        </div>
-        ${s.image_url ? `<p class="text-xs text-blue-500 truncate">${escHtml(s.image_url)}</p>` : ''}
-        ${s.image_caption ? `<p class="text-xs text-gray-400">${escHtml(s.image_caption)}</p>` : ''}`;
-      el.appendChild(div);
-    }
-  }
-
-  async function addQuizSet() {
-    const title   = document.getElementById('nqs-title').value.trim();
-    const image   = document.getElementById('nqs-image').value.trim();
-    const caption = document.getElementById('nqs-caption').value.trim();
+  async function addPreviewQuizSet(topicId) {
+    const title   = document.getElementById('pq-nqs-title').value.trim();
+    const image   = document.getElementById('pq-nqs-image').value.trim();
+    const caption = document.getElementById('pq-nqs-caption').value.trim();
     if (!title) { toast('タイトルを入力してください', 'error'); return; }
-    const { data: existing } = await db.from('quiz_sets').select('order_num').eq('topic_id', _studyTopicId).order('order_num', { ascending: false }).limit(1);
+    const { data: existing } = await db.from('quiz_sets').select('order_num').eq('topic_id', topicId).order('order_num', { ascending: false }).limit(1);
     const order_num = (existing?.[0]?.order_num || 0) + 1;
     const { error } = await db.from('quiz_sets').insert({
-      topic_id: _studyTopicId, school_id: T.school_id,
+      topic_id: topicId, school_id: T.school_id,
       title, image_url: image, image_caption: caption, order_num
     });
     if (error) { toast('追加失敗', 'error'); return; }
-    ['nqs-title','nqs-image','nqs-caption'].forEach(id => document.getElementById(id).value = '');
     toast('追加しました', 'success');
-    renderQuizSetsList();
+    await loadPreviewQuizSets(topicId);
   }
 
-  async function deleteQuizSet(id) {
+  async function deletePreviewQuizSet(id, topicId) {
     if (!confirm('このクイズセットと問題をすべて削除しますか？')) return;
     await db.from('quiz_sets').delete().eq('id', id);
-    renderQuizSetsList();
+    await loadPreviewQuizSets(topicId);
   }
 
   // ---- QUIZ QUESTIONS ----
@@ -2861,6 +2698,8 @@
             class="text-xs px-1.5 py-0.5 rounded font-semibold ${t.is_active ? 'bg-green-100 text-green-700 hover:bg-green-200' : 'bg-gray-100 text-gray-400 hover:bg-gray-200'}">
             ${t.is_active ? '公開' : '非公開'}
           </button>
+          <button onclick="openStudyTopicModal('${t.id}')" class="text-xs px-1.5 py-0.5 rounded bg-blue-50 text-blue-600 hover:bg-blue-100" title="編集"><i class="fas fa-edit"></i></button>
+          <button onclick="deleteStudyTopic('${t.id}')" class="text-xs px-1.5 py-0.5 rounded bg-red-50 text-red-500 hover:bg-red-100" title="削除"><i class="fas fa-trash"></i></button>
         </div>
         <button class="song-pill${t.id === currentPreviewContentTopicId ? ' active' : ''}" onclick="selectPreviewContentTopic('${t.id}')"
           style="opacity:${t.is_active ? 1 : 0.5}">
@@ -2880,11 +2719,7 @@
     el.innerHTML = '<div class="text-center py-6 text-gray-400 text-sm">読み込み中...</div>';
     const { data } = await db.from('study_sections').select('*').eq('topic_id', topicId).order('order_num');
     const sections = data || [];
-    if (!sections.length) {
-      el.innerHTML = '<div class="card p-6 text-center text-gray-400 text-sm">セクションがありません。「CSVで追加・管理」からコンテンツを登録してください。</div>';
-      return;
-    }
-    el.innerHTML = sections.map(s => {
+    const cards = sections.map(s => {
       const visible = s.is_visible !== false;
       return `<div class="prev-card${visible ? '' : ' opacity-60'} border-l-4 ${visible ? 'border-teal-400' : 'border-gray-200'}">
         <div class="flex items-start justify-between gap-2 mb-2">
@@ -2897,6 +2732,7 @@
             <button onclick="movePreviewSection('${s.id}','down','${topicId}')" class="btn-sm btn-gray text-xs" title="下へ">▼</button>
             <button onclick="togglePreviewSectionVisible('${s.id}',${visible},'${topicId}')"
               class="btn-sm ${visible ? 'btn-toggle' : 'btn-toggle off'}">${visible ? '表示中' : '非表示'}</button>
+            <button onclick="deletePreviewSection('${s.id}','${topicId}')" class="btn-sm btn-del"><i class="fas fa-trash"></i></button>
           </div>
         </div>
         ${s.body ? `<p class="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap mb-2">${escHtml(s.body)}</p>` : ''}
@@ -2904,6 +2740,22 @@
         ${s.youtube_url ? `<p class="text-xs text-red-400 mt-1"><i class="fab fa-youtube mr-1"></i>${escHtml(s.youtube_url)}</p>` : ''}
       </div>`;
     }).join('');
+    el.innerHTML = cards + `
+      <div class="card p-4 border-2 border-dashed border-gray-200">
+        <p class="text-xs font-semibold text-gray-500 mb-2"><i class="fas fa-plus mr-1 text-teal-500"></i>セクションを追加</p>
+        <div class="space-y-2">
+          <input type="text" id="pc-ns-title" class="inp" placeholder="見出し（例: ①起源と由来）">
+          <textarea id="pc-ns-body" class="inp" rows="3" placeholder="説明文（改行可）" style="resize:vertical"></textarea>
+          <input type="text" id="pc-ns-image" class="inp" placeholder="画像URL（Googleドライブ共有リンク等）">
+          <input type="text" id="pc-ns-caption" class="inp" placeholder="画像キャプション">
+          <input type="text" id="pc-ns-youtube" class="inp" placeholder="YouTube URL（任意）">
+          <label class="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+            <input type="checkbox" id="pc-ns-visible" checked class="w-4 h-4">
+            <span>生徒に表示する</span>
+          </label>
+          <button class="btn-red w-full" onclick="addPreviewSection('${topicId}')"><i class="fas fa-plus mr-1"></i>セクション追加</button>
+        </div>
+      </div>`;
   }
 
   async function movePreviewContentTopic(id, dir) {
@@ -2924,7 +2776,6 @@
       if (idx >= 0) previewQuizTopics[idx].is_active = !current;
       renderPreviewQuizTopicList();
     }
-    if (tabLoaded.study) renderStudyTopicsList();
   }
 
   async function movePreviewSection(id, dir, topicId) {
@@ -2967,6 +2818,8 @@
             class="text-xs px-1.5 py-0.5 rounded font-semibold ${t.is_active ? 'bg-green-100 text-green-700 hover:bg-green-200' : 'bg-gray-100 text-gray-400 hover:bg-gray-200'}">
             ${t.is_active ? '公開' : '非公開'}
           </button>
+          <button onclick="openStudyTopicModal('${t.id}')" class="text-xs px-1.5 py-0.5 rounded bg-blue-50 text-blue-600 hover:bg-blue-100" title="編集"><i class="fas fa-edit"></i></button>
+          <button onclick="deleteStudyTopic('${t.id}')" class="text-xs px-1.5 py-0.5 rounded bg-red-50 text-red-500 hover:bg-red-100" title="削除"><i class="fas fa-trash"></i></button>
         </div>
         <button class="song-pill${t.id === currentPreviewQuizTopicId ? ' active' : ''}" onclick="selectPreviewQuizTopic('${t.id}')"
           style="opacity:${t.is_active ? 1 : 0.5}">
@@ -2992,24 +2845,20 @@
     const el = document.getElementById('preview-quiz-body');
     el.innerHTML = '<div class="text-center py-6 text-gray-400 text-sm">読み込み中...</div>';
     const { data: sets } = await db.from('quiz_sets').select('*').eq('topic_id', topicId).order('order_num');
-    if (!sets?.length) {
-      el.innerHTML = '<div class="card p-6 text-center text-gray-400 text-sm">クイズセットがありません</div>';
-      return;
-    }
     const setsWithQ = [];
-    for (const s of sets) {
+    for (const s of (sets || [])) {
       const { data: qs } = await db.from('quiz_questions').select('*').eq('quiz_set_id', s.id).order('order_num');
       setsWithQ.push({ ...s, _qs: qs || [] });
     }
-    el.innerHTML = setsWithQ.map(s => `
+    const cards = setsWithQ.map(s => `
       <div class="prev-card border-l-4 border-teal-400">
         <div class="flex items-center justify-between mb-2">
-          <div class="flex items-center gap-2">
-            <h3 class="font-bold text-gray-800 text-sm">${escHtml(s.title)}</h3>
-          </div>
+          <h3 class="font-bold text-gray-800 text-sm">${escHtml(s.title)}</h3>
           <div class="flex gap-1">
             <button onclick="movePreviewQuizSet('${s.id}','up','${topicId}')" class="btn-sm btn-gray text-xs">▲</button>
             <button onclick="movePreviewQuizSet('${s.id}','down','${topicId}')" class="btn-sm btn-gray text-xs">▼</button>
+            <button onclick="openQuestionsModal('${s.id}','${escHtml(s.title)}')" class="btn-sm btn-edit text-xs"><i class="fas fa-list-check mr-1"></i>問題(${s._qs.length})</button>
+            <button onclick="deletePreviewQuizSet('${s.id}','${topicId}')" class="btn-sm btn-del"><i class="fas fa-trash"></i></button>
           </div>
         </div>
         ${prevMediaHtml(s.image_url, s.image_caption)}
@@ -3021,6 +2870,16 @@
             </div>`).join('')}
         </div>
       </div>`).join('');
+    el.innerHTML = cards + `
+      <div class="card p-4 border-2 border-dashed border-gray-200">
+        <p class="text-xs font-semibold text-gray-500 mb-2"><i class="fas fa-plus mr-1 text-teal-500"></i>クイズセットを追加</p>
+        <div class="space-y-2">
+          <input type="text" id="pq-nqs-title" class="inp" placeholder="セットのタイトル（例: ①各部の名称）">
+          <input type="text" id="pq-nqs-image" class="inp" placeholder="画像URL（Googleドライブ共有リンク等）">
+          <input type="text" id="pq-nqs-caption" class="inp" placeholder="画像キャプション">
+          <button class="btn-red w-full" onclick="addPreviewQuizSet('${topicId}')"><i class="fas fa-plus mr-1"></i>クイズセット追加</button>
+        </div>
+      </div>`;
   }
 
   async function movePreviewQuizSet(id, dir, topicId) {
