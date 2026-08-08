@@ -66,10 +66,8 @@
     .logout-btn:hover { background: #FEE2E2; }
 
     /* Achievement level circles */
-    .level-circle { width:26px; height:26px; min-width:26px; border-radius:50%; border:2px solid #d1d5db; display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:700; color:#9ca3af; cursor:pointer; background:none; padding:0; transition:all .15s; }
-    .level-circle:hover { border-color:#7BBAA8; color:#7BBAA8; transform:scale(1.15); }
+    .level-circle { width:26px; height:26px; min-width:26px; border-radius:50%; border:2px solid #d1d5db; display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:700; color:#9ca3af; }
     .level-circle.done { background:#7BBAA8; border-color:#7BBAA8; color:#fff; }
-    .level-circle.done:hover { background:#5fa390; border-color:#5fa390; }
     .level-circle.next { border-color:#7BBAA8; color:#7BBAA8; }
     .level-row { display:flex; align-items:flex-start; gap:8px; padding:5px 0; border-bottom:1px solid #f0f0f0; }
     .level-row:last-child { border-bottom:none; }
@@ -355,7 +353,7 @@
         levelCirclesHtml = Array.from({length: lc}, (_, i) => {
           const lvl = i + 1;
           const cls = lvl <= cl ? 'done' : (lvl === cl + 1 && !isDone ? 'next' : '');
-          return `<button class="level-circle ${cls}" onclick="setTaskLevel('${taskId}',${lvl},${lc},${num})">${lvl}</button>`;
+          return `<div class="level-circle ${cls}">${lvl}</div>`;
         }).join('');
       }
 
@@ -519,7 +517,7 @@
         if (circEl) circEl.innerHTML = Array.from({length: levelCount}, (_, i) => {
           const lvl = i + 1;
           const cls = lvl <= newLevel ? 'done' : (lvl === newLevel + 1 && !isDone ? 'next' : '');
-          return `<button class="level-circle ${cls}" onclick="setTaskLevel('${taskId}',${lvl},${levelCount},${num})">${lvl}</button>`;
+          return `<div class="level-circle ${cls}">${lvl}</div>`;
         }).join('');
         // Update level tag styles
         el.querySelectorAll('.level-tag').forEach((tag, i) => {
