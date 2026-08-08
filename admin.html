@@ -42,6 +42,19 @@
     .badge-green  { background: #DCFCE7; color: #166534; }
     .badge-gray   { background: #F3F4F6; color: #6B7280; }
     select.inp { background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e"); background-repeat: no-repeat; background-position: right 8px center; background-size: 16px; padding-right: 32px; }
+    .song-pill { background: #fff; border: 2px solid #e5e7eb; border-radius: 20px; padding: 5px 12px; font-size: 12px; font-weight: 600; cursor: pointer; transition: all .2s; color: #374151; white-space: nowrap; }
+    .song-pill.active { background: #8B7BC8; border-color: #8B7BC8; color: #fff; }
+    .song-pill:hover:not(.active) { border-color: #8B7BC8; color: #8B7BC8; }
+    .prev-card { background: #fff; border-radius: 12px; padding: 12px 14px; margin-bottom: 8px; box-shadow: 0 2px 8px rgba(0,0,0,.05); border: 1px solid #f0f0f0; }
+    .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.6); z-index: 50; display: flex; align-items: center; justify-content: center; padding: 16px; }
+    .modal-box { background: #fff; border-radius: 16px; padding: 20px; width: 100%; box-shadow: 0 20px 60px rgba(0,0,0,.3); max-height: 90vh; overflow-y: auto; }
+    .btn-toggle { background: #D1FAE5; color: #065F46; border: none; border-radius: 6px; padding: 4px 8px; font-size: 11px; font-weight: 600; cursor: pointer; font-family: 'Noto Sans JP', sans-serif; }
+    .btn-toggle.off { background: #F3F4F6; color: #9CA3AF; }
+    .btn-red { background: linear-gradient(135deg, #8B7BC8, #9B8BD8); color: #fff; border: none; border-radius: 8px; padding: 8px 14px; font-size: 13px; font-weight: 600; cursor: pointer; font-family: 'Noto Sans JP', sans-serif; transition: all .2s; }
+    .btn-red:hover { box-shadow: 0 4px 12px rgba(139,123,200,.4); }
+    .sub-tab-btn { padding: 10px 14px; font-size: 12px; font-weight: 500; color: #666; white-space: nowrap; cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -2px; transition: all .2s; background: none; border-top: none; border-left: none; border-right: none; font-family: 'Noto Sans JP', sans-serif; }
+    .sub-tab-btn:hover { color: #8B7BC8; background: #F5F3FF; }
+    .sub-tab-btn.active { color: #8B7BC8; border-bottom-color: #8B7BC8; font-weight: 700; }
   </style>
 </head>
 <body>
@@ -78,6 +91,9 @@
       </button>
       <button class="tab-btn" id="tab-btn-schools" onclick="switchTab('schools')">
         <i class="fas fa-school mr-1.5"></i>学校管理
+      </button>
+      <button class="tab-btn" id="tab-btn-content-mgmt" onclick="switchTab('content-mgmt')">
+        <i class="fas fa-book-open mr-1.5"></i>コンテンツ管理
       </button>
       <button class="tab-btn" id="tab-btn-admin-settings" onclick="switchTab('admin-settings')">
         <i class="fas fa-cog mr-1.5"></i>管理者設定
@@ -159,6 +175,77 @@
       </div>
     </div>
 
+    <!-- コンテンツ管理 -->
+    <div id="tab-content-mgmt" class="tab-content hidden space-y-4">
+      <div class="card p-4">
+        <div class="section-title"><i class="fas fa-book-open text-indigo-500"></i>コンテンツ管理</div>
+        <p class="text-xs text-gray-400 mb-3">管理する学校を選択してください。基礎知識・穴埋めクイズ・学年別課題・曲別課題を管理できます。</p>
+        <select id="admin-school-select" class="inp" style="max-width:400px" onchange="selectAdminSchool(this.value)">
+          <option value="">学校を選択...</option>
+        </select>
+      </div>
+      <div id="admin-content-area" class="hidden">
+        <div class="bg-white rounded-xl shadow-sm mb-4 overflow-x-auto" style="border-bottom:2px solid #f3f4f6">
+          <div class="flex">
+            <button class="sub-tab-btn active" id="admin-sub-btn-content" onclick="adminSwitchSubTab('content')"><i class="fas fa-book-open mr-1.5"></i>基礎知識</button>
+            <button class="sub-tab-btn" id="admin-sub-btn-quiz" onclick="adminSwitchSubTab('quiz')"><i class="fas fa-pencil-alt mr-1.5"></i>穴埋めクイズ</button>
+            <button class="sub-tab-btn" id="admin-sub-btn-grade" onclick="adminSwitchSubTab('grade')"><i class="fas fa-graduation-cap mr-1.5"></i>学年別課題</button>
+            <button class="sub-tab-btn" id="admin-sub-btn-song" onclick="adminSwitchSubTab('song')"><i class="fas fa-music mr-1.5"></i>曲別課題</button>
+          </div>
+        </div>
+        <!-- 基礎知識 -->
+        <div id="admin-sub-content" class="space-y-3">
+          <div class="card p-4 flex items-center gap-2 flex-wrap">
+            <div class="section-title mb-0 mr-auto"><i class="fas fa-book-open text-indigo-500"></i>基礎知識</div>
+            <button class="btn-gray text-xs" onclick="adminDownloadContentTemplate()"><i class="fas fa-file-download mr-1"></i>テンプレ</button>
+            <button class="btn-gray text-xs" onclick="document.getElementById('admin-pc-csv-input').click()"><i class="fas fa-file-import mr-1"></i>CSVインポート</button>
+            <button class="btn-indigo text-xs" onclick="openAdminTopicModal(null,'content')"><i class="fas fa-plus mr-1"></i>トピック追加</button>
+            <input type="file" id="admin-pc-csv-input" accept=".csv" class="hidden" onchange="onAdminContentCSVSelected(event)">
+          </div>
+          <div class="card p-4">
+            <p class="text-xs text-gray-400 mb-2">トピック（▲▼で並び替え、公開/非公開で切替）</p>
+            <div id="admin-content-topic-list" class="flex gap-3 flex-wrap pb-2"></div>
+          </div>
+          <div id="admin-content-body" class="space-y-3"></div>
+        </div>
+        <!-- 穴埋めクイズ -->
+        <div id="admin-sub-quiz" class="space-y-3 hidden">
+          <div class="card p-4 flex items-center gap-2 flex-wrap">
+            <div class="section-title mb-0 mr-auto"><i class="fas fa-pencil-alt text-indigo-500"></i>穴埋めクイズ</div>
+            <button class="btn-gray text-xs" onclick="adminDownloadQuizTemplate()"><i class="fas fa-file-download mr-1"></i>テンプレ</button>
+            <button class="btn-gray text-xs" onclick="document.getElementById('admin-pq-csv-input').click()"><i class="fas fa-file-import mr-1"></i>CSVインポート</button>
+            <button class="btn-indigo text-xs" onclick="openAdminTopicModal(null,'quiz')"><i class="fas fa-plus mr-1"></i>トピック追加</button>
+            <input type="file" id="admin-pq-csv-input" accept=".csv" class="hidden" onchange="onAdminQuizCSVSelected(event)">
+          </div>
+          <div class="card p-4">
+            <p class="text-xs text-gray-400 mb-2">トピック（▲▼で並び替え、公開/非公開で切替）</p>
+            <div id="admin-quiz-topic-list" class="flex gap-3 flex-wrap pb-2"></div>
+          </div>
+          <div id="admin-quiz-body" class="space-y-3"></div>
+        </div>
+        <!-- 学年別課題 -->
+        <div id="admin-sub-grade" class="space-y-3 hidden">
+          <div class="card p-4">
+            <div class="section-title"><i class="fas fa-graduation-cap text-indigo-500"></i>学年別課題</div>
+            <p class="text-xs text-gray-400">▲▼で並び替え、表示/非表示で公開を切り替えます。</p>
+          </div>
+          <div id="admin-grade-list" class="space-y-2"></div>
+        </div>
+        <!-- 曲別課題 -->
+        <div id="admin-sub-song" class="space-y-3 hidden">
+          <div class="card p-4">
+            <div class="section-title"><i class="fas fa-music text-indigo-500"></i>曲別課題</div>
+            <p class="text-xs text-gray-400">曲を選択して課題の並び順・公開設定を管理します。</p>
+          </div>
+          <div class="card p-4">
+            <p class="text-xs text-gray-400 mb-2">曲（▲▼で並び替え、公開/非公開で切替）</p>
+            <div id="admin-song-pills" class="flex gap-3 flex-wrap pb-2"></div>
+          </div>
+          <div id="admin-song-body" class="space-y-2"></div>
+        </div>
+      </div>
+    </div>
+
     <!-- 管理者設定 -->
     <div id="tab-admin-settings" class="tab-content hidden">
       <div class="max-w-md space-y-4">
@@ -193,6 +280,72 @@
       </div>
     </div>
 
+  </div>
+</div>
+
+<!-- 管理者: トピック追加/編集モーダル -->
+<div id="admin-topic-modal" class="modal-overlay hidden">
+  <div class="modal-box" style="max-width:500px">
+    <div class="flex items-center justify-between mb-4">
+      <h3 class="font-bold text-gray-800" id="admin-topic-modal-title">トピックを追加</h3>
+      <button onclick="adminCloseModal('admin-topic-modal')" class="text-gray-400 hover:text-gray-600 text-2xl leading-none">&times;</button>
+    </div>
+    <form onsubmit="saveAdminTopic(event)" class="space-y-3">
+      <input type="hidden" id="adm-st-id">
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label class="block text-xs font-semibold text-gray-600 mb-1">タイトル <span class="text-red-500">*</span></label>
+          <input type="text" id="adm-st-title" class="inp" placeholder="三線の基礎" required>
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-gray-600 mb-1">アイコン</label>
+          <input type="text" id="adm-st-icon" class="inp" placeholder="📚">
+        </div>
+      </div>
+      <div>
+        <label class="block text-xs font-semibold text-gray-600 mb-1">種別</label>
+        <select id="adm-st-type" class="inp">
+          <option value="content">📖 読み物（基礎知識）</option>
+          <option value="quiz">✏️ 穴埋めクイズ</option>
+        </select>
+      </div>
+      <div>
+        <label class="block text-xs font-semibold text-gray-600 mb-1">先生メモ</label>
+        <textarea id="adm-st-memo" class="inp" rows="2" placeholder="管理者メモ（生徒には見えません）"></textarea>
+      </div>
+      <label class="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+        <input type="checkbox" id="adm-st-active" checked class="w-4 h-4">
+        <span>公開する（チェックを外すと生徒に表示されません）</span>
+      </label>
+      <div class="flex gap-3 pt-2">
+        <button type="button" onclick="adminCloseModal('admin-topic-modal')" class="btn-gray flex-1">キャンセル</button>
+        <button type="submit" class="btn-indigo flex-1"><i class="fas fa-save mr-1"></i>保存</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- 管理者: 問題管理モーダル -->
+<div id="admin-questions-modal" class="modal-overlay hidden">
+  <div class="modal-box" style="max-width:560px">
+    <div class="flex items-center justify-between mb-4">
+      <h3 class="font-bold text-gray-800" id="admin-questions-modal-title">問題管理</h3>
+      <button onclick="adminCloseModal('admin-questions-modal')" class="text-gray-400 hover:text-gray-600 text-2xl leading-none">&times;</button>
+    </div>
+    <div id="admin-questions-list" class="space-y-2 mb-4 max-h-64 overflow-y-auto"></div>
+    <div class="border-t pt-4">
+      <p class="text-xs font-semibold text-gray-500 mb-2">問題を追加</p>
+      <form onsubmit="addAdminQuestion(event)" class="space-y-2">
+        <input type="text" id="admin-nq-text" class="inp" placeholder="問題文（例: 三線の胴の部分は？）" required>
+        <div class="grid grid-cols-2 gap-2">
+          <input type="text" id="admin-nq-answer" class="inp" placeholder="正解" required>
+          <input type="text" id="admin-nq-alts" class="inp" placeholder="別解（カンマ区切り）">
+        </div>
+        <input type="text" id="admin-nq-hint" class="inp" placeholder="ヒント（任意）">
+        <button type="submit" class="btn-indigo w-full"><i class="fas fa-plus mr-1"></i>問題を追加</button>
+      </form>
+    </div>
+    <button class="btn-gray w-full mt-3" onclick="adminCloseModal('admin-questions-modal')">閉じる</button>
   </div>
 </div>
 
@@ -331,7 +484,7 @@
     document.getElementById(`tab-${name}`)?.classList.remove('hidden');
     if (!tabLoaded[name]) {
       tabLoaded[name] = true;
-      const loaders = { dashboard: loadDashboard, teachers: loadTeachers, schools: loadSchools, 'admin-settings': () => {} };
+      const loaders = { dashboard: loadDashboard, teachers: loadTeachers, schools: loadSchools, 'admin-settings': () => {}, 'content-mgmt': loadAdminContentMgmt };
       if (loaders[name]) await loaders[name]();
     }
   }
@@ -828,6 +981,644 @@
     const msg = `インポート完了: ${success}名追加, ${skipped}名スキップ` + (failed > 0 ? `, ${failed}名失敗 (${failedNames.join(', ')})` : '');
     toast(msg, failed > 0 ? 'error' : 'success');
     await loadTeachers();
+  }
+
+  // ---- CONTENT MANAGEMENT (Admin) ----
+
+  let adminSchoolId = null;
+  let adminContentTopics = [], adminQuizTopics = [];
+  let currentAdminContentTopicId = null, currentAdminQuizTopicId = null;
+  let adminKotoTasks = [], adminSongs = [], currentAdminSongId = null;
+  let adminSongTaskCache = {};
+  let adminSubLoaded = { content: false, quiz: false, grade: false, song: false };
+  let _adminQuizSetId = null;
+
+  function escHtml(s) { return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+  function adminCloseModal(id) { document.getElementById(id).classList.add('hidden'); }
+
+  async function swapOrderNum(tableName, items, id, dir) {
+    const idx = items.findIndex(x => x.id === id);
+    if (idx < 0) return false;
+    const other = dir === 'up' ? items[idx - 1] : items[idx + 1];
+    if (!other) return false;
+    const a = items[idx].order_num, b = other.order_num;
+    await db.from(tableName).update({ order_num: b }).eq('id', id);
+    await db.from(tableName).update({ order_num: a }).eq('id', other.id);
+    return true;
+  }
+
+  function parseCSVLine(line) {
+    const result = []; let cur = '', inQ = false;
+    for (let i = 0; i < line.length; i++) {
+      const c = line[i];
+      if (c === '"') { if (inQ && line[i+1] === '"') { cur += '"'; i++; } else inQ = !inQ; }
+      else if (c === ',' && !inQ) { result.push(cur.trim()); cur = ''; }
+      else cur += c;
+    }
+    result.push(cur.trim()); return result;
+  }
+
+  async function loadAdminContentMgmt() {
+    const el = document.getElementById('admin-school-select');
+    const { data } = await db.from('teacher_profiles').select('school_id, school_name');
+    const schoolMap = {};
+    (data || []).forEach(t => { if (!schoolMap[t.school_id]) schoolMap[t.school_id] = { school_id: t.school_id, school_name: t.school_name || t.school_id }; });
+    const schools = Object.values(schoolMap).sort((a, b) => a.school_id.localeCompare(b.school_id));
+    el.innerHTML = '<option value="">学校を選択...</option>' + schools.map(s => `<option value="${escHtml(s.school_id)}">${escHtml(s.school_name)} (${escHtml(s.school_id)})</option>`).join('');
+  }
+
+  async function selectAdminSchool(sid) {
+    adminSchoolId = sid;
+    const area = document.getElementById('admin-content-area');
+    if (!sid) { area.classList.add('hidden'); return; }
+    area.classList.remove('hidden');
+    adminSubLoaded = { content: false, quiz: false, grade: false, song: false };
+    document.querySelectorAll('.sub-tab-btn').forEach(b => b.classList.remove('active'));
+    document.getElementById('admin-sub-btn-content').classList.add('active');
+    ['content','quiz','grade','song'].forEach(n => document.getElementById(`admin-sub-${n}`).classList.toggle('hidden', n !== 'content'));
+    adminSubLoaded.content = true;
+    await loadAdminContentTab();
+  }
+
+  function adminSwitchSubTab(name) {
+    ['content','quiz','grade','song'].forEach(n => {
+      document.getElementById(`admin-sub-${n}`).classList.toggle('hidden', n !== name);
+      document.getElementById(`admin-sub-btn-${n}`).classList.toggle('active', n === name);
+    });
+    if (!adminSubLoaded[name]) {
+      adminSubLoaded[name] = true;
+      const loaders = { content: loadAdminContentTab, quiz: loadAdminQuizTab, grade: loadAdminGradeTab, song: loadAdminSongTab };
+      if (loaders[name]) loaders[name]();
+    }
+  }
+
+  // 基礎知識
+
+  async function loadAdminContentTab() {
+    const { data } = await db.from('study_topics').select('*').eq('school_id', adminSchoolId).eq('topic_type', 'content').order('order_num');
+    adminContentTopics = data || [];
+    const bodyEl = document.getElementById('admin-content-body');
+    if (!adminContentTopics.length) {
+      document.getElementById('admin-content-topic-list').innerHTML = '<p class="text-sm text-gray-400">トピックがありません</p>';
+      bodyEl.innerHTML = '<div class="card p-6 text-center text-gray-400 text-sm">トピックがありません。CSVインポートまたはトピック追加から作成してください。</div>';
+      return;
+    }
+    currentAdminContentTopicId = adminContentTopics[0].id;
+    renderAdminContentTopicList();
+    await loadAdminContentSections(currentAdminContentTopicId);
+  }
+
+  function renderAdminContentTopicList() {
+    const el = document.getElementById('admin-content-topic-list');
+    if (!adminContentTopics.length) { el.innerHTML = '<p class="text-sm text-gray-400">トピックがありません</p>'; return; }
+    el.innerHTML = adminContentTopics.map(t => `
+      <div class="flex flex-col items-center gap-1 flex-shrink-0">
+        <div class="flex items-center gap-0.5">
+          <button onclick="moveAdminContentTopic('${t.id}','up')" class="text-gray-300 hover:text-gray-600 text-xs px-1">▲</button>
+          <button onclick="moveAdminContentTopic('${t.id}','down')" class="text-gray-300 hover:text-gray-600 text-xs px-1">▼</button>
+          <button onclick="toggleAdminTopicActive('${t.id}',${t.is_active},'content')"
+            class="text-xs px-1.5 py-0.5 rounded font-semibold ${t.is_active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-400'}">
+            ${t.is_active ? '公開' : '非公開'}
+          </button>
+          <button onclick="openAdminTopicModal('${t.id}')" class="text-xs px-1.5 py-0.5 rounded bg-blue-50 text-blue-600 hover:bg-blue-100"><i class="fas fa-edit"></i></button>
+          <button onclick="deleteAdminTopic('${t.id}','content')" class="text-xs px-1.5 py-0.5 rounded bg-red-50 text-red-500 hover:bg-red-100"><i class="fas fa-trash"></i></button>
+        </div>
+        <button class="song-pill${t.id === currentAdminContentTopicId ? ' active' : ''}" onclick="selectAdminContentTopic('${t.id}')" style="opacity:${t.is_active ? 1 : 0.5}">
+          ${escHtml(t.icon || '📚')} ${escHtml(t.title)}
+        </button>
+      </div>`).join('');
+  }
+
+  async function selectAdminContentTopic(topicId) {
+    currentAdminContentTopicId = topicId;
+    renderAdminContentTopicList();
+    await loadAdminContentSections(topicId);
+  }
+
+  async function loadAdminContentSections(topicId) {
+    const el = document.getElementById('admin-content-body');
+    el.innerHTML = '<div class="text-center py-4 text-gray-400 text-sm">読み込み中...</div>';
+    const { data } = await db.from('study_sections').select('*').eq('topic_id', topicId).order('order_num');
+    const sections = data || [];
+    const cards = sections.map(s => {
+      const visible = s.is_visible !== false;
+      return `<div class="prev-card border-l-4 ${visible ? 'border-indigo-400' : 'border-gray-200'}${visible ? '' : ' opacity-60'}">
+        <div class="flex items-start justify-between gap-2 mb-1">
+          <div class="flex items-center gap-2 min-w-0">
+            <h3 class="font-semibold text-gray-800 text-sm truncate">${escHtml(s.title)}</h3>
+            ${visible ? '' : '<span class="text-xs bg-gray-100 text-gray-400 px-1.5 py-0.5 rounded flex-shrink-0">非表示</span>'}
+          </div>
+          <div class="flex gap-1 flex-shrink-0">
+            <button onclick="moveAdminSection('${s.id}','up','${topicId}')" class="btn-sm btn-gray">▲</button>
+            <button onclick="moveAdminSection('${s.id}','down','${topicId}')" class="btn-sm btn-gray">▼</button>
+            <button onclick="toggleAdminSectionVisible('${s.id}',${visible},'${topicId}')" class="btn-sm ${visible ? 'btn-toggle' : 'btn-toggle off'}">${visible ? '表示中' : '非表示'}</button>
+            <button onclick="deleteAdminSection('${s.id}','${topicId}')" class="btn-sm btn-del"><i class="fas fa-trash"></i></button>
+          </div>
+        </div>
+        ${s.body ? `<p class="text-xs text-gray-600 whitespace-pre-wrap mt-1">${escHtml(s.body)}</p>` : ''}
+        ${s.image_url ? `<p class="text-xs text-indigo-500 mt-1 truncate"><i class="fas fa-image mr-1"></i>${escHtml(s.image_url)}</p>` : ''}
+        ${s.youtube_url ? `<p class="text-xs text-red-400 mt-1"><i class="fab fa-youtube mr-1"></i>${escHtml(s.youtube_url)}</p>` : ''}
+      </div>`;
+    }).join('');
+    el.innerHTML = cards + `
+      <div class="card p-4 border-2 border-dashed border-gray-200 mt-2">
+        <p class="text-xs font-semibold text-gray-500 mb-2"><i class="fas fa-plus mr-1 text-indigo-500"></i>セクションを追加</p>
+        <div class="space-y-2">
+          <input type="text" id="admin-ns-title" class="inp" placeholder="見出し（例: ①起源と由来）">
+          <textarea id="admin-ns-body" class="inp" rows="3" placeholder="説明文（改行可）" style="resize:vertical"></textarea>
+          <input type="text" id="admin-ns-image" class="inp" placeholder="画像URL">
+          <input type="text" id="admin-ns-caption" class="inp" placeholder="画像キャプション">
+          <input type="text" id="admin-ns-youtube" class="inp" placeholder="YouTube URL（任意）">
+          <label class="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+            <input type="checkbox" id="admin-ns-visible" checked class="w-4 h-4">生徒に表示する
+          </label>
+          <button class="btn-red w-full" onclick="addAdminSection('${topicId}')"><i class="fas fa-plus mr-1"></i>セクション追加</button>
+        </div>
+      </div>`;
+  }
+
+  async function moveAdminContentTopic(id, dir) {
+    if (!await swapOrderNum('study_topics', adminContentTopics, id, dir)) return;
+    const { data } = await db.from('study_topics').select('*').eq('school_id', adminSchoolId).eq('topic_type', 'content').order('order_num');
+    adminContentTopics = data || [];
+    renderAdminContentTopicList();
+  }
+
+  async function toggleAdminTopicActive(id, current, type) {
+    await db.from('study_topics').update({ is_active: !current }).eq('id', id);
+    if (type === 'content') {
+      const idx = adminContentTopics.findIndex(t => t.id === id);
+      if (idx >= 0) adminContentTopics[idx].is_active = !current;
+      renderAdminContentTopicList();
+    } else {
+      const idx = adminQuizTopics.findIndex(t => t.id === id);
+      if (idx >= 0) adminQuizTopics[idx].is_active = !current;
+      renderAdminQuizTopicList();
+    }
+  }
+
+  async function moveAdminSection(id, dir, topicId) {
+    const { data } = await db.from('study_sections').select('*').eq('topic_id', topicId).order('order_num');
+    if (!await swapOrderNum('study_sections', data || [], id, dir)) return;
+    await loadAdminContentSections(topicId);
+  }
+
+  async function toggleAdminSectionVisible(id, current, topicId) {
+    await db.from('study_sections').update({ is_visible: !current }).eq('id', id);
+    await loadAdminContentSections(topicId);
+  }
+
+  async function addAdminSection(topicId) {
+    const title   = document.getElementById('admin-ns-title').value.trim();
+    const body    = document.getElementById('admin-ns-body').value.trim();
+    const image   = document.getElementById('admin-ns-image').value.trim();
+    const caption = document.getElementById('admin-ns-caption').value.trim();
+    const youtube = document.getElementById('admin-ns-youtube').value.trim();
+    const visible = document.getElementById('admin-ns-visible').checked;
+    if (!title) { toast('見出しを入力してください', 'error'); return; }
+    const { data: existing } = await db.from('study_sections').select('order_num').eq('topic_id', topicId).order('order_num', { ascending: false }).limit(1);
+    const order_num = (existing?.[0]?.order_num || 0) + 1;
+    const { error } = await db.from('study_sections').insert({ topic_id: topicId, school_id: adminSchoolId, title, body, image_url: image, image_caption: caption, youtube_url: youtube, is_visible: visible, order_num });
+    if (error) { toast('追加失敗', 'error'); return; }
+    toast('追加しました', 'success');
+    await loadAdminContentSections(topicId);
+  }
+
+  async function deleteAdminSection(id, topicId) {
+    if (!confirm('このセクションを削除しますか？')) return;
+    await db.from('study_sections').delete().eq('id', id);
+    await loadAdminContentSections(topicId);
+  }
+
+  async function deleteAdminTopic(id, type) {
+    if (!confirm('このトピックと全コンテンツを削除しますか？')) return;
+    await db.from('study_topics').delete().eq('id', id);
+    toast('削除しました', 'success');
+    if (type === 'quiz') await loadAdminQuizTab();
+    else await loadAdminContentTab();
+  }
+
+  // トピックモーダル
+
+  function openAdminTopicModal(id = null, defaultType = 'content') {
+    document.getElementById('admin-topic-modal-title').textContent = id ? 'トピックを編集' : 'トピックを追加';
+    document.getElementById('adm-st-id').value = id || '';
+    if (!id) {
+      document.getElementById('adm-st-title').value = '';
+      document.getElementById('adm-st-icon').value  = defaultType === 'quiz' ? '🎵' : '📚';
+      document.getElementById('adm-st-type').value  = defaultType;
+      document.getElementById('adm-st-active').checked = true;
+      document.getElementById('adm-st-memo').value  = '';
+    } else {
+      db.from('study_topics').select('*').eq('id', id).single().then(({ data }) => {
+        if (!data) return;
+        document.getElementById('adm-st-title').value    = data.title;
+        document.getElementById('adm-st-icon').value     = data.icon || '📚';
+        document.getElementById('adm-st-type').value     = data.topic_type;
+        document.getElementById('adm-st-active').checked = data.is_active;
+        document.getElementById('adm-st-memo').value     = data.teacher_memo || '';
+      });
+    }
+    document.getElementById('admin-topic-modal').classList.remove('hidden');
+  }
+
+  async function saveAdminTopic(e) {
+    e.preventDefault();
+    const id = document.getElementById('adm-st-id').value;
+    const payload = {
+      school_id: adminSchoolId,
+      title:     document.getElementById('adm-st-title').value.trim(),
+      icon:      document.getElementById('adm-st-icon').value.trim() || '📚',
+      topic_type: document.getElementById('adm-st-type').value,
+      is_active: document.getElementById('adm-st-active').checked,
+      teacher_memo: document.getElementById('adm-st-memo').value.trim(),
+    };
+    const { error } = id
+      ? await db.from('study_topics').update(payload).eq('id', id)
+      : await db.from('study_topics').insert(payload);
+    if (error) { toast('保存失敗: ' + error.message, 'error'); return; }
+    toast('保存しました', 'success');
+    adminCloseModal('admin-topic-modal');
+    if (payload.topic_type === 'quiz') await loadAdminQuizTab();
+    else await loadAdminContentTab();
+  }
+
+  // 穴埋めクイズ
+
+  async function loadAdminQuizTab() {
+    const { data } = await db.from('study_topics').select('*').eq('school_id', adminSchoolId).eq('topic_type', 'quiz').order('order_num');
+    adminQuizTopics = data || [];
+    const bodyEl = document.getElementById('admin-quiz-body');
+    if (!adminQuizTopics.length) {
+      document.getElementById('admin-quiz-topic-list').innerHTML = '<p class="text-sm text-gray-400">トピックがありません</p>';
+      bodyEl.innerHTML = '<div class="card p-6 text-center text-gray-400 text-sm">クイズトピックがありません。CSVインポートまたはトピック追加から作成してください。</div>';
+      return;
+    }
+    currentAdminQuizTopicId = adminQuizTopics[0].id;
+    renderAdminQuizTopicList();
+    await loadAdminQuizSets(currentAdminQuizTopicId);
+  }
+
+  function renderAdminQuizTopicList() {
+    const el = document.getElementById('admin-quiz-topic-list');
+    if (!adminQuizTopics.length) { el.innerHTML = '<p class="text-sm text-gray-400">トピックがありません</p>'; return; }
+    el.innerHTML = adminQuizTopics.map(t => `
+      <div class="flex flex-col items-center gap-1 flex-shrink-0">
+        <div class="flex items-center gap-0.5">
+          <button onclick="moveAdminQuizTopic('${t.id}','up')" class="text-gray-300 hover:text-gray-600 text-xs px-1">▲</button>
+          <button onclick="moveAdminQuizTopic('${t.id}','down')" class="text-gray-300 hover:text-gray-600 text-xs px-1">▼</button>
+          <button onclick="toggleAdminTopicActive('${t.id}',${t.is_active},'quiz')"
+            class="text-xs px-1.5 py-0.5 rounded font-semibold ${t.is_active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-400'}">
+            ${t.is_active ? '公開' : '非公開'}
+          </button>
+          <button onclick="openAdminTopicModal('${t.id}')" class="text-xs px-1.5 py-0.5 rounded bg-blue-50 text-blue-600 hover:bg-blue-100"><i class="fas fa-edit"></i></button>
+          <button onclick="deleteAdminTopic('${t.id}','quiz')" class="text-xs px-1.5 py-0.5 rounded bg-red-50 text-red-500 hover:bg-red-100"><i class="fas fa-trash"></i></button>
+        </div>
+        <button class="song-pill${t.id === currentAdminQuizTopicId ? ' active' : ''}" onclick="selectAdminQuizTopic('${t.id}')" style="opacity:${t.is_active ? 1 : 0.5}">
+          ${escHtml(t.icon || '🎵')} ${escHtml(t.title)}
+        </button>
+      </div>`).join('');
+  }
+
+  async function selectAdminQuizTopic(topicId) {
+    currentAdminQuizTopicId = topicId;
+    renderAdminQuizTopicList();
+    await loadAdminQuizSets(topicId);
+  }
+
+  async function moveAdminQuizTopic(id, dir) {
+    if (!await swapOrderNum('study_topics', adminQuizTopics, id, dir)) return;
+    const { data } = await db.from('study_topics').select('*').eq('school_id', adminSchoolId).eq('topic_type', 'quiz').order('order_num');
+    adminQuizTopics = data || [];
+    renderAdminQuizTopicList();
+  }
+
+  async function loadAdminQuizSets(topicId) {
+    const el = document.getElementById('admin-quiz-body');
+    el.innerHTML = '<div class="text-center py-4 text-gray-400 text-sm">読み込み中...</div>';
+    const { data: sets } = await db.from('quiz_sets').select('*').eq('topic_id', topicId).order('order_num');
+    const setsWithQ = [];
+    for (const s of (sets || [])) {
+      const { data: qs } = await db.from('quiz_questions').select('*').eq('quiz_set_id', s.id).order('order_num');
+      setsWithQ.push({ ...s, _qs: qs || [] });
+    }
+    const cards = setsWithQ.map(s => `
+      <div class="prev-card border-l-4 border-indigo-400">
+        <div class="flex items-center justify-between mb-2">
+          <h3 class="font-semibold text-gray-800 text-sm">${escHtml(s.title)}</h3>
+          <div class="flex gap-1">
+            <button onclick="moveAdminQuizSet('${s.id}','up','${topicId}')" class="btn-sm btn-gray">▲</button>
+            <button onclick="moveAdminQuizSet('${s.id}','down','${topicId}')" class="btn-sm btn-gray">▼</button>
+            <button onclick="openAdminQuestionsModal('${s.id}','${escHtml(s.title)}')" class="btn-sm btn-edit"><i class="fas fa-list-check mr-1"></i>問題(${s._qs.length})</button>
+            <button onclick="deleteAdminQuizSet('${s.id}','${topicId}')" class="btn-sm btn-del"><i class="fas fa-trash"></i></button>
+          </div>
+        </div>
+        ${s.image_url ? `<p class="text-xs text-indigo-500 mb-2 truncate"><i class="fas fa-image mr-1"></i>${escHtml(s.image_url)}</p>` : ''}
+        <div class="space-y-1 mt-1">
+          ${s._qs.map(q => `
+            <div class="flex items-start gap-2 bg-gray-50 rounded-lg px-3 py-2">
+              <div class="flex-1 text-xs text-gray-700">${escHtml(q.question_text)}</div>
+              <div class="text-xs font-semibold text-green-700 whitespace-nowrap flex-shrink-0">答: ${escHtml(q.correct_answer)}</div>
+            </div>`).join('')}
+        </div>
+      </div>`).join('');
+    el.innerHTML = cards + `
+      <div class="card p-4 border-2 border-dashed border-gray-200 mt-2">
+        <p class="text-xs font-semibold text-gray-500 mb-2"><i class="fas fa-plus mr-1 text-indigo-500"></i>クイズセットを追加</p>
+        <div class="space-y-2">
+          <input type="text" id="admin-nqs-title" class="inp" placeholder="セットのタイトル（例: ①各部の名称）">
+          <input type="text" id="admin-nqs-image" class="inp" placeholder="画像URL（任意）">
+          <input type="text" id="admin-nqs-caption" class="inp" placeholder="画像キャプション（任意）">
+          <button class="btn-red w-full" onclick="addAdminQuizSet('${topicId}')"><i class="fas fa-plus mr-1"></i>クイズセット追加</button>
+        </div>
+      </div>`;
+  }
+
+  async function moveAdminQuizSet(id, dir, topicId) {
+    const { data } = await db.from('quiz_sets').select('*').eq('topic_id', topicId).order('order_num');
+    if (!await swapOrderNum('quiz_sets', data || [], id, dir)) return;
+    await loadAdminQuizSets(topicId);
+  }
+
+  async function addAdminQuizSet(topicId) {
+    const title   = document.getElementById('admin-nqs-title').value.trim();
+    const image   = document.getElementById('admin-nqs-image').value.trim();
+    const caption = document.getElementById('admin-nqs-caption').value.trim();
+    if (!title) { toast('タイトルを入力してください', 'error'); return; }
+    const { data: existing } = await db.from('quiz_sets').select('order_num').eq('topic_id', topicId).order('order_num', { ascending: false }).limit(1);
+    const order_num = (existing?.[0]?.order_num || 0) + 1;
+    const { error } = await db.from('quiz_sets').insert({ topic_id: topicId, school_id: adminSchoolId, title, image_url: image, image_caption: caption, order_num });
+    if (error) { toast('追加失敗', 'error'); return; }
+    toast('追加しました', 'success');
+    await loadAdminQuizSets(topicId);
+  }
+
+  async function deleteAdminQuizSet(id, topicId) {
+    if (!confirm('このクイズセットと問題をすべて削除しますか？')) return;
+    await db.from('quiz_sets').delete().eq('id', id);
+    await loadAdminQuizSets(topicId);
+  }
+
+  // 問題管理モーダル
+
+  async function openAdminQuestionsModal(setId, setTitle) {
+    _adminQuizSetId = setId;
+    document.getElementById('admin-questions-modal-title').textContent = `${setTitle} — 問題管理`;
+    document.getElementById('admin-questions-modal').classList.remove('hidden');
+    await renderAdminQuestionsList();
+  }
+
+  async function renderAdminQuestionsList() {
+    const el = document.getElementById('admin-questions-list');
+    const { data } = await db.from('quiz_questions').select('*').eq('quiz_set_id', _adminQuizSetId).order('order_num');
+    if (!data?.length) { el.innerHTML = '<p class="text-sm text-gray-400">問題がありません</p>'; return; }
+    el.innerHTML = data.map((q, i) => `
+      <div class="flex items-start gap-2 bg-gray-50 rounded-lg px-3 py-2">
+        <span class="text-xs text-gray-400 font-bold mt-0.5">${i+1}</span>
+        <div class="flex-1 min-w-0">
+          <div class="text-sm text-gray-800">${escHtml(q.question_text)}</div>
+          <div class="text-xs text-green-700 font-semibold">答: ${escHtml(q.correct_answer)}</div>
+          ${q.alt_answers ? `<div class="text-xs text-blue-500">別解: ${escHtml(q.alt_answers)}</div>` : ''}
+          ${q.hint ? `<div class="text-xs text-gray-400">ヒント: ${escHtml(q.hint)}</div>` : ''}
+        </div>
+        <button class="btn-sm btn-del flex-shrink-0" onclick="deleteAdminQuestion('${q.id}')"><i class="fas fa-trash"></i></button>
+      </div>`).join('');
+  }
+
+  async function addAdminQuestion(e) {
+    e.preventDefault();
+    const qtext  = document.getElementById('admin-nq-text').value.trim();
+    const answer = document.getElementById('admin-nq-answer').value.trim();
+    const alts   = document.getElementById('admin-nq-alts').value.trim();
+    const hint   = document.getElementById('admin-nq-hint').value.trim();
+    if (!qtext || !answer) { toast('問題文と正解は必須です', 'error'); return; }
+    const { data: existing } = await db.from('quiz_questions').select('order_num').eq('quiz_set_id', _adminQuizSetId).order('order_num', { ascending: false }).limit(1);
+    const order_num = (existing?.[0]?.order_num || 0) + 1;
+    const { error } = await db.from('quiz_questions').insert({ quiz_set_id: _adminQuizSetId, school_id: adminSchoolId, question_text: qtext, correct_answer: answer, alt_answers: alts, hint, order_num });
+    if (error) { toast('追加失敗', 'error'); return; }
+    ['admin-nq-text','admin-nq-answer','admin-nq-alts','admin-nq-hint'].forEach(id => document.getElementById(id).value = '');
+    toast('追加しました', 'success');
+    await renderAdminQuestionsList();
+    if (currentAdminQuizTopicId) await loadAdminQuizSets(currentAdminQuizTopicId);
+  }
+
+  async function deleteAdminQuestion(id) {
+    if (!confirm('この問題を削除しますか？')) return;
+    await db.from('quiz_questions').delete().eq('id', id);
+    await renderAdminQuestionsList();
+    if (currentAdminQuizTopicId) await loadAdminQuizSets(currentAdminQuizTopicId);
+  }
+
+  // 学年別課題
+
+  async function loadAdminGradeTab() {
+    const { data } = await db.from('koto_tasks').select('id, title, description, order_num, is_active').eq('school_id', adminSchoolId).order('order_num');
+    adminKotoTasks = data || [];
+    renderAdminGradeList();
+  }
+
+  function renderAdminGradeList() {
+    const el = document.getElementById('admin-grade-list');
+    if (!adminKotoTasks.length) { el.innerHTML = '<div class="card p-6 text-center text-gray-400 text-sm">課題が登録されていません</div>'; return; }
+    el.innerHTML = adminKotoTasks.map((t, i) => `
+      <div class="prev-card flex items-center gap-3${t.is_active ? '' : ' opacity-55'}">
+        <div class="w-7 h-7 rounded-full bg-indigo-400 text-white flex items-center justify-center text-xs font-bold flex-shrink-0">${i + 1}</div>
+        <div class="flex-1 min-w-0">
+          <div class="font-semibold text-sm text-gray-800">${escHtml(t.title)}</div>
+          ${t.description ? `<div class="text-xs text-gray-400 mt-0.5 truncate">${escHtml(t.description)}</div>` : ''}
+          ${!t.is_active ? '<span class="text-xs bg-gray-100 text-gray-400 px-1.5 py-0.5 rounded mt-0.5 inline-block">非表示</span>' : ''}
+        </div>
+        <div class="flex gap-1 flex-shrink-0">
+          <button onclick="moveAdminKotoTask('${t.id}','up')" class="btn-sm btn-gray">▲</button>
+          <button onclick="moveAdminKotoTask('${t.id}','down')" class="btn-sm btn-gray">▼</button>
+          <button onclick="toggleAdminKotoTask('${t.id}',${!!t.is_active})" class="btn-sm ${t.is_active ? 'btn-toggle' : 'btn-toggle off'}">${t.is_active ? '表示' : '非表示'}</button>
+        </div>
+      </div>`).join('');
+  }
+
+  async function moveAdminKotoTask(id, dir) {
+    if (!await swapOrderNum('koto_tasks', adminKotoTasks, id, dir)) return;
+    const { data } = await db.from('koto_tasks').select('id, title, description, order_num, is_active').eq('school_id', adminSchoolId).order('order_num');
+    adminKotoTasks = data || [];
+    renderAdminGradeList();
+  }
+
+  async function toggleAdminKotoTask(id, current) {
+    await db.from('koto_tasks').update({ is_active: !current }).eq('id', id);
+    const idx = adminKotoTasks.findIndex(t => t.id === id);
+    if (idx >= 0) adminKotoTasks[idx].is_active = !current;
+    renderAdminGradeList();
+  }
+
+  // 曲別課題
+
+  async function loadAdminSongTab() {
+    const { data } = await db.from('songs').select('id, title, artist, order_num, is_active').eq('school_id', adminSchoolId).order('order_num');
+    adminSongs = data || [];
+    adminSongTaskCache = {};
+    const pillsEl = document.getElementById('admin-song-pills');
+    const bodyEl  = document.getElementById('admin-song-body');
+    if (!adminSongs.length) {
+      pillsEl.innerHTML = '';
+      bodyEl.innerHTML = '<div class="card p-6 text-center text-gray-400 text-sm">楽曲が登録されていません</div>';
+      return;
+    }
+    currentAdminSongId = adminSongs[0].id;
+    renderAdminSongPills();
+    await loadAdminSongTasks(adminSongs[0].id);
+  }
+
+  function renderAdminSongPills() {
+    document.getElementById('admin-song-pills').innerHTML = adminSongs.map(s => `
+      <div class="flex flex-col items-center gap-1 flex-shrink-0">
+        <div class="flex items-center gap-0.5">
+          <button onclick="moveAdminSong('${s.id}','up')" class="text-gray-300 hover:text-gray-600 text-xs px-1">▲</button>
+          <button onclick="moveAdminSong('${s.id}','down')" class="text-gray-300 hover:text-gray-600 text-xs px-1">▼</button>
+          <button onclick="toggleAdminSongActive('${s.id}',${!!s.is_active})"
+            class="text-xs px-1.5 py-0.5 rounded font-semibold ${s.is_active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-400'}">
+            ${s.is_active ? '公開' : '非公開'}
+          </button>
+        </div>
+        <button class="song-pill${s.id === currentAdminSongId ? ' active' : ''}" onclick="selectAdminSong('${s.id}')" style="opacity:${s.is_active ? 1 : 0.6}">
+          ${escHtml(s.title)}
+        </button>
+      </div>`).join('');
+  }
+
+  async function selectAdminSong(songId) {
+    currentAdminSongId = songId;
+    renderAdminSongPills();
+    await loadAdminSongTasks(songId);
+  }
+
+  async function loadAdminSongTasks(songId) {
+    const el = document.getElementById('admin-song-body');
+    const song = adminSongs.find(s => s.id === songId);
+    if (!adminSongTaskCache[songId]) {
+      const { data } = await db.from('song_tasks').select('id, title, description, order_num').eq('song_id', songId).eq('school_id', adminSchoolId).order('order_num');
+      adminSongTaskCache[songId] = data || [];
+    }
+    const tasks = adminSongTaskCache[songId];
+    if (!tasks.length) { el.innerHTML = '<div class="card p-6 text-center text-gray-400 text-sm">この曲に課題がありません</div>'; return; }
+    el.innerHTML = `<div class="font-semibold text-gray-700 text-sm mb-3 flex items-center gap-2"><span class="text-xl">🎵</span>${escHtml(song?.title || '')}</div>` +
+      tasks.map((t, i) => `
+        <div class="prev-card flex items-center gap-3 mb-2">
+          <div class="w-7 h-7 rounded-full bg-amber-400 text-white flex items-center justify-center text-xs font-bold flex-shrink-0">${i + 1}</div>
+          <div class="flex-1 min-w-0">
+            <div class="font-semibold text-sm text-gray-800">${escHtml(t.title)}</div>
+            ${t.description ? `<div class="text-xs text-gray-400 mt-0.5 truncate">${escHtml(t.description)}</div>` : ''}
+          </div>
+          <div class="flex gap-1 flex-shrink-0">
+            <button onclick="moveAdminSongTask('${t.id}','up','${songId}')" class="btn-sm btn-gray">▲</button>
+            <button onclick="moveAdminSongTask('${t.id}','down','${songId}')" class="btn-sm btn-gray">▼</button>
+          </div>
+        </div>`).join('');
+  }
+
+  async function moveAdminSong(id, dir) {
+    if (!await swapOrderNum('songs', adminSongs, id, dir)) return;
+    const { data } = await db.from('songs').select('id, title, artist, order_num, is_active').eq('school_id', adminSchoolId).order('order_num');
+    adminSongs = data || [];
+    renderAdminSongPills();
+  }
+
+  async function toggleAdminSongActive(id, current) {
+    await db.from('songs').update({ is_active: !current }).eq('id', id);
+    const idx = adminSongs.findIndex(s => s.id === id);
+    if (idx >= 0) adminSongs[idx].is_active = !current;
+    renderAdminSongPills();
+  }
+
+  async function moveAdminSongTask(id, dir, songId) {
+    const tasks = adminSongTaskCache[songId] || [];
+    if (!await swapOrderNum('song_tasks', tasks, id, dir)) return;
+    const { data } = await db.from('song_tasks').select('id, title, description, order_num').eq('song_id', songId).eq('school_id', adminSchoolId).order('order_num');
+    adminSongTaskCache[songId] = data || [];
+    await loadAdminSongTasks(songId);
+  }
+
+  // CSV インポート
+
+  async function onAdminContentCSVSelected(e) {
+    const file = e.target.files[0]; if (!file) return;
+    const reader = new FileReader();
+    reader.onload = async ev => {
+      const lines = ev.target.result.replace(/\r/g,'').split('\n').filter(l => l.trim());
+      if (lines.length < 2) { toast('データが見つかりません', 'error'); return; }
+      const headers = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g,''));
+      const idx = { topic: headers.findIndex(h => /トピック名|topic/.test(h)), icon: headers.findIndex(h => /アイコン|icon/.test(h)), memo: headers.findIndex(h => /先生メモ|memo/.test(h)), heading: headers.findIndex(h => /見出し|heading|section/.test(h)), body: headers.findIndex(h => /本文|body/.test(h)), image: headers.findIndex(h => /画像URL|image/.test(h)), caption: headers.findIndex(h => /キャプション|caption/.test(h)), youtube: headers.findIndex(h => /YouTube|youtube/.test(h)) };
+      if (idx.topic < 0 || idx.heading < 0) { toast('「トピック名」「見出し」列が必要です', 'error'); return; }
+      const rows = lines.slice(1).map(line => { const v = parseCSVLine(line); return { topic: v[idx.topic]||'', icon: v[idx.icon]||'📚', memo: v[idx.memo]||'', heading: v[idx.heading]||'', body: v[idx.body]||'', image: v[idx.image]||'', caption: v[idx.caption]||'', youtube: v[idx.youtube]||'' }; }).filter(r => r.topic && r.heading);
+      if (!rows.length) { toast('有効なデータがありません', 'error'); return; }
+      const topicNames = [...new Set(rows.map(r => r.topic))];
+      const topicMetaMap = {}; rows.forEach(r => { if (!topicMetaMap[r.topic]) topicMetaMap[r.topic] = r; });
+      if (!confirm(`${topicNames.length}トピック、${rows.length}セクションをインポートします。`)) return;
+      let ok = 0, skip = 0;
+      for (const topicName of topicNames) {
+        const meta = topicMetaMap[topicName];
+        let { data: ex } = await db.from('study_topics').select('id').eq('school_id', adminSchoolId).eq('title', topicName).maybeSingle();
+        let topicId = ex?.id;
+        if (!topicId) { const { data: nt, error: tErr } = await db.from('study_topics').insert({ school_id: adminSchoolId, title: topicName, icon: meta.icon||'📚', topic_type: 'content', teacher_memo: meta.memo, is_active: true }).select('id').single(); if (tErr) { skip++; continue; } topicId = nt.id; }
+        const { data: existSecs } = await db.from('study_sections').select('order_num').eq('topic_id', topicId).order('order_num', { ascending: false }).limit(1);
+        let orderNum = (existSecs?.[0]?.order_num || 0);
+        for (const sec of rows.filter(r => r.topic === topicName)) { orderNum++; const { error: sErr } = await db.from('study_sections').insert({ topic_id: topicId, school_id: adminSchoolId, title: sec.heading, body: sec.body, image_url: sec.image, image_caption: sec.caption, youtube_url: sec.youtube, is_visible: true, order_num: orderNum }); if (sErr) skip++; else ok++; }
+      }
+      e.target.value = ''; await loadAdminContentTab();
+      toast(`${ok}セクションをインポートしました${skip ? `（${skip}件エラー）` : ''}`, ok > 0 ? 'success' : 'error');
+    };
+    reader.readAsText(file, 'UTF-8');
+  }
+
+  async function onAdminQuizCSVSelected(e) {
+    const file = e.target.files[0]; if (!file) return;
+    const reader = new FileReader();
+    reader.onload = async ev => {
+      const lines = ev.target.result.replace(/\r/g,'').split('\n').filter(l => l.trim());
+      if (lines.length < 2) { toast('データが見つかりません', 'error'); return; }
+      const headers = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g,''));
+      const idx = { topic: headers.findIndex(h => /トピック名|topic/.test(h)), icon: headers.findIndex(h => /アイコン|icon/.test(h)), memo: headers.findIndex(h => /先生メモ|memo/.test(h)), setTitle: headers.findIndex(h => /クイズセット名|セット名|set/.test(h)), setImage: headers.findIndex(h => /クイズセット画像|セット画像|set.image/.test(h)), qtext: headers.findIndex(h => /問題文|question/.test(h)), answer: headers.findIndex(h => /^正解$|^answer$/.test(h)), alts: headers.findIndex(h => /別解|alt/.test(h)), hint: headers.findIndex(h => /ヒント|hint/.test(h)) };
+      if (idx.topic < 0 || idx.qtext < 0 || idx.answer < 0) { toast('「トピック名」「問題文」「正解」列が必要です', 'error'); return; }
+      const rows = lines.slice(1).map(line => { const v = parseCSVLine(line); return { topic: v[idx.topic]||'', icon: v[idx.icon]||'🎵', memo: v[idx.memo]||'', setTitle: v[idx.setTitle]||'問題', setImage: idx.setImage>=0?(v[idx.setImage]||''):'', qtext: v[idx.qtext]||'', answer: v[idx.answer]||'', alts: idx.alts>=0?(v[idx.alts]||''):'', hint: idx.hint>=0?(v[idx.hint]||''):'' }; }).filter(r => r.topic && r.qtext && r.answer);
+      if (!rows.length) { toast('有効なデータがありません', 'error'); return; }
+      const topicNames = [...new Set(rows.map(r => r.topic))];
+      if (!confirm(`${topicNames.length}トピック、${rows.length}問をインポートします。`)) return;
+      let okQ = 0, skip = 0;
+      const topicMetaMap = {}; rows.forEach(r => { if (!topicMetaMap[r.topic]) topicMetaMap[r.topic] = r; });
+      for (const topicName of topicNames) {
+        const meta = topicMetaMap[topicName];
+        let { data: ex } = await db.from('study_topics').select('id').eq('school_id', adminSchoolId).eq('title', topicName).maybeSingle();
+        let topicId = ex?.id;
+        if (!topicId) { const { data: nt, error: tErr } = await db.from('study_topics').insert({ school_id: adminSchoolId, title: topicName, icon: meta.icon||'🎵', topic_type: 'quiz', teacher_memo: meta.memo, is_active: true }).select('id').single(); if (tErr) { skip++; continue; } topicId = nt.id; }
+        const setNames = [...new Set(rows.filter(r => r.topic === topicName).map(r => r.setTitle))];
+        const { data: existSets } = await db.from('quiz_sets').select('order_num').eq('topic_id', topicId).order('order_num', { ascending: false }).limit(1);
+        let setOrder = (existSets?.[0]?.order_num || 0);
+        for (const setName of setNames) {
+          setOrder++;
+          const setRows = rows.filter(r => r.topic === topicName && r.setTitle === setName);
+          let { data: existSet } = await db.from('quiz_sets').select('id').eq('topic_id', topicId).eq('title', setName).maybeSingle();
+          let setId = existSet?.id;
+          if (!setId) { const { data: ns, error: sErr } = await db.from('quiz_sets').insert({ topic_id: topicId, school_id: adminSchoolId, title: setName, image_url: setRows[0]?.setImage||'', order_num: setOrder }).select('id').single(); if (sErr) { skip++; continue; } setId = ns.id; }
+          const { data: existQs } = await db.from('quiz_questions').select('order_num').eq('quiz_set_id', setId).order('order_num', { ascending: false }).limit(1);
+          let qOrder = (existQs?.[0]?.order_num || 0);
+          for (const row of setRows) { qOrder++; const { error: qErr } = await db.from('quiz_questions').insert({ quiz_set_id: setId, school_id: adminSchoolId, question_text: row.qtext, correct_answer: row.answer, alt_answers: row.alts, hint: row.hint, order_num: qOrder }); if (qErr) skip++; else okQ++; }
+        }
+      }
+      e.target.value = ''; await loadAdminQuizTab();
+      toast(`${okQ}問をインポートしました${skip ? `（${skip}件エラー）` : ''}`, okQ > 0 ? 'success' : 'error');
+    };
+    reader.readAsText(file, 'UTF-8');
+  }
+
+  function adminDownloadContentTemplate() {
+    const csv = 'トピック名,アイコン,先生メモ,見出し,本文,画像URL,キャプション,YouTube\n三線の基礎,📚,基礎知識トピック,①三線の歴史,三線は沖縄・奄美の伝統楽器です。,,,\n';
+    const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' });
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'content_template.csv'; a.click();
+  }
+
+  function adminDownloadQuizTemplate() {
+    const csv = 'トピック名,アイコン,先生メモ,クイズセット名,クイズセット画像,問題文,正解,別解,ヒント\n三線の基礎,🎵,クイズトピック,①各部の名称,,三線の胴の部分は何と呼ぶ？,チーガ,,胴体部分\n';
+    const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' });
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'quiz_template.csv'; a.click();
   }
 
   // ---- HELPERS ----
