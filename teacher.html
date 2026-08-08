@@ -2035,14 +2035,14 @@
 
   function downloadKotoTaskTemplate() {
     const rows = [
-      ['番号', '課題名', '達成基準'],
-      ['1', '正しい姿勢で座る', '背筋を伸ばして箏の前に座れる'],
-      ['2', '爪の付け方', '人差し指・中指・親指に正しく爪を装着できる'],
-      ['3', '13本の弦の名前', '一〜十三の弦名をすべて言える'],
-      ['4', '右手ではじく（一の糸）', 'ゆっくり一の糸をはじいて音が出る'],
-      ['5', '左手で押す（押し手）', '弦を押して半音上げた音が出る'],
-      ['6', '「さくらさくら」一段目', '楽譜を見ながら止まらずに弾ける'],
-      ['7', '「さくらさくら」全曲', '通して弾ける（ゆっくりテンポ）'],
+      ['番号', '課題名', '達成基準', 'レベル数', 'Level.1', 'Level.2', 'Level.3', 'YouTube URL'],
+      ['1', '正しい姿勢で座る',      '背筋を伸ばして箏の前に座れる',           '1', '', '', '', ''],
+      ['2', '爪の付け方',            '人差し指・中指・親指に正しく爪を装着できる', '1', '', '', '', ''],
+      ['3', '13本の弦の名前',        '一〜十三の弦名をすべて言える',             '1', '', '', '', ''],
+      ['4', '右手ではじく（一の糸）', '一の糸をはじいて音が出る',                '2', 'ゆっくりなら音が出る', '止まらず連続して弾ける', '', ''],
+      ['5', '左手で押す（押し手）',   '弦を押して半音上がった音が出る',           '2', '音が出る（かすれていても可）', '半音上がった音程が安定している', '', ''],
+      ['6', '「さくらさくら」一段目', '楽譜を見ながら止まらずに弾ける',           '2', 'ゆっくり弾ける', '指定テンポで弾ける', '', ''],
+      ['7', '「さくらさくら」全曲',   '通して演奏できる',                         '3', 'ゆっくり弾ける', '指定テンポで弾ける', '暗譜で弾ける', ''],
     ];
     downloadCSVFile(rows, 'koto_tasks_template.csv');
     toast('学年別課題テンプレートをダウンロードしました', 'success');
@@ -2050,14 +2050,16 @@
 
   function downloadSongListTemplate() {
     const rows = [
-      ['番号', '曲名', 'アーティスト'],
-      ['1', 'さくらさくら', '日本古謡'],
-      ['2', '六段の調', '八橋検校'],
-      ['3', '春の海', '宮城道雄'],
-      ['4', '荒城の月', '滝廉太郎'],
+      ['番号', '曲名', 'アーティスト', '課題番号', '課題タイトル', '達成基準', 'レベル数', 'Level.1', 'Level.2', 'Level.3', 'YouTube URL'],
+      ['1', 'さくらさくら', '日本古謡', '1', 'イントロ部分を弾ける', '最初の4小節をゆっくり止まらずに弾ける', '2', 'ゆっくりなら止まらず弾ける', '指定テンポで弾ける', '', ''],
+      ['1', 'さくらさくら', '日本古謡', '2', '通して演奏できる',    '止まらずに最後まで演奏できる',           '2', 'ゆっくり通して弾ける', '暗譜で弾ける', '', ''],
+      ['2', '六段の調',    '八橋検校',  '1', '一段目を弾ける',      '一段目をゆっくり弾ける',                 '2', 'ゆっくり弾ける', '暗譜で弾ける', '', ''],
+      ['2', '六段の調',    '八橋検校',  '2', '二段目を弾ける',      '二段目をゆっくり弾ける',                 '2', 'ゆっくり弾ける', '暗譜で弾ける', '', ''],
+      ['2', '六段の調',    '八橋検校',  '3', '六段全体を通して弾ける', '全段を止まらず演奏できる',             '3', 'ゆっくり弾ける', '指定テンポで弾ける', '表現豊かに弾ける', ''],
+      ['3', '春の海',      '宮城道雄',  '1', '前半部分を弾ける',     'ゆっくりテンポで前半を弾ける',           '2', 'ゆっくり弾ける', 'テンポ通り弾ける', '', ''],
     ];
-    downloadCSVFile(rows, 'songs_template.csv');
-    toast('楽曲リストテンプレートをダウンロードしました', 'success');
+    downloadCSVFile(rows, 'songs_with_tasks_template.csv');
+    toast('楽曲・課題テンプレートをダウンロードしました', 'success');
   }
 
   async function onStudyContentCSVSelected(e) {
@@ -3384,19 +3386,36 @@
       const lines = ev.target.result.replace(/\r/g, '').split('\n').filter(l => l.trim());
       if (lines.length < 2) { toast('データが見つかりません', 'error'); return; }
       const headers  = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g, ''));
-      const numIdx   = headers.findIndex(h => /番号|No|number|順番/.test(h));
-      const titleIdx = headers.findIndex(h => /課題名|タイトル|title/.test(h));
-      const descIdx  = headers.findIndex(h => /達成基準|基準|説明|description/.test(h));
-      if (titleIdx < 0) { toast('「課題名」列が見つかりません', 'error'); return; }
+      const idx = {
+        num:   headers.findIndex(h => /番号|No|number|順番/.test(h)),
+        title: headers.findIndex(h => /課題名|タイトル|title/.test(h)),
+        desc:  headers.findIndex(h => /達成基準|基準|説明|description/.test(h)),
+        lc:    headers.findIndex(h => /レベル数|level_count/.test(h)),
+        l1:    headers.findIndex(h => /Level\.?1|level_1/.test(h)),
+        l2:    headers.findIndex(h => /Level\.?2|level_2/.test(h)),
+        l3:    headers.findIndex(h => /Level\.?3|level_3/.test(h)),
+        yt:    headers.findIndex(h => /YouTube|youtube|youtube_url/.test(h)),
+      };
+      if (idx.title < 0) { toast('「課題名」列が見つかりません', 'error'); return; }
       const rows = lines.slice(1).map((line, i) => {
-        const vals = parseCSVLine(line);
-        return { order_num: numIdx >= 0 ? (parseInt(vals[numIdx]) || i + 1) : i + 1, title: vals[titleIdx] || '', description: descIdx >= 0 ? (vals[descIdx] || '') : '' };
+        const v = parseCSVLine(line);
+        const lc = idx.lc >= 0 ? (parseInt(v[idx.lc]) || 1) : 1;
+        return {
+          order_num:    idx.num >= 0 ? (parseInt(v[idx.num]) || i + 1) : i + 1,
+          title:        v[idx.title] || '',
+          description:  idx.desc >= 0 ? (v[idx.desc] || '') : '',
+          level_count:  lc,
+          level_1_text: idx.l1 >= 0 ? (v[idx.l1] || '') : '',
+          level_2_text: idx.l2 >= 0 ? (v[idx.l2] || '') : '',
+          level_3_text: idx.l3 >= 0 ? (v[idx.l3] || '') : '',
+          youtube_url:  idx.yt >= 0 ? (v[idx.yt] || '') : '',
+        };
       }).filter(r => r.title);
       if (!rows.length) { toast('有効なデータがありません', 'error'); return; }
       if (!confirm(`${rows.length}件の課題をインポートします。`)) return;
       let ok = 0;
       for (const row of rows) {
-        const { error } = await db.from('koto_tasks').insert({ school_id: T.school_id, title: row.title, description: row.description, order_num: row.order_num, is_active: true });
+        const { error } = await db.from('koto_tasks').insert({ school_id: T.school_id, is_active: true, ...row });
         if (!error) ok++;
       }
       e.target.value = '';
@@ -3481,26 +3500,77 @@
     reader.onload = async ev => {
       const lines = ev.target.result.replace(/\r/g, '').split('\n').filter(l => l.trim());
       if (lines.length < 2) { toast('データが見つかりません', 'error'); return; }
-      const headers   = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g, ''));
-      const numIdx    = headers.findIndex(h => /番号|No|number|順番/.test(h));
-      const titleIdx  = headers.findIndex(h => /曲名|タイトル|title/.test(h));
-      const artistIdx = headers.findIndex(h => /アーティスト|artist|歌手/.test(h));
-      if (titleIdx < 0) { toast('「曲名」列が見つかりません', 'error'); return; }
-      const rows = lines.slice(1).map((line, i) => {
-        const vals = parseCSVLine(line);
-        return { order_num: numIdx >= 0 ? (parseInt(vals[numIdx]) || i + 1) : i + 1, title: vals[titleIdx] || '', artist: artistIdx >= 0 ? (vals[artistIdx] || '') : '' };
-      }).filter(r => r.title);
-      if (!rows.length) { toast('有効なデータがありません', 'error'); return; }
-      if (!confirm(`${rows.length}件の楽曲をインポートします。`)) return;
-      let ok = 0;
-      for (const row of rows) {
-        const { error } = await db.from('songs').insert({ school_id: T.school_id, title: row.title, artist: row.artist, order_num: row.order_num, is_active: true });
-        if (!error) ok++;
+      const headers = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g, ''));
+      const idx = {
+        num:       headers.findIndex(h => /^番号$|^No$|^number$|^順番$/.test(h)),
+        title:     headers.findIndex(h => /曲名|タイトル/.test(h)),
+        artist:    headers.findIndex(h => /アーティスト|artist|歌手/.test(h)),
+        taskNum:   headers.findIndex(h => /課題番号/.test(h)),
+        taskTitle: headers.findIndex(h => /課題タイトル|課題名/.test(h)),
+        desc:      headers.findIndex(h => /達成基準|基準|説明/.test(h)),
+        lc:        headers.findIndex(h => /レベル数|level_count/.test(h)),
+        l1:        headers.findIndex(h => /Level\.?1|level_1/.test(h)),
+        l2:        headers.findIndex(h => /Level\.?2|level_2/.test(h)),
+        l3:        headers.findIndex(h => /Level\.?3|level_3/.test(h)),
+        yt:        headers.findIndex(h => /YouTube|youtube/.test(h)),
+      };
+      if (idx.title < 0) { toast('「曲名」列が見つかりません', 'error'); return; }
+      const hasTasks = idx.taskTitle >= 0;
+
+      // 全行をパースして曲ごとにグループ化
+      const songMap = new Map(); // key = "番号:曲名" → {songInfo, tasks[]}
+      lines.slice(1).forEach((line, i) => {
+        const v = parseCSVLine(line);
+        const songTitle = v[idx.title]?.trim(); if (!songTitle) return;
+        const songNum   = idx.num >= 0 ? (parseInt(v[idx.num]) || i + 1) : i + 1;
+        const key       = `${songNum}:${songTitle}`;
+        if (!songMap.has(key)) {
+          songMap.set(key, {
+            order_num: songNum,
+            title:     songTitle,
+            artist:    idx.artist >= 0 ? (v[idx.artist]?.trim() || '') : '',
+            tasks:     [],
+          });
+        }
+        if (hasTasks && idx.taskTitle >= 0) {
+          const taskTitle = v[idx.taskTitle]?.trim(); if (!taskTitle) return;
+          const lc = idx.lc >= 0 ? (parseInt(v[idx.lc]) || 1) : 1;
+          songMap.get(key).tasks.push({
+            order_num:    idx.taskNum >= 0 ? (parseInt(v[idx.taskNum]) || songMap.get(key).tasks.length + 1) : songMap.get(key).tasks.length + 1,
+            title:        taskTitle,
+            description:  idx.desc >= 0 ? (v[idx.desc]?.trim() || '') : '',
+            level_count:  lc,
+            level_1_text: idx.l1 >= 0 ? (v[idx.l1]?.trim() || '') : '',
+            level_2_text: idx.l2 >= 0 ? (v[idx.l2]?.trim() || '') : '',
+            level_3_text: idx.l3 >= 0 ? (v[idx.l3]?.trim() || '') : '',
+            youtube_url:  idx.yt >= 0 ? (v[idx.yt]?.trim() || '') : '',
+          });
+        }
+      });
+
+      if (!songMap.size) { toast('有効なデータがありません', 'error'); return; }
+      const taskTotal = [...songMap.values()].reduce((s, v) => s + v.tasks.length, 0);
+      const msg = hasTasks
+        ? `${songMap.size}曲・${taskTotal}件の課題をインポートします。`
+        : `${songMap.size}件の楽曲をインポートします。`;
+      if (!confirm(msg)) return;
+
+      let okSong = 0, okTask = 0;
+      for (const song of songMap.values()) {
+        const { data: sd, error: se } = await db.from('songs')
+          .insert({ school_id: T.school_id, title: song.title, artist: song.artist, order_num: song.order_num, is_active: true })
+          .select('id').single();
+        if (se || !sd) continue;
+        okSong++;
+        for (const task of song.tasks) {
+          const { error: te } = await db.from('song_tasks').insert({ song_id: sd.id, school_id: T.school_id, ...task });
+          if (!te) okTask++;
+        }
       }
       e.target.value = '';
       previewSongs = []; previewSongTaskCache = {};
       await loadPreviewSongTab();
-      toast(`${ok}件の楽曲をインポートしました`, 'success');
+      toast(hasTasks ? `${okSong}曲・${okTask}件の課題をインポートしました` : `${okSong}件の楽曲をインポートしました`, 'success');
     };
     reader.readAsText(file, 'UTF-8');
   }
