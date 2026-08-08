@@ -367,6 +367,7 @@
     <div id="tab-preview-grade" class="tab-content hidden space-y-3">
       <div class="card p-4 flex items-center gap-2 flex-wrap">
         <div class="section-title mb-0 mr-auto"><i class="fas fa-graduation-cap text-red-500"></i>学年別課題</div>
+        <button class="btn-gray text-xs" onclick="downloadKotoTaskTemplate()"><i class="fas fa-file-download mr-1"></i>テンプレ</button>
         <button class="btn-gray text-xs" onclick="downloadKotoCSV()"><i class="fas fa-file-export mr-1"></i>CSV出力</button>
         <button class="btn-gray text-xs" onclick="document.getElementById('pg-koto-csv-input').click()"><i class="fas fa-file-import mr-1"></i>CSVインポート</button>
         <input type="file" id="pg-koto-csv-input" accept=".csv" class="hidden" onchange="onPreviewGradeCSVSelected(event)">
@@ -402,6 +403,7 @@
     <div id="tab-preview-song" class="tab-content hidden space-y-3">
       <div class="card p-4 flex items-center gap-2 flex-wrap">
         <div class="section-title mb-0 mr-auto"><i class="fas fa-music text-red-500"></i>曲別課題</div>
+        <button class="btn-gray text-xs" onclick="downloadSongListTemplate()"><i class="fas fa-file-download mr-1"></i>テンプレ</button>
         <button class="btn-gray text-xs" onclick="downloadSongsCSV()"><i class="fas fa-file-export mr-1"></i>CSV出力</button>
         <button class="btn-gray text-xs" onclick="document.getElementById('ps-song-csv-input').click()"><i class="fas fa-file-import mr-1"></i>楽曲インポート</button>
         <input type="file" id="ps-song-csv-input" accept=".csv" class="hidden" onchange="onPreviewSongCSVSelected(event)">
@@ -2029,6 +2031,33 @@
     ];
     downloadCSVFile(rows, 'study_quiz_template.csv');
     toast('クイズテンプレートをダウンロードしました', 'success');
+  }
+
+  function downloadKotoTaskTemplate() {
+    const rows = [
+      ['番号', '課題名', '達成基準'],
+      ['1', '正しい姿勢で座る', '背筋を伸ばして箏の前に座れる'],
+      ['2', '爪の付け方', '人差し指・中指・親指に正しく爪を装着できる'],
+      ['3', '13本の弦の名前', '一〜十三の弦名をすべて言える'],
+      ['4', '右手ではじく（一の糸）', 'ゆっくり一の糸をはじいて音が出る'],
+      ['5', '左手で押す（押し手）', '弦を押して半音上げた音が出る'],
+      ['6', '「さくらさくら」一段目', '楽譜を見ながら止まらずに弾ける'],
+      ['7', '「さくらさくら」全曲', '通して弾ける（ゆっくりテンポ）'],
+    ];
+    downloadCSVFile(rows, 'koto_tasks_template.csv');
+    toast('学年別課題テンプレートをダウンロードしました', 'success');
+  }
+
+  function downloadSongListTemplate() {
+    const rows = [
+      ['番号', '曲名', 'アーティスト'],
+      ['1', 'さくらさくら', '日本古謡'],
+      ['2', '六段の調', '八橋検校'],
+      ['3', '春の海', '宮城道雄'],
+      ['4', '荒城の月', '滝廉太郎'],
+    ];
+    downloadCSVFile(rows, 'songs_template.csv');
+    toast('楽曲リストテンプレートをダウンロードしました', 'success');
   }
 
   async function onStudyContentCSVSelected(e) {
