@@ -342,7 +342,7 @@
       </div>
       <div class="card p-4">
         <p class="text-xs text-gray-400 mb-2">トピック（▲▼で並び替え、公開/非公開で切替）</p>
-        <div id="preview-content-topic-list" class="flex gap-3 overflow-x-auto pb-2 flex-wrap"></div>
+        <div id="preview-content-topic-list"></div>
       </div>
       <div id="preview-content-body" class="space-y-3"></div>
     </div>
@@ -358,7 +358,7 @@
       </div>
       <div class="card p-4">
         <p class="text-xs text-gray-400 mb-2">トピック（▲▼で並び替え、公開/非公開で切替）</p>
-        <div id="preview-quiz-topic-list" class="flex gap-3 overflow-x-auto pb-2 flex-wrap"></div>
+        <div id="preview-quiz-topic-list"></div>
       </div>
       <div id="preview-quiz-body" class="space-y-3"></div>
     </div>
@@ -408,7 +408,7 @@
       </div>
       <div class="card p-4">
         <p class="text-xs text-gray-400 mb-2">楽曲（▲▼で並び替え、公開/非公開で切替）</p>
-        <div id="preview-song-pills" class="flex gap-3 overflow-x-auto pb-2 flex-wrap"></div>
+        <div id="preview-song-pills"></div>
         <div class="border-t mt-3 pt-3">
           <p class="text-xs font-semibold text-gray-500 mb-2"><i class="fas fa-plus mr-1 text-amber-500"></i>楽曲を追加</p>
           <div class="flex gap-2">
@@ -2733,23 +2733,59 @@
   function renderPreviewContentTopicList() {
     const el = document.getElementById('preview-content-topic-list');
     if (!previewContentTopics.length) { el.innerHTML = '<p class="text-sm text-gray-400">トピックがありません</p>'; return; }
-    el.innerHTML = previewContentTopics.map(t => `
-      <div class="flex flex-col items-center gap-1 flex-shrink-0">
-        <div class="flex items-center gap-0.5">
-          <button onclick="movePreviewContentTopic('${t.id}','up')" class="text-gray-300 hover:text-gray-600 text-xs px-1" title="上へ">▲</button>
-          <button onclick="movePreviewContentTopic('${t.id}','down')" class="text-gray-300 hover:text-gray-600 text-xs px-1" title="下へ">▼</button>
-          <button onclick="togglePreviewTopicActive('${t.id}',${t.is_active},'content')"
-            class="text-xs px-1.5 py-0.5 rounded font-semibold ${t.is_active ? 'bg-green-100 text-green-700 hover:bg-green-200' : 'bg-gray-100 text-gray-400 hover:bg-gray-200'}">
-            ${t.is_active ? '公開' : '非公開'}
+    const bar = `
+      <div class="flex items-center gap-2 mb-2">
+        <input type="checkbox" id="pc-all-cb" onchange="toggleAllContentTopics(this)" class="w-4 h-4 cursor-pointer flex-shrink-0">
+        <label for="pc-all-cb" class="text-xs text-gray-500 cursor-pointer select-none">全選択</label>
+        <button id="pc-bulk-del" onclick="deleteSelectedContentTopics()"
+          class="btn-sm btn-del ml-auto hidden"><i class="fas fa-trash mr-1"></i>選択を削除</button>
+      </div>`;
+    const pills = `<div class="flex gap-3 overflow-x-auto pb-2 flex-wrap">` +
+      previewContentTopics.map(t => `
+        <div class="flex flex-col items-center gap-1 flex-shrink-0">
+          <div class="flex items-center gap-0.5">
+            <input type="checkbox" class="content-topic-cb w-3.5 h-3.5 cursor-pointer mr-0.5" data-id="${t.id}" onchange="onContentTopicCbChange()">
+            <button onclick="movePreviewContentTopic('${t.id}','up')" class="text-gray-300 hover:text-gray-600 text-xs px-1" title="上へ">▲</button>
+            <button onclick="movePreviewContentTopic('${t.id}','down')" class="text-gray-300 hover:text-gray-600 text-xs px-1" title="下へ">▼</button>
+            <button onclick="togglePreviewTopicActive('${t.id}',${t.is_active},'content')"
+              class="text-xs px-1.5 py-0.5 rounded font-semibold ${t.is_active ? 'bg-green-100 text-green-700 hover:bg-green-200' : 'bg-gray-100 text-gray-400 hover:bg-gray-200'}">
+              ${t.is_active ? '公開' : '非公開'}
+            </button>
+            <button onclick="openStudyTopicModal('${t.id}')" class="text-xs px-1.5 py-0.5 rounded bg-blue-50 text-blue-600 hover:bg-blue-100" title="編集"><i class="fas fa-edit"></i></button>
+            <button onclick="deleteStudyTopic('${t.id}')" class="text-xs px-1.5 py-0.5 rounded bg-red-50 text-red-500 hover:bg-red-100" title="削除"><i class="fas fa-trash"></i></button>
+          </div>
+          <button class="song-pill${t.id === currentPreviewContentTopicId ? ' active' : ''}" onclick="selectPreviewContentTopic('${t.id}')"
+            style="opacity:${t.is_active ? 1 : 0.5}">
+            ${escHtml(t.icon || '📚')} ${escHtml(t.title)}
           </button>
-          <button onclick="openStudyTopicModal('${t.id}')" class="text-xs px-1.5 py-0.5 rounded bg-blue-50 text-blue-600 hover:bg-blue-100" title="編集"><i class="fas fa-edit"></i></button>
-          <button onclick="deleteStudyTopic('${t.id}')" class="text-xs px-1.5 py-0.5 rounded bg-red-50 text-red-500 hover:bg-red-100" title="削除"><i class="fas fa-trash"></i></button>
-        </div>
-        <button class="song-pill${t.id === currentPreviewContentTopicId ? ' active' : ''}" onclick="selectPreviewContentTopic('${t.id}')"
-          style="opacity:${t.is_active ? 1 : 0.5}">
-          ${escHtml(t.icon || '📚')} ${escHtml(t.title)}
-        </button>
-      </div>`).join('');
+        </div>`).join('') + `</div>`;
+    el.innerHTML = bar + pills;
+  }
+
+  function onContentTopicCbChange() {
+    const checked = document.querySelectorAll('.content-topic-cb:checked').length;
+    const total   = document.querySelectorAll('.content-topic-cb').length;
+    const btn = document.getElementById('pc-bulk-del');
+    const all = document.getElementById('pc-all-cb');
+    if (btn) btn.classList.toggle('hidden', checked === 0);
+    if (btn && checked > 0) btn.innerHTML = `<i class="fas fa-trash mr-1"></i>${checked}件を削除`;
+    if (all) all.indeterminate = checked > 0 && checked < total;
+    if (all) all.checked = total > 0 && checked === total;
+  }
+
+  function toggleAllContentTopics(masterCb) {
+    document.querySelectorAll('.content-topic-cb').forEach(cb => { cb.checked = masterCb.checked; });
+    onContentTopicCbChange();
+  }
+
+  async function deleteSelectedContentTopics() {
+    const ids = [...document.querySelectorAll('.content-topic-cb:checked')].map(cb => cb.dataset.id);
+    if (!ids.length) return;
+    if (!confirm(`選択した ${ids.length} 件のトピック（セクションを含む）を削除しますか？`)) return;
+    const { error } = await db.from('study_topics').delete().in('id', ids);
+    if (error) { toast('削除失敗: ' + error.message, 'error'); return; }
+    toast(`${ids.length}件を削除しました`, 'success');
+    await loadPreviewContentTab();
   }
 
   async function selectPreviewContentTopic(topicId) {
@@ -2853,23 +2889,59 @@
   function renderPreviewQuizTopicList() {
     const el = document.getElementById('preview-quiz-topic-list');
     if (!previewQuizTopics.length) { el.innerHTML = '<p class="text-sm text-gray-400">トピックがありません</p>'; return; }
-    el.innerHTML = previewQuizTopics.map(t => `
-      <div class="flex flex-col items-center gap-1 flex-shrink-0">
-        <div class="flex items-center gap-0.5">
-          <button onclick="movePreviewQuizTopic('${t.id}','up')" class="text-gray-300 hover:text-gray-600 text-xs px-1">▲</button>
-          <button onclick="movePreviewQuizTopic('${t.id}','down')" class="text-gray-300 hover:text-gray-600 text-xs px-1">▼</button>
-          <button onclick="togglePreviewTopicActive('${t.id}',${t.is_active},'quiz')"
-            class="text-xs px-1.5 py-0.5 rounded font-semibold ${t.is_active ? 'bg-green-100 text-green-700 hover:bg-green-200' : 'bg-gray-100 text-gray-400 hover:bg-gray-200'}">
-            ${t.is_active ? '公開' : '非公開'}
+    const bar = `
+      <div class="flex items-center gap-2 mb-2">
+        <input type="checkbox" id="pq-all-cb" onchange="toggleAllQuizTopics(this)" class="w-4 h-4 cursor-pointer flex-shrink-0">
+        <label for="pq-all-cb" class="text-xs text-gray-500 cursor-pointer select-none">全選択</label>
+        <button id="pq-bulk-del" onclick="deleteSelectedQuizTopics()"
+          class="btn-sm btn-del ml-auto hidden"><i class="fas fa-trash mr-1"></i>選択を削除</button>
+      </div>`;
+    const pills = `<div class="flex gap-3 overflow-x-auto pb-2 flex-wrap">` +
+      previewQuizTopics.map(t => `
+        <div class="flex flex-col items-center gap-1 flex-shrink-0">
+          <div class="flex items-center gap-0.5">
+            <input type="checkbox" class="quiz-topic-cb w-3.5 h-3.5 cursor-pointer mr-0.5" data-id="${t.id}" onchange="onQuizTopicCbChange()">
+            <button onclick="movePreviewQuizTopic('${t.id}','up')" class="text-gray-300 hover:text-gray-600 text-xs px-1">▲</button>
+            <button onclick="movePreviewQuizTopic('${t.id}','down')" class="text-gray-300 hover:text-gray-600 text-xs px-1">▼</button>
+            <button onclick="togglePreviewTopicActive('${t.id}',${t.is_active},'quiz')"
+              class="text-xs px-1.5 py-0.5 rounded font-semibold ${t.is_active ? 'bg-green-100 text-green-700 hover:bg-green-200' : 'bg-gray-100 text-gray-400 hover:bg-gray-200'}">
+              ${t.is_active ? '公開' : '非公開'}
+            </button>
+            <button onclick="openStudyTopicModal('${t.id}')" class="text-xs px-1.5 py-0.5 rounded bg-blue-50 text-blue-600 hover:bg-blue-100" title="編集"><i class="fas fa-edit"></i></button>
+            <button onclick="deleteStudyTopic('${t.id}')" class="text-xs px-1.5 py-0.5 rounded bg-red-50 text-red-500 hover:bg-red-100" title="削除"><i class="fas fa-trash"></i></button>
+          </div>
+          <button class="song-pill${t.id === currentPreviewQuizTopicId ? ' active' : ''}" onclick="selectPreviewQuizTopic('${t.id}')"
+            style="opacity:${t.is_active ? 1 : 0.5}">
+            ${escHtml(t.icon || '🎵')} ${escHtml(t.title)}
           </button>
-          <button onclick="openStudyTopicModal('${t.id}')" class="text-xs px-1.5 py-0.5 rounded bg-blue-50 text-blue-600 hover:bg-blue-100" title="編集"><i class="fas fa-edit"></i></button>
-          <button onclick="deleteStudyTopic('${t.id}')" class="text-xs px-1.5 py-0.5 rounded bg-red-50 text-red-500 hover:bg-red-100" title="削除"><i class="fas fa-trash"></i></button>
-        </div>
-        <button class="song-pill${t.id === currentPreviewQuizTopicId ? ' active' : ''}" onclick="selectPreviewQuizTopic('${t.id}')"
-          style="opacity:${t.is_active ? 1 : 0.5}">
-          ${escHtml(t.icon || '🎵')} ${escHtml(t.title)}
-        </button>
-      </div>`).join('');
+        </div>`).join('') + `</div>`;
+    el.innerHTML = bar + pills;
+  }
+
+  function onQuizTopicCbChange() {
+    const checked = document.querySelectorAll('.quiz-topic-cb:checked').length;
+    const total   = document.querySelectorAll('.quiz-topic-cb').length;
+    const btn = document.getElementById('pq-bulk-del');
+    const all = document.getElementById('pq-all-cb');
+    if (btn) btn.classList.toggle('hidden', checked === 0);
+    if (btn && checked > 0) btn.innerHTML = `<i class="fas fa-trash mr-1"></i>${checked}件を削除`;
+    if (all) all.indeterminate = checked > 0 && checked < total;
+    if (all) all.checked = total > 0 && checked === total;
+  }
+
+  function toggleAllQuizTopics(masterCb) {
+    document.querySelectorAll('.quiz-topic-cb').forEach(cb => { cb.checked = masterCb.checked; });
+    onQuizTopicCbChange();
+  }
+
+  async function deleteSelectedQuizTopics() {
+    const ids = [...document.querySelectorAll('.quiz-topic-cb:checked')].map(cb => cb.dataset.id);
+    if (!ids.length) return;
+    if (!confirm(`選択した ${ids.length} 件のトピック（クイズセットを含む）を削除しますか？`)) return;
+    const { error } = await db.from('study_topics').delete().in('id', ids);
+    if (error) { toast('削除失敗: ' + error.message, 'error'); return; }
+    toast(`${ids.length}件を削除しました`, 'success');
+    await loadPreviewQuizTab();
   }
 
   async function selectPreviewQuizTopic(topicId) {
@@ -3072,22 +3144,63 @@
   }
 
   function renderPreviewSongPills() {
-    document.getElementById('preview-song-pills').innerHTML = previewSongs.map(s => `
-      <div class="flex flex-col items-center gap-1 flex-shrink-0">
-        <div class="flex items-center gap-0.5">
-          <button onclick="movePreviewSong('${s.id}','up')" class="text-gray-300 hover:text-gray-600 text-xs px-1">▲</button>
-          <button onclick="movePreviewSong('${s.id}','down')" class="text-gray-300 hover:text-gray-600 text-xs px-1">▼</button>
-          <button onclick="togglePreviewSongActive('${s.id}',${!!s.is_active})"
-            class="text-xs px-1.5 py-0.5 rounded font-semibold ${s.is_active ? 'bg-green-100 text-green-700 hover:bg-green-200' : 'bg-gray-100 text-gray-400 hover:bg-gray-200'}">
-            ${s.is_active ? '公開' : '非公開'}
+    const el = document.getElementById('preview-song-pills');
+    if (!previewSongs.length) { el.innerHTML = ''; return; }
+    const bar = `
+      <div class="flex items-center gap-2 mb-2">
+        <input type="checkbox" id="ps-song-all-cb" onchange="toggleAllSongs(this)" class="w-4 h-4 cursor-pointer flex-shrink-0">
+        <label for="ps-song-all-cb" class="text-xs text-gray-500 cursor-pointer select-none">全選択</label>
+        <button id="ps-song-bulk-del" onclick="deleteSelectedSongs()"
+          class="btn-sm btn-del ml-auto hidden"><i class="fas fa-trash mr-1"></i>選択を削除</button>
+      </div>`;
+    const pills = `<div class="flex gap-3 overflow-x-auto pb-2 flex-wrap">` +
+      previewSongs.map(s => `
+        <div class="flex flex-col items-center gap-1 flex-shrink-0">
+          <div class="flex items-center gap-0.5">
+            <input type="checkbox" class="song-pill-cb w-3.5 h-3.5 cursor-pointer mr-0.5" data-id="${s.id}" onchange="onSongPillCbChange()">
+            <button onclick="movePreviewSong('${s.id}','up')" class="text-gray-300 hover:text-gray-600 text-xs px-1">▲</button>
+            <button onclick="movePreviewSong('${s.id}','down')" class="text-gray-300 hover:text-gray-600 text-xs px-1">▼</button>
+            <button onclick="togglePreviewSongActive('${s.id}',${!!s.is_active})"
+              class="text-xs px-1.5 py-0.5 rounded font-semibold ${s.is_active ? 'bg-green-100 text-green-700 hover:bg-green-200' : 'bg-gray-100 text-gray-400 hover:bg-gray-200'}">
+              ${s.is_active ? '公開' : '非公開'}
+            </button>
+            <button onclick="deletePreviewSong('${s.id}')" class="text-xs px-1.5 py-0.5 rounded bg-red-50 text-red-500 hover:bg-red-100" title="削除"><i class="fas fa-trash"></i></button>
+          </div>
+          <button class="song-pill${s.id === currentPreviewSongId ? ' active' : ''}" onclick="selectPreviewSong('${s.id}')"
+            style="opacity:${s.is_active ? 1 : 0.6}">
+            ${escHtml(s.title)}
           </button>
-          <button onclick="deletePreviewSong('${s.id}')" class="text-xs px-1.5 py-0.5 rounded bg-red-50 text-red-500 hover:bg-red-100" title="削除"><i class="fas fa-trash"></i></button>
-        </div>
-        <button class="song-pill${s.id === currentPreviewSongId ? ' active' : ''}" onclick="selectPreviewSong('${s.id}')"
-          style="opacity:${s.is_active ? 1 : 0.6}">
-          ${escHtml(s.title)}
-        </button>
-      </div>`).join('');
+        </div>`).join('') + `</div>`;
+    el.innerHTML = bar + pills;
+  }
+
+  function onSongPillCbChange() {
+    const checked = document.querySelectorAll('.song-pill-cb:checked').length;
+    const total   = document.querySelectorAll('.song-pill-cb').length;
+    const btn = document.getElementById('ps-song-bulk-del');
+    const all = document.getElementById('ps-song-all-cb');
+    if (btn) btn.classList.toggle('hidden', checked === 0);
+    if (btn && checked > 0) btn.innerHTML = `<i class="fas fa-trash mr-1"></i>${checked}件を削除`;
+    if (all) all.indeterminate = checked > 0 && checked < total;
+    if (all) all.checked = total > 0 && checked === total;
+  }
+
+  function toggleAllSongs(masterCb) {
+    document.querySelectorAll('.song-pill-cb').forEach(cb => { cb.checked = masterCb.checked; });
+    onSongPillCbChange();
+  }
+
+  async function deleteSelectedSongs() {
+    const ids = [...document.querySelectorAll('.song-pill-cb:checked')].map(cb => cb.dataset.id);
+    if (!ids.length) return;
+    if (!confirm(`選択した ${ids.length} 件の楽曲（関連課題を含む）を削除しますか？`)) return;
+    const { error } = await db.from('songs').delete().in('id', ids);
+    if (error) { toast('削除失敗: ' + error.message, 'error'); return; }
+    previewSongs = []; previewSongTaskCache = {};
+    if (ids.includes(currentPreviewSongId)) currentPreviewSongId = null;
+    if (tabLoaded['tasks']) tabLoaded['tasks'] = false;
+    toast(`${ids.length}件を削除しました`, 'success');
+    await loadPreviewSongTab();
   }
 
   async function selectPreviewSong(songId) {
