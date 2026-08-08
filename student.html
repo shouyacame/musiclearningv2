@@ -99,10 +99,13 @@
   <!-- タブ -->
   <div class="tab-nav">
     <div class="max-w-2xl mx-auto flex">
-      <button class="tab-btn" id="tab-study" onclick="showTab('study')">
-        <i class="fas fa-book mr-1.5"></i>学習
+      <button class="tab-btn active" id="tab-content" onclick="showTab('content')">
+        <i class="fas fa-book-open mr-1.5"></i>基礎知識
       </button>
-      <button class="tab-btn active" id="tab-grade" onclick="showTab('grade')">
+      <button class="tab-btn" id="tab-quiz" onclick="showTab('quiz')">
+        <i class="fas fa-pencil-alt mr-1.5"></i>穴埋めクイズ
+      </button>
+      <button class="tab-btn" id="tab-grade" onclick="showTab('grade')">
         <i class="fas fa-graduation-cap mr-1.5"></i>学年別課題
       </button>
       <button class="tab-btn" id="tab-song" onclick="showTab('song')">
@@ -111,21 +114,24 @@
     </div>
   </div>
 
-  <!-- 学習コンテンツ -->
-  <div id="panel-study" class="hidden max-w-2xl mx-auto px-4 py-4">
-    <!-- トピック一覧 -->
-    <div id="study-topic-list"></div>
-    <!-- コンテンツ表示 -->
-    <div id="study-detail" class="hidden">
-      <button onclick="backToTopics()" class="flex items-center gap-1 text-sm text-teal-600 font-semibold mb-4 hover:underline">
-        <i class="fas fa-chevron-left"></i> トピック一覧に戻る
-      </button>
-      <div id="study-detail-inner"></div>
+  <!-- 基礎知識 -->
+  <div id="panel-content" class="max-w-2xl mx-auto">
+    <div id="content-pills" class="flex gap-2 overflow-x-auto px-4 pt-3 pb-2 bg-white border-b border-gray-100 sticky top-[48px] z-10"></div>
+    <div id="content-body" class="px-4 py-4">
+      <div class="text-center py-12 text-gray-400"><i class="fas fa-spinner fa-spin text-2xl mb-2 block"></i><p class="text-sm">読み込み中...</p></div>
+    </div>
+  </div>
+
+  <!-- 穴埋めクイズ -->
+  <div id="panel-quiz" class="hidden max-w-2xl mx-auto">
+    <div id="quiz-pills" class="flex gap-2 overflow-x-auto px-4 pt-3 pb-2 bg-white border-b border-gray-100 sticky top-[48px] z-10"></div>
+    <div id="quiz-body" class="px-4 py-4">
+      <div class="text-center py-12 text-gray-400"><i class="fas fa-spinner fa-spin text-2xl mb-2 block"></i><p class="text-sm">読み込み中...</p></div>
     </div>
   </div>
 
   <!-- 学年別課題 -->
-  <div id="panel-grade" class="max-w-2xl mx-auto px-4 py-4">
+  <div id="panel-grade" class="hidden max-w-2xl mx-auto px-4 py-4">
     <div id="grade-loading" class="text-center py-10 text-gray-400">
       <i class="fas fa-spinner fa-spin text-2xl mb-2 block"></i>
       <p class="text-sm">読み込み中...</p>
@@ -208,7 +214,8 @@
       document.getElementById('student-name').textContent = `${student.grade}年${student.class}組 出席番号:${student.number}番`;
       document.getElementById('grade-badge').textContent  = `${student.grade}年生`;
       await loadProgress();
-      await loadGradeTasks();
+      loadContentTab();
+      contentTabLoaded = true;
     }
 
     async function loadProgress() {
@@ -616,20 +623,98 @@
 
     // ---- TABS ----
 
-    let studyTabLoaded = false;
+    let contentTabLoaded = false;
+    let quizTabLoaded    = false;
+    let gradeTabLoaded   = false;
+
+    let contentTopics          = [];
+    let quizTopics             = [];
+    let currentContentTopicId  = null;
+    let currentQuizTopicId     = null;
 
     function showTab(tab) {
-      document.getElementById('panel-grade').classList.toggle('hidden', tab !== 'grade');
-      document.getElementById('panel-song').classList.toggle('hidden', tab !== 'song');
-      document.getElementById('panel-study').classList.toggle('hidden', tab !== 'study');
-      document.getElementById('tab-grade').className = `tab-btn${tab === 'grade'  ? ' active' : ''}`;
-      document.getElementById('tab-song').className  = `tab-btn${tab === 'song'   ? ' active' : ''}`;
-      document.getElementById('tab-study').className = `tab-btn${tab === 'study'  ? ' active' : ''}`;
-      if (tab === 'song'  && !songTabLoaded)  loadSongTab();
-      if (tab === 'study' && !studyTabLoaded) { studyTabLoaded = true; loadStudyTopics(); }
+      ['content','quiz','grade','song'].forEach(t => {
+        document.getElementById(`panel-${t}`).classList.toggle('hidden', t !== tab);
+        document.getElementById(`tab-${t}`).className = `tab-btn${t === tab ? ' active' : ''}`;
+      });
+      if (tab === 'content' && !contentTabLoaded) { contentTabLoaded = true; loadContentTab(); }
+      if (tab === 'quiz'    && !quizTabLoaded)    { quizTabLoaded    = true; loadQuizTab(); }
+      if (tab === 'grade'   && !gradeTabLoaded)   { gradeTabLoaded   = true; loadGradeTasks(); }
+      if (tab === 'song'    && !songTabLoaded)    loadSongTab();
     }
 
-    // ---- STUDY ----
+    // ---- 基礎知識タブ ----
+
+    async function loadContentTab() {
+      const { data } = await db.from('study_topics')
+        .select('*').eq('school_id', student.school_id)
+        .eq('is_active', true).eq('topic_type', 'content').order('order_num');
+      contentTopics = data || [];
+      const pillsEl = document.getElementById('content-pills');
+      const bodyEl  = document.getElementById('content-body');
+      if (!contentTopics.length) {
+        pillsEl.style.display = 'none';
+        bodyEl.innerHTML = '<p class="text-gray-400 text-sm text-center py-12">基礎知識コンテンツがありません</p>';
+        return;
+      }
+      currentContentTopicId = contentTopics[0].id;
+      renderContentPills();
+      await selectContentTopic(contentTopics[0].id);
+    }
+
+    function renderContentPills() {
+      document.getElementById('content-pills').innerHTML = contentTopics.map(t => `
+        <button class="song-pill flex-shrink-0${t.id === currentContentTopicId ? ' active' : ''}"
+                onclick="selectContentTopic('${t.id}')">
+          ${escH(t.icon || '📚')} ${escH(t.title)}
+        </button>`).join('');
+    }
+
+    async function selectContentTopic(topicId) {
+      currentContentTopicId = topicId;
+      renderContentPills();
+      const el = document.getElementById('content-body');
+      el.innerHTML = '<p class="text-gray-400 text-sm text-center py-12">読み込み中...</p>';
+      await renderContentTopic(topicId, '', el);
+    }
+
+    // ---- 穴埋めクイズタブ ----
+
+    async function loadQuizTab() {
+      const { data } = await db.from('study_topics')
+        .select('*').eq('school_id', student.school_id)
+        .eq('is_active', true).eq('topic_type', 'quiz').order('order_num');
+      quizTopics = data || [];
+      const pillsEl = document.getElementById('quiz-pills');
+      const bodyEl  = document.getElementById('quiz-body');
+      if (!quizTopics.length) {
+        pillsEl.style.display = 'none';
+        bodyEl.innerHTML = '<p class="text-gray-400 text-sm text-center py-12">穴埋めクイズがありません</p>';
+        return;
+      }
+      currentQuizTopicId = quizTopics[0].id;
+      renderQuizPills();
+      await selectQuizTopic(quizTopics[0].id);
+    }
+
+    function renderQuizPills() {
+      document.getElementById('quiz-pills').innerHTML = quizTopics.map(t => `
+        <button class="song-pill flex-shrink-0${t.id === currentQuizTopicId ? ' active' : ''}"
+                onclick="selectQuizTopic('${t.id}')">
+          ${escH(t.icon || '🎵')} ${escH(t.title)}
+        </button>`).join('');
+    }
+
+    async function selectQuizTopic(topicId) {
+      currentQuizTopicId = topicId;
+      renderQuizPills();
+      const el = document.getElementById('quiz-body');
+      el.innerHTML = '<p class="text-gray-400 text-sm text-center py-12">読み込み中...</p>';
+      const topic = quizTopics.find(t => t.id === topicId);
+      await renderQuizTopic(topicId, topic?.title || '', el);
+    }
+
+    // ---- STUDY (shared rendering) ----
 
     function escH(s) { return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 
@@ -641,44 +726,6 @@
         ? `<iframe src="${escH(src)}" class="w-full rounded-xl" style="height:260px;border:1px solid #e5e7eb" allowfullscreen></iframe>`
         : `<img src="${escH(src)}" alt="${escH(caption)}" class="w-full rounded-xl object-contain max-h-64">`;
       return `<div class="my-3">${tag}${caption?`<p class="text-xs text-center text-gray-400 mt-1">${escH(caption)}</p>`:''}</div>`;
-    }
-
-    async function loadStudyTopics() {
-      const el = document.getElementById('study-topic-list');
-      el.innerHTML = '<p class="text-center text-gray-400 py-8 text-sm">読み込み中...</p>';
-      const { data } = await db.from('study_topics')
-        .select('*').eq('school_id', student.school_id).eq('is_active', true).order('order_num');
-      if (!data?.length) {
-        el.innerHTML = '<p class="text-center text-gray-400 py-8 text-sm">学習コンテンツがありません</p>';
-        return;
-      }
-      el.innerHTML = data.map(t => `
-        <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 mb-3 flex items-center gap-3 cursor-pointer hover:border-teal-300 transition-colors"
-             onclick="openStudyTopic('${t.id}','${escH(t.title)}','${t.topic_type}')">
-          <span class="text-3xl">${escH(t.icon||'📚')}</span>
-          <div>
-            <div class="font-bold text-gray-800">${escH(t.title)}</div>
-            <div class="text-xs text-gray-400 mt-0.5">${t.topic_type==='quiz'?'✏️ 穴埋めクイズ':'📖 読み物'}</div>
-          </div>
-          <i class="fas fa-chevron-right ml-auto text-gray-300"></i>
-        </div>`).join('');
-    }
-
-    async function openStudyTopic(topicId, topicTitle, topicType) {
-      document.getElementById('study-topic-list').classList.add('hidden');
-      document.getElementById('study-detail').classList.remove('hidden');
-      const inner = document.getElementById('study-detail-inner');
-      inner.innerHTML = '<p class="text-center text-gray-400 py-8">読み込み中...</p>';
-      if (topicType === 'content') {
-        await renderContentTopic(topicId, topicTitle, inner);
-      } else {
-        await renderQuizTopic(topicId, topicTitle, inner);
-      }
-    }
-
-    function backToTopics() {
-      document.getElementById('study-topic-list').classList.remove('hidden');
-      document.getElementById('study-detail').classList.add('hidden');
     }
 
     async function renderContentTopic(topicId, title, el) {
