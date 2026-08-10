@@ -98,6 +98,18 @@
       <button class="tab-btn" id="tab-btn-admin-settings" onclick="switchTab('admin-settings')">
         <i class="fas fa-cog mr-1.5"></i>管理者設定
       </button>
+      <button class="tab-btn" id="tab-btn-all-stats" onclick="switchTab('all-stats')">
+        <i class="fas fa-chart-bar mr-1.5"></i>全校統計
+      </button>
+      <button class="tab-btn" id="tab-btn-student-mgmt" onclick="switchTab('student-mgmt')">
+        <i class="fas fa-users-cog mr-1.5"></i>生徒管理
+      </button>
+      <button class="tab-btn" id="tab-btn-content-dist" onclick="switchTab('content-dist')">
+        <i class="fas fa-share-alt mr-1.5"></i>コンテンツ配信
+      </button>
+      <button class="tab-btn" id="tab-btn-system" onclick="switchTab('system')">
+        <i class="fas fa-server mr-1.5"></i>システム設定
+      </button>
     </div>
   </div>
 
@@ -276,6 +288,108 @@
             </div>
             <button type="submit" class="btn-indigo w-full"><i class="fas fa-key mr-1"></i>変更する</button>
           </form>
+        </div>
+      </div>
+    </div>
+
+    <!-- 全校統計 -->
+    <div id="tab-all-stats" class="tab-content hidden space-y-4">
+      <div id="all-stats-content">
+        <div class="text-center py-12 text-gray-400"><i class="fas fa-spinner fa-spin text-2xl mb-2 block"></i>読み込み中...</div>
+      </div>
+    </div>
+
+    <!-- 生徒管理 -->
+    <div id="tab-student-mgmt" class="tab-content hidden space-y-4">
+      <div class="card p-4">
+        <div class="section-title"><i class="fas fa-users-cog text-indigo-500"></i>生徒データ管理</div>
+        <p class="text-xs text-gray-500 mb-3">学校・クラス単位で生徒の進捗データをリセットできます。この操作は取り消せません。</p>
+        <div class="flex flex-wrap gap-3 items-end">
+          <div>
+            <label class="block text-xs font-semibold text-gray-600 mb-1">学校</label>
+            <select id="smgmt-school" class="inp w-52" onchange="onSmgmtSchoolChange()"><option value="">選択...</option></select>
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-gray-600 mb-1">学年（任意）</label>
+            <select id="smgmt-grade" class="inp w-28" onchange="onSmgmtGradeChange()" disabled><option value="">全学年</option></select>
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-gray-600 mb-1">クラス（任意）</label>
+            <select id="smgmt-class" class="inp w-28" onchange="loadSmgmtStudents()" disabled><option value="">全クラス</option></select>
+          </div>
+        </div>
+      </div>
+      <div id="smgmt-body" class="hidden space-y-4">
+        <div class="card p-4">
+          <div class="section-title"><i class="fas fa-user-graduate text-indigo-500"></i>生徒一覧</div>
+          <div id="smgmt-students-table"></div>
+        </div>
+        <div class="card p-4" style="border:2px solid #FEE2E2">
+          <div class="section-title"><i class="fas fa-trash-alt text-red-500"></i>データリセット</div>
+          <p class="text-sm text-gray-600 mb-3">選択した範囲の<strong>進捗データ</strong>と<strong>練習ログ</strong>をすべて削除します。この操作は取り消せません。</p>
+          <div class="flex gap-2 flex-wrap">
+            <button onclick="confirmResetProgress()" style="background:#FEE2E2;color:#DC2626;border:none;padding:8px 16px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;font-family:'Noto Sans JP',sans-serif;">
+              <i class="fas fa-eraser mr-1"></i>進捗のみリセット
+            </button>
+            <button onclick="confirmResetAll()" style="background:#DC2626;color:#fff;border:none;padding:8px 16px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;font-family:'Noto Sans JP',sans-serif;">
+              <i class="fas fa-trash mr-1"></i>全データ削除（進捗＋練習ログ）
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- コンテンツ配信 -->
+    <div id="tab-content-dist" class="tab-content hidden space-y-4">
+      <div class="card p-4">
+        <div class="section-title"><i class="fas fa-share-alt text-indigo-500"></i>コンテンツ一括配信</div>
+        <p class="text-xs text-gray-500 mb-3">選択した学校の課題を別の学校にコピーします。同名の課題がある場合はスキップします。</p>
+        <div class="grid md:grid-cols-2 gap-4">
+          <div>
+            <label class="block text-xs font-semibold text-gray-600 mb-1">コピー元の学校</label>
+            <select id="cdist-from" class="inp" onchange="onCdistFromChange()"><option value="">選択...</option></select>
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-gray-600 mb-1">コピーするコンテンツ</label>
+            <div class="flex gap-4 flex-wrap pt-1">
+              <label class="flex items-center gap-1.5 text-sm cursor-pointer">
+                <input type="checkbox" id="cdist-grade" checked class="w-4 h-4"> 学年別課題
+              </label>
+              <label class="flex items-center gap-1.5 text-sm cursor-pointer">
+                <input type="checkbox" id="cdist-song" checked class="w-4 h-4"> 曲別課題（曲データ含む）
+              </label>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div id="cdist-targets" class="card p-4 hidden">
+        <div class="section-title"><i class="fas fa-school text-indigo-500"></i>コピー先の学校を選択</div>
+        <div id="cdist-school-checks" class="flex flex-wrap gap-3 mb-4"></div>
+        <div id="cdist-preview" class="mb-4 hidden p-3 bg-indigo-50 rounded-lg">
+          <p class="text-xs font-semibold text-gray-500 mb-1">コピー元のタスク数</p>
+          <div id="cdist-preview-content" class="text-sm text-indigo-700"></div>
+        </div>
+        <button onclick="startContentDist()" class="btn-indigo"><i class="fas fa-paper-plane mr-1"></i>配信開始</button>
+      </div>
+    </div>
+
+    <!-- システム設定 -->
+    <div id="tab-system" class="tab-content hidden space-y-4">
+      <div class="card p-4">
+        <div class="section-title"><i class="fas fa-tools text-indigo-500"></i>メンテナンスモード</div>
+        <p class="text-xs text-gray-500 mb-3">ONにすると、生徒はログインページでメンテナンス中の表示になりログインできなくなります。先生・管理者は影響を受けません。</p>
+        <div class="flex items-center gap-4 flex-wrap">
+          <div id="maint-status" class="text-sm font-semibold text-gray-400">確認中...</div>
+          <button id="maint-toggle-btn" onclick="toggleMaintMode()" class="btn-indigo hidden">変更</button>
+        </div>
+      </div>
+      <div class="card p-4">
+        <div class="flex items-center justify-between mb-3">
+          <div class="section-title mb-0"><i class="fas fa-history text-indigo-500"></i>先生活動ログ</div>
+          <button onclick="loadActivityLog()" class="btn-gray text-xs"><i class="fas fa-sync-alt mr-1"></i>更新</button>
+        </div>
+        <div id="activity-log-content">
+          <div class="text-center py-8 text-gray-400"><i class="fas fa-spinner fa-spin mr-2"></i>読み込み中...</div>
         </div>
       </div>
     </div>
@@ -484,7 +598,7 @@
     document.getElementById(`tab-${name}`)?.classList.remove('hidden');
     if (!tabLoaded[name]) {
       tabLoaded[name] = true;
-      const loaders = { dashboard: loadDashboard, teachers: loadTeachers, schools: loadSchools, 'admin-settings': () => {}, 'content-mgmt': loadAdminContentMgmt };
+      const loaders = { dashboard: loadDashboard, teachers: loadTeachers, schools: loadSchools, 'admin-settings': () => {}, 'content-mgmt': loadAdminContentMgmt, 'all-stats': loadAllStats, 'student-mgmt': loadStudentMgmt, 'content-dist': loadContentDist, 'system': loadSystemTab };
       if (loaders[name]) await loaders[name]();
     }
   }
@@ -1624,6 +1738,359 @@
     const csv = 'トピック名,アイコン,先生メモ,クイズセット名,クイズセット画像,問題文,正解,別解,ヒント\n三線の基礎,🎵,クイズトピック,①各部の名称,,三線の胴の部分は何と呼ぶ？,チーガ,,胴体部分\n';
     const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' });
     const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'quiz_template.csv'; a.click();
+  }
+
+  // ---- 全校統計 ----
+
+  async function loadAllStats() {
+    const el = document.getElementById('all-stats-content');
+    try {
+      const [statsRes, tpRes] = await Promise.all([
+        db.rpc('admin_school_stats'),
+        db.from('teacher_profiles').select('school_id, school_name'),
+      ]);
+      if (statsRes.error) throw statsRes.error;
+      const rows = statsRes.data || [];
+      const schoolNameMap = {};
+      (tpRes.data || []).forEach(t => { if (t.school_name) schoolNameMap[t.school_id] = t.school_name; });
+
+      const totals = rows.reduce((acc, r) => ({
+        teachers: acc.teachers + Number(r.teacher_count),
+        students: acc.students + Number(r.student_count),
+        tasks: acc.tasks + Number(r.task_count),
+        completed: acc.completed + Number(r.completed_count),
+        practice: acc.practice + Number(r.practice_days),
+      }), { teachers: 0, students: 0, tasks: 0, completed: 0, practice: 0 });
+
+      const tableRows = rows.map(r => {
+        const rate = Number(r.student_count) > 0 && Number(r.task_count) > 0
+          ? Math.round(Number(r.completed_count) / (Number(r.student_count) * Number(r.task_count)) * 100) : 0;
+        return `<tr>
+          <td><code class="text-xs bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded font-mono">${escHtml(r.school_id)}</code></td>
+          <td class="font-medium">${escHtml(schoolNameMap[r.school_id] || '-')}</td>
+          <td class="text-center">${r.teacher_count}</td>
+          <td class="text-center">${r.student_count}</td>
+          <td class="text-center">${r.task_count}</td>
+          <td class="text-center font-semibold text-indigo-600">${r.completed_count}</td>
+          <td class="text-center">
+            <div class="flex items-center gap-2 justify-center">
+              <div class="w-20 h-2 bg-gray-100 rounded-full overflow-hidden">
+                <div class="h-full rounded-full" style="width:${rate}%;background:#8B7BC8"></div>
+              </div>
+              <span class="text-xs font-semibold">${rate}%</span>
+            </div>
+          </td>
+          <td class="text-center">${r.practice_days}</td>
+          <td class="text-xs text-gray-400 whitespace-nowrap">${r.last_activity ? new Date(r.last_activity).toLocaleDateString('ja-JP') : '-'}</td>
+        </tr>`;
+      }).join('') || '<tr><td colspan="9" class="text-center text-gray-400 py-6">データがありません</td></tr>';
+
+      el.innerHTML = `
+        <div class="grid grid-cols-2 md:grid-cols-5 gap-3 mb-4">
+          ${statCard('fa-school', '学校数', rows.length + '校', '#EEF2FF', '#4338CA')}
+          ${statCard('fa-chalkboard-teacher', '先生数', totals.teachers + '名', '#F0FDF4', '#166534')}
+          ${statCard('fa-users', '生徒数', totals.students + '名', '#FEF3C7', '#92400E')}
+          ${statCard('fa-check-circle', '達成タスク', totals.completed + '件', '#DCFCE7', '#15803D')}
+          ${statCard('fa-dumbbell', '練習ログ', totals.practice + '件', '#FEE2E2', '#991B1B')}
+        </div>
+        <div class="card p-4">
+          <div class="section-title"><i class="fas fa-table text-indigo-500"></i>学校別詳細</div>
+          <div class="overflow-x-auto">
+            <table>
+              <thead><tr>
+                <th>学校ID</th><th>学校名</th><th class="text-center">先生</th>
+                <th class="text-center">生徒</th><th class="text-center">課題数</th>
+                <th class="text-center">達成件数</th><th class="text-center">達成率</th>
+                <th class="text-center">練習日数</th><th>最終活動</th>
+              </tr></thead>
+              <tbody>${tableRows}</tbody>
+            </table>
+          </div>
+        </div>`;
+    } catch (err) {
+      el.innerHTML = `<div class="card p-6 text-center text-red-500"><i class="fas fa-exclamation-circle mr-2"></i>${escHtml(err.message || '読み込み失敗')}</div>`;
+    }
+  }
+
+  // ---- 生徒管理 ----
+
+  let smgmtClassesData = [];
+
+  async function loadStudentMgmt() {
+    const { data } = await db.from('teacher_profiles').select('school_id, school_name');
+    const schoolMap = {};
+    (data || []).forEach(t => { if (!schoolMap[t.school_id]) schoolMap[t.school_id] = t.school_name || t.school_id; });
+    const schools = Object.entries(schoolMap).sort((a, b) => a[0].localeCompare(b[0]));
+    const sel = document.getElementById('smgmt-school');
+    sel.innerHTML = '<option value="">選択...</option>' + schools.map(([id, name]) =>
+      `<option value="${escHtml(id)}">${escHtml(name)} (${escHtml(id)})</option>`).join('');
+  }
+
+  async function onSmgmtSchoolChange() {
+    const schoolId = document.getElementById('smgmt-school').value;
+    const gradeEl = document.getElementById('smgmt-grade');
+    const clsEl = document.getElementById('smgmt-class');
+    gradeEl.innerHTML = '<option value="">全学年</option>';
+    clsEl.innerHTML = '<option value="">全クラス</option>';
+    gradeEl.disabled = true; clsEl.disabled = true;
+    document.getElementById('smgmt-body').classList.add('hidden');
+    if (!schoolId) return;
+    const { data } = await db.from('classes').select('grade, class_name').eq('school_id', schoolId).order('grade').order('class_name');
+    smgmtClassesData = data || [];
+    const grades = [...new Set(smgmtClassesData.map(c => c.grade))].sort();
+    grades.forEach(g => { const o = document.createElement('option'); o.value = g; o.textContent = `${g}年`; gradeEl.appendChild(o); });
+    gradeEl.disabled = false;
+    await loadSmgmtStudents();
+  }
+
+  function onSmgmtGradeChange() {
+    const grade = document.getElementById('smgmt-grade').value;
+    const clsEl = document.getElementById('smgmt-class');
+    clsEl.innerHTML = '<option value="">全クラス</option>';
+    clsEl.disabled = !grade;
+    if (grade) {
+      smgmtClassesData.filter(c => c.grade === grade).forEach(c => {
+        const o = document.createElement('option'); o.value = c.class_name; o.textContent = `${c.class_name}組`; clsEl.appendChild(o);
+      });
+    }
+    loadSmgmtStudents();
+  }
+
+  async function loadSmgmtStudents() {
+    const schoolId = document.getElementById('smgmt-school').value;
+    if (!schoolId) return;
+    const grade = document.getElementById('smgmt-grade').value;
+    const cls   = document.getElementById('smgmt-class').value;
+
+    let q = db.from('students').select('id, student_id, name, grade, class_name, number').eq('school_id', schoolId).order('grade').order('class_name').order('number');
+    if (grade) q = q.eq('grade', grade);
+    if (cls)   q = q.eq('class_name', cls);
+    const { data: students } = await q;
+
+    const { data: progData } = await db.from('student_progress').select('student_id').eq('school_id', schoolId).eq('is_completed', true);
+    const progCount = {};
+    (progData || []).forEach(p => { progCount[p.student_id] = (progCount[p.student_id] || 0) + 1; });
+
+    const rows = (students || []).map(s => `<tr>
+      <td class="font-mono text-xs">${escHtml(s.student_id)}</td>
+      <td>${escHtml(s.name || '-')}</td>
+      <td class="text-center text-xs">${escHtml(s.grade)}年${escHtml(s.class_name)}組${escHtml(String(s.number))}番</td>
+      <td class="text-center font-semibold text-indigo-600">${progCount[s.student_id] || 0}</td>
+    </tr>`).join('') || '<tr><td colspan="4" class="text-center text-gray-400 py-4">生徒が見つかりません</td></tr>';
+
+    document.getElementById('smgmt-students-table').innerHTML = `
+      <p class="text-xs text-gray-400 mb-2">${(students||[]).length}名</p>
+      <div class="overflow-x-auto">
+        <table>
+          <thead><tr><th>生徒ID</th><th>名前</th><th class="text-center">クラス・番号</th><th class="text-center">達成数</th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>`;
+    document.getElementById('smgmt-body').classList.remove('hidden');
+  }
+
+  async function confirmResetProgress() {
+    const schoolId = document.getElementById('smgmt-school').value;
+    if (!schoolId) { toast('学校を選択してください', 'error'); return; }
+    const grade = document.getElementById('smgmt-grade').value;
+    const cls   = document.getElementById('smgmt-class').value;
+    const label = grade ? (cls ? `${grade}年${cls}組` : `${grade}年全クラス`) : '全生徒';
+    if (!confirm(`【${label}】の進捗データを削除しますか？\nこの操作は取り消せません。`)) return;
+    if (!confirm('最終確認: 本当に削除しますか？')) return;
+    const prefix = grade ? grade + (cls || '') : null;
+    let q = db.from('student_progress').delete().eq('school_id', schoolId);
+    if (prefix) q = q.like('student_id', prefix + '%');
+    const { error } = await q;
+    if (error) { toast('削除失敗: ' + error.message, 'error'); return; }
+    toast(`${label}の進捗データを削除しました`, 'success');
+    await loadSmgmtStudents();
+  }
+
+  async function confirmResetAll() {
+    const schoolId = document.getElementById('smgmt-school').value;
+    if (!schoolId) { toast('学校を選択してください', 'error'); return; }
+    const grade = document.getElementById('smgmt-grade').value;
+    const cls   = document.getElementById('smgmt-class').value;
+    const label = grade ? (cls ? `${grade}年${cls}組` : `${grade}年全クラス`) : '全生徒';
+    if (!confirm(`【${label}】の進捗データと練習ログをすべて削除しますか？\nこの操作は取り消せません。`)) return;
+    if (!confirm('最終確認: 本当にすべて削除しますか？')) return;
+    const prefix = grade ? grade + (cls || '') : null;
+    const [r1, r2] = await Promise.all([
+      prefix ? db.from('student_progress').delete().eq('school_id', schoolId).like('student_id', prefix + '%')
+             : db.from('student_progress').delete().eq('school_id', schoolId),
+      prefix ? db.from('practice_logs').delete().eq('school_id', schoolId).like('student_id', prefix + '%')
+             : db.from('practice_logs').delete().eq('school_id', schoolId),
+    ]);
+    if (r1.error || r2.error) { toast('削除に失敗しました: ' + (r1.error?.message || r2.error?.message), 'error'); return; }
+    toast(`${label}の全データを削除しました`, 'success');
+    await loadSmgmtStudents();
+  }
+
+  // ---- コンテンツ配信 ----
+
+  let cdistSchoolList = [];
+
+  async function loadContentDist() {
+    const { data } = await db.from('teacher_profiles').select('school_id, school_name');
+    const schoolMap = {};
+    (data || []).forEach(t => { if (!schoolMap[t.school_id]) schoolMap[t.school_id] = t.school_name || t.school_id; });
+    cdistSchoolList = Object.entries(schoolMap).sort((a, b) => a[0].localeCompare(b[0]));
+    const fromSel = document.getElementById('cdist-from');
+    fromSel.innerHTML = '<option value="">選択...</option>' + cdistSchoolList.map(([id, name]) =>
+      `<option value="${escHtml(id)}">${escHtml(name)} (${escHtml(id)})</option>`).join('');
+  }
+
+  async function onCdistFromChange() {
+    const fromId = document.getElementById('cdist-from').value;
+    const targetsEl = document.getElementById('cdist-targets');
+    if (!fromId) { targetsEl.classList.add('hidden'); return; }
+
+    const [gradeRes, songRes, songsRes] = await Promise.all([
+      db.from('koto_tasks').select('id', { count: 'exact', head: true }).eq('school_id', fromId).eq('task_type', 'grade').eq('is_active', true),
+      db.from('koto_tasks').select('id', { count: 'exact', head: true }).eq('school_id', fromId).eq('task_type', 'song').eq('is_active', true),
+      db.from('koto_songs').select('id', { count: 'exact', head: true }).eq('school_id', fromId),
+    ]);
+
+    const checksEl = document.getElementById('cdist-school-checks');
+    checksEl.innerHTML = cdistSchoolList.filter(([id]) => id !== fromId).map(([id, name]) => `
+      <label class="flex items-center gap-2 text-sm cursor-pointer bg-gray-50 px-3 py-2 rounded-lg hover:bg-indigo-50 transition-colors">
+        <input type="checkbox" class="cdist-target w-4 h-4" value="${escHtml(id)}">
+        <span><span class="font-semibold">${escHtml(name)}</span> <span class="text-xs text-gray-400">(${escHtml(id)})</span></span>
+      </label>`).join('') || '<p class="text-gray-400 text-sm">コピー先の学校がありません（他に学校を追加してください）</p>';
+
+    document.getElementById('cdist-preview').classList.remove('hidden');
+    document.getElementById('cdist-preview-content').innerHTML = `
+      <div class="flex gap-4 flex-wrap text-sm">
+        <span><i class="fas fa-graduation-cap text-indigo-400 mr-1"></i>学年別課題: <strong>${gradeRes.count || 0}件</strong></span>
+        <span><i class="fas fa-music text-indigo-400 mr-1"></i>曲別課題: <strong>${songRes.count || 0}件</strong>（曲: ${songsRes.count || 0}曲）</span>
+      </div>`;
+    targetsEl.classList.remove('hidden');
+  }
+
+  async function startContentDist() {
+    const fromId = document.getElementById('cdist-from').value;
+    if (!fromId) { toast('コピー元を選択してください', 'error'); return; }
+    const targetIds = [...document.querySelectorAll('.cdist-target:checked')].map(el => el.value);
+    if (!targetIds.length) { toast('コピー先を選択してください', 'error'); return; }
+    const copyGrade = document.getElementById('cdist-grade').checked;
+    const copySong  = document.getElementById('cdist-song').checked;
+    if (!copyGrade && !copySong) { toast('コピーするコンテンツを選択してください', 'error'); return; }
+    if (!confirm(`${targetIds.length}校へコンテンツをコピーします。よろしいですか？`)) return;
+
+    const [gradeTasks, songTasks, songs] = await Promise.all([
+      copyGrade ? db.from('koto_tasks').select('*').eq('school_id', fromId).eq('task_type', 'grade').order('order_num') : Promise.resolve({ data: [] }),
+      copySong  ? db.from('koto_tasks').select('*').eq('school_id', fromId).eq('task_type', 'song').order('order_num')  : Promise.resolve({ data: [] }),
+      copySong  ? db.from('koto_songs').select('*').eq('school_id', fromId).order('order_num')                          : Promise.resolve({ data: [] }),
+    ]);
+
+    let totalOk = 0, totalSkip = 0, totalErr = 0;
+    for (const toId of targetIds) {
+      if (copyGrade && gradeTasks.data?.length) {
+        for (const task of gradeTasks.data) {
+          const { data: ex } = await db.from('koto_tasks').select('id').eq('school_id', toId).eq('task_type', 'grade').eq('title', task.title).maybeSingle();
+          if (ex) { totalSkip++; continue; }
+          const { id: _id, created_at: _ca, ...rest } = task;
+          const { error } = await db.from('koto_tasks').insert({ ...rest, school_id: toId });
+          if (error) totalErr++; else totalOk++;
+        }
+      }
+      if (copySong && songs.data?.length) {
+        const songIdMap = {};
+        for (const song of songs.data) {
+          const { data: ex } = await db.from('koto_songs').select('id').eq('school_id', toId).eq('title', song.title).maybeSingle();
+          if (ex) { songIdMap[song.id] = ex.id; continue; }
+          const { id: _id, created_at: _ca, ...rest } = song;
+          const { data: ns, error } = await db.from('koto_songs').insert({ ...rest, school_id: toId }).select('id').single();
+          if (error) continue;
+          songIdMap[song.id] = ns.id;
+        }
+        for (const task of (songTasks.data || [])) {
+          const newSongId = songIdMap[task.song_id];
+          if (!newSongId) { totalSkip++; continue; }
+          const { data: ex } = await db.from('koto_tasks').select('id').eq('school_id', toId).eq('song_id', newSongId).eq('title', task.title).maybeSingle();
+          if (ex) { totalSkip++; continue; }
+          const { id: _id, created_at: _ca, ...rest } = task;
+          const { error } = await db.from('koto_tasks').insert({ ...rest, school_id: toId, song_id: newSongId });
+          if (error) totalErr++; else totalOk++;
+        }
+      }
+    }
+    toast(`配信完了: ${totalOk}件追加, ${totalSkip}件スキップ` + (totalErr ? `, ${totalErr}件エラー` : ''), totalErr ? 'error' : 'success');
+  }
+
+  // ---- システム設定 ----
+
+  let currentMaintMode = false;
+
+  async function loadSystemTab() {
+    await Promise.all([loadMaintMode(), loadActivityLog()]);
+  }
+
+  async function loadMaintMode() {
+    const statusEl = document.getElementById('maint-status');
+    const btnEl = document.getElementById('maint-toggle-btn');
+    try {
+      const { data } = await db.rpc('get_maintenance_mode');
+      currentMaintMode = !!data;
+    } catch (_) {
+      const { data } = await db.from('system_settings').select('value').eq('key', 'maintenance_mode').maybeSingle();
+      currentMaintMode = data?.value === 'true';
+    }
+    updateMaintUI();
+    btnEl.classList.remove('hidden');
+  }
+
+  function updateMaintUI() {
+    const statusEl = document.getElementById('maint-status');
+    const btnEl = document.getElementById('maint-toggle-btn');
+    if (currentMaintMode) {
+      statusEl.innerHTML = '<span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-semibold" style="background:#FEE2E2;color:#DC2626"><i class="fas fa-exclamation-triangle mr-1"></i>メンテナンス中（生徒ログイン不可）</span>';
+      btnEl.textContent = 'メンテナンスモードを解除する';
+      btnEl.style.background = 'linear-gradient(135deg,#16a34a,#22c55e)';
+    } else {
+      statusEl.innerHTML = '<span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-semibold" style="background:#DCFCE7;color:#166534"><i class="fas fa-check-circle mr-1"></i>正常運用中</span>';
+      btnEl.textContent = 'メンテナンスモードにする';
+      btnEl.style.background = '';
+    }
+  }
+
+  async function toggleMaintMode() {
+    const newVal = !currentMaintMode;
+    const label = newVal ? 'メンテナンスモードに切り替え' : 'メンテナンスモードを解除';
+    if (!confirm(`${label}しますか？`)) return;
+    const { error } = await db.from('system_settings').update({ value: newVal ? 'true' : 'false', updated_at: new Date().toISOString() }).eq('key', 'maintenance_mode');
+    if (error) { toast('更新失敗: ' + error.message, 'error'); return; }
+    currentMaintMode = newVal;
+    updateMaintUI();
+    toast(label + 'しました', 'success');
+  }
+
+  async function loadActivityLog() {
+    const el = document.getElementById('activity-log-content');
+    const { data, error } = await db.from('teacher_activity_log').select('id, teacher_id, school_id, action, detail, created_at').order('created_at', { ascending: false }).limit(100);
+    if (error) { el.innerHTML = `<p class="text-red-500 text-sm">${escHtml(error.message)}</p>`; return; }
+    if (!data?.length) { el.innerHTML = '<p class="text-gray-400 text-center py-6">ログがありません（先生の活動があると自動記録されます）</p>'; return; }
+    const teacherIds = [...new Set(data.map(l => l.teacher_id).filter(Boolean))];
+    let teacherNames = {};
+    if (teacherIds.length) {
+      const { data: tp } = await db.from('teacher_profiles').select('id, name, username').in('id', teacherIds);
+      (tp || []).forEach(t => { teacherNames[t.id] = t.name || t.username || '不明'; });
+    }
+    const rows = data.map(l => `<tr>
+      <td class="text-xs text-gray-400 whitespace-nowrap">${new Date(l.created_at).toLocaleString('ja-JP')}</td>
+      <td class="text-sm">${escHtml(teacherNames[l.teacher_id] || '不明')}</td>
+      <td><code class="text-xs bg-gray-100 px-1 rounded">${escHtml(l.school_id || '-')}</code></td>
+      <td class="text-sm font-medium">${escHtml(l.action || '-')}</td>
+      <td class="text-xs text-gray-500 max-w-xs" style="word-break:break-all">${escHtml(l.detail || '-')}</td>
+    </tr>`).join('');
+    el.innerHTML = `
+      <p class="text-xs text-gray-400 mb-2">直近100件</p>
+      <div class="overflow-x-auto">
+        <table>
+          <thead><tr><th>日時</th><th>先生</th><th>学校</th><th>アクション</th><th>詳細</th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>`;
   }
 
   // ---- HELPERS ----

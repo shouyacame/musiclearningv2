@@ -682,6 +682,26 @@
   </div>
 </div>
 
+<!-- モーダル：PIN設定 -->
+<div id="pin-modal" class="modal-overlay hidden">
+  <div class="modal-box" style="max-width:340px">
+    <h3 class="font-bold text-gray-800 mb-1"><i class="fas fa-key text-amber-500 mr-2"></i>PIN設定</h3>
+    <p class="text-xs text-gray-400 mb-4" id="pin-modal-name"></p>
+    <input type="hidden" id="pin-stu-id">
+    <div class="space-y-3">
+      <div>
+        <label class="block text-xs font-semibold text-gray-600 mb-1">新しいPIN（数字4〜8桁）</label>
+        <input type="text" id="pin-new" class="inp" placeholder="例: 1234" maxlength="8" pattern="[0-9]*" inputmode="numeric">
+      </div>
+      <p class="text-xs text-gray-400">※空欄で保存するとPINを削除（認証なしでログイン可）</p>
+    </div>
+    <div class="flex gap-2 mt-4">
+      <button class="btn-gray flex-1" onclick="closeModal('pin-modal')">キャンセル</button>
+      <button class="btn-red flex-1" onclick="saveStudentPin()"><i class="fas fa-save mr-1"></i>保存</button>
+    </div>
+  </div>
+</div>
+
 <!-- モーダル：課題編集 -->
 <div id="edit-task-modal" class="modal-overlay hidden">
   <div class="modal-box">
@@ -1842,15 +1862,19 @@
     const { data } = await query;
     const wrap = document.getElementById('roster-table-wrap');
     if (!data?.length) { wrap.innerHTML = '<p class="text-center text-sm text-gray-400 py-4">生徒が登録されていません</p>'; return; }
-    let html = '<table><thead><tr><th>学年</th><th>組</th><th>番号</th><th>名前</th><th>生徒ID</th><th>操作</th></tr></thead><tbody>';
+    let html = '<table><thead><tr><th>学年</th><th>組</th><th>番号</th><th>名前</th><th>生徒ID</th><th>PIN</th><th>操作</th></tr></thead><tbody>';
     data.forEach(s => {
       const nameDisplay = s.name
         ? `<button class="text-blue-600 hover:underline font-medium text-left" onclick="openStudentDetail('${s.student_id}','${escQ(s.name)}','${s.grade}','${s.class_name}',${s.number})">${escHtml(s.name)}</button>`
         : '<span class="text-gray-300">未登録</span>';
+      const pinDisplay = s.pin
+        ? `<span class="badge badge-green text-xs">設定済</span>`
+        : `<span class="badge badge-gray text-xs">未設定</span>`;
       html += `<tr>
         <td>${s.grade}年</td><td>${s.class_name}組</td><td>${s.number}番</td>
         <td>${nameDisplay}</td>
         <td><code class="text-xs bg-gray-100 px-1 rounded">${s.student_id}</code></td>
+        <td>${pinDisplay} <button class="btn-sm btn-edit text-xs" onclick="openSetPin('${s.id}','${escQ(s.name||s.student_id)}')">変更</button></td>
         <td class="flex gap-1">
           <button class="btn-sm btn-edit" onclick="openEditStudent('${s.id}','${s.grade}','${s.class_name}',${s.number},'${escQ(s.name||'')}')">編集</button>
           <button class="btn-sm btn-del" onclick="deleteStudent('${s.id}')"><i class="fas fa-trash"></i></button>
@@ -1874,6 +1898,25 @@
     document.getElementById('add-stu-name').value = '';
     await loadRoster();
     toast('生徒を追加しました', 'success');
+  }
+
+  function openSetPin(stuId, stuName) {
+    document.getElementById('pin-stu-id').value   = stuId;
+    document.getElementById('pin-modal-name').textContent = stuName;
+    document.getElementById('pin-new').value      = '';
+    document.getElementById('pin-modal').classList.remove('hidden');
+    setTimeout(() => document.getElementById('pin-new').focus(), 100);
+  }
+
+  async function saveStudentPin() {
+    const id  = document.getElementById('pin-stu-id').value;
+    const pin = document.getElementById('pin-new').value.trim();
+    if (pin && !/^\d{4,8}$/.test(pin)) { toast('PINは数字4〜8桁で入力してください', 'error'); return; }
+    const { error } = await db.from('students').update({ pin }).eq('id', id);
+    if (error) { toast('保存失敗: ' + error.message, 'error'); return; }
+    closeModal('pin-modal');
+    await loadRoster();
+    toast(pin ? `PINを設定しました` : 'PINを削除しました', 'success');
   }
 
   function openEditStudent(id, grade, cls, num, name) {
