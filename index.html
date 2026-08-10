@@ -256,9 +256,10 @@
           displayName: `${grade}年${cls}組${num}番`,
           name: data.name || '',
           school_id: schoolId,
-          sessionToken: data.token || null,
           type: 'student'
         }));
+        // トークンはタブを閉じると消える sessionStorage に保存
+        sessionStorage.setItem('studentSessionToken', data.token || '');
         localStorage.setItem('userType', 'student');
         window.location.href = 'student.html';
 

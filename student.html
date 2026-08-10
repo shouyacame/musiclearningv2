@@ -246,8 +246,8 @@
     async function init() {
       student = JSON.parse(localStorage.getItem('currentUser') || 'null');
       if (!student || student.type !== 'student') { window.location.href = 'index.html'; return; }
-      sessionToken = student.sessionToken || null;
-      // v5 適用後はトークン必須。未ログインはログインページへ
+      // v6: sessionStorage 優先（タブを閉じると失効）、旧 localStorage は移行期間の後方互換
+      sessionToken = sessionStorage.getItem('studentSessionToken') || student.sessionToken || null;
       if (!sessionToken) { window.location.href = `index.html?school=${encodeURIComponent(student.school_id)}`; return; }
       document.getElementById('student-name').textContent = `${student.grade}年${student.class}組 出席番号:${student.number}番`;
       document.getElementById('grade-badge').textContent  = `${student.grade}年生`;
@@ -258,10 +258,7 @@
     }
 
     async function loadProgress() {
-      const { data } = await db.from('student_progress')
-        .select('task_db_id, is_completed, memo, completed_level, yt_speed')
-        .eq('school_id', student.school_id)
-        .eq('student_id', student.id);
+      const { data } = await db.rpc('get_student_progress', { p_token: sessionToken });
       (data || []).forEach(r => {
         progressMap[r.task_db_id] = {
           is_completed: r.is_completed, memo: r.memo || '',
@@ -273,11 +270,7 @@
     // ---- FEATURE 3: 練習ログ ----
 
     async function loadPracticeLogs() {
-      const { data } = await db.from('practice_logs')
-        .select('logged_at')
-        .eq('school_id', student.school_id)
-        .eq('student_id', student.id)
-        .order('logged_at', { ascending: false });
+      const { data } = await db.rpc('get_practice_logs', { p_token: sessionToken });
       practiceLogs = (data || []).map(r => r.logged_at);
     }
 
