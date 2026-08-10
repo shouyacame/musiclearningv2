@@ -1912,8 +1912,8 @@
     const id  = document.getElementById('pin-stu-id').value;
     const pin = document.getElementById('pin-new').value.trim();
     if (pin && !/^\d{4,8}$/.test(pin)) { toast('PINは数字4〜8桁で入力してください', 'error'); return; }
-    const { error } = await db.from('students').update({ pin }).eq('id', id);
-    if (error) { toast('保存失敗: ' + error.message, 'error'); return; }
+    const { data: rpcRes, error } = await db.rpc('set_student_pin', { p_student_uuid: id, p_pin: pin });
+    if (error || !rpcRes?.ok) { toast('保存失敗: ' + (error?.message || rpcRes?.error || '不明なエラー'), 'error'); return; }
     closeModal('pin-modal');
     await loadRoster();
     toast(pin ? `PINを設定しました` : 'PINを削除しました', 'success');

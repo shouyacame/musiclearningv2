@@ -228,11 +228,12 @@
   </div>
 
   <script>
-    let student     = null;
-    let progressMap = {}; // taskId → { is_completed, memo, completed_level, yt_speed }
-    let kotoTasks   = []; // { id, title, description, order_num, level_count, ... }
-    let allSongs    = []; // { id, title, artist }
-    let songCache   = {}; // songId → [ { id, title, description } ]
+    let student      = null;
+    let sessionToken = null; // v5 セキュリティ: 書き込みRPC認証用トークン
+    let progressMap  = {}; // taskId → { is_completed, memo, completed_level, yt_speed }
+    let kotoTasks    = []; // { id, title, description, order_num, level_count, ... }
+    let allSongs     = []; // { id, title, artist }
+    let songCache    = {}; // songId → [ { id, title, description } ]
     let currentSongId  = null;
     let memoTarget     = null;
     let uncheckTarget  = null;
@@ -245,6 +246,9 @@
     async function init() {
       student = JSON.parse(localStorage.getItem('currentUser') || 'null');
       if (!student || student.type !== 'student') { window.location.href = 'index.html'; return; }
+      sessionToken = student.sessionToken || null;
+      // v5 適用後はトークン必須。未ログインはログインページへ
+      if (!sessionToken) { window.location.href = `index.html?school=${encodeURIComponent(student.school_id)}`; return; }
       document.getElementById('student-name').textContent = `${student.grade}年${student.class}組 出席番号:${student.number}番`;
       document.getElementById('grade-badge').textContent  = `${student.grade}年生`;
       await Promise.all([loadProgress(), loadPracticeLogs(), loadClassStats(), loadFeedback()]);
@@ -282,10 +286,7 @@
       if (practiceLogs.includes(today)) return;
       const btn = document.getElementById('practice-log-btn');
       if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i>記録中...'; }
-      await db.from('practice_logs').upsert(
-        { school_id: student.school_id, student_id: student.id, logged_at: today },
-        { onConflict: 'school_id,student_id,logged_at' }
-      );
+      await db.rpc('log_student_practice', { p_token: sessionToken });
       practiceLogs = [today, ...practiceLogs];
       if (btn) btn.disabled = false;
       renderPracticeBar();
@@ -385,13 +386,9 @@
     async function saveYtSpeed(taskId, speed) {
       if (!progressMap[taskId]) progressMap[taskId] = { is_completed: false, memo: '', completed_level: 0, yt_speed: '1.0' };
       progressMap[taskId].yt_speed = speed;
-      await db.from('student_progress').upsert({
-        school_id: student.school_id, student_id: student.id, task_db_id: taskId,
-        is_completed: progressMap[taskId].is_completed,
-        completed_level: progressMap[taskId].completed_level || 0,
-        memo: progressMap[taskId].memo || '', yt_speed: speed,
-        updated_at: new Date().toISOString()
-      }, { onConflict: 'school_id,student_id,task_db_id' });
+      await db.rpc('save_yt_speed', {
+        p_token: sessionToken, p_task_db_id: taskId, p_yt_speed: speed
+      });
       document.querySelectorAll(`[data-task="${taskId}"].yt-speed-btn`).forEach(btn => {
         btn.className = `yt-speed-btn${btn.dataset.speed === speed ? ' active' : ''}`;
       });
@@ -678,12 +675,10 @@
       progressMap[taskId].completed_level = newLevel;
       progressMap[taskId].is_completed    = isDone;
 
-      await db.from('student_progress').upsert({
-        school_id: student.school_id, student_id: student.id,
-        task_db_id: taskId, is_completed: isDone,
-        completed_level: newLevel,
-        memo: progressMap[taskId].memo, updated_at: new Date().toISOString()
-      }, { onConflict: 'school_id,student_id,task_db_id' });
+      await db.rpc('upsert_student_progress', {
+        p_token: sessionToken, p_task_db_id: taskId,
+        p_completed_level: newLevel, p_is_completed: isDone
+      });
 
       // Refresh card UI
       const el = document.getElementById(`card-${taskId}`);
@@ -780,11 +775,10 @@
       if (!progressMap[taskId]) progressMap[taskId] = { is_completed: false, memo: '' };
       progressMap[taskId].is_completed = val;
 
-      await db.from('student_progress').upsert({
-        school_id: student.school_id, student_id: student.id,
-        task_db_id: taskId, is_completed: val,
-        memo: progressMap[taskId].memo, updated_at: new Date().toISOString()
-      }, { onConflict: 'school_id,student_id,task_db_id' });
+      await db.rpc('upsert_student_progress', {
+        p_token: sessionToken, p_task_db_id: taskId,
+        p_is_completed: val
+      });
 
       refreshCard(taskId, num);
 
@@ -827,11 +821,10 @@
       if (!progressMap[taskId]) progressMap[taskId] = { is_completed: false, memo: '' };
       progressMap[taskId].memo = memo;
 
-      await db.from('student_progress').upsert({
-        school_id: student.school_id, student_id: student.id,
-        task_db_id: taskId, is_completed: progressMap[taskId].is_completed,
-        memo, updated_at: new Date().toISOString()
-      }, { onConflict: 'school_id,student_id,task_db_id' });
+      await db.rpc('upsert_student_progress', {
+        p_token: sessionToken, p_task_db_id: taskId,
+        p_memo: memo
+      });
 
       const koto = kotoTasks.find(t => t.id === taskId);
       const num  = koto ? kotoTasks.indexOf(koto) + 1

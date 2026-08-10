@@ -256,6 +256,7 @@
           displayName: `${grade}年${cls}組${num}番`,
           name: data.name || '',
           school_id: schoolId,
+          sessionToken: data.token || null,
           type: 'student'
         }));
         localStorage.setItem('userType', 'student');
