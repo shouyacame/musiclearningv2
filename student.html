@@ -80,6 +80,23 @@
     .yt-wrap { margin-top:10px; border-radius:10px; overflow:hidden; background:#000; aspect-ratio:16/9; }
     .yt-wrap iframe { width:100%; height:100%; border:none; display:block; }
     .yt-link { display:flex; align-items:center; gap:8px; background:#FEF2F2; border-radius:10px; padding:10px 14px; text-decoration:none; color:#DC2626; font-size:13px; font-weight:600; margin-top:10px; }
+
+    /* Practice bar */
+    .practice-bar { background:#fff; border-bottom:1px solid #e5e7eb; }
+    .practice-btn { background:#7BBAA8; color:#fff; border:none; border-radius:12px; padding:6px 14px; font-size:12px; font-weight:700; cursor:pointer; font-family:'Noto Sans JP',sans-serif; transition:all .2s; white-space:nowrap; }
+    .practice-btn:hover:not(.done) { background:#6BAA98; }
+    .practice-btn.done { background:#D0EDE7; color:#2D7568; cursor:default; }
+
+    /* Badges */
+    .badge-chip { display:inline-flex; align-items:center; gap:3px; background:#FFFBEB; border:1px solid #FCD34D; color:#92400E; border-radius:20px; padding:2px 9px; font-size:11px; font-weight:700; white-space:nowrap; }
+
+    /* YouTube speed */
+    .yt-speed-btn { background:#f3f4f6; border:1px solid #e5e7eb; border-radius:10px; padding:2px 8px; font-size:11px; font-weight:600; cursor:pointer; color:#6b7280; transition:all .15s; }
+    .yt-speed-btn:hover { border-color:#7BBAA8; color:#7BBAA8; }
+    .yt-speed-btn.active { background:#7BBAA8; border-color:#7BBAA8; color:#fff; }
+
+    /* Teacher feedback */
+    .teacher-fb { background:#FFFBEB; border-left:3px solid #F59E0B; border-radius:0 8px 8px 0; padding:7px 12px; margin-top:8px; }
   </style>
 </head>
 <body>
@@ -97,6 +114,17 @@
           <i class="fas fa-sign-out-alt"></i>ログアウト
         </button>
       </div>
+    </div>
+  </div>
+
+  <!-- 練習バー (Feature 3/4/5) -->
+  <div class="practice-bar px-4 py-2">
+    <div class="max-w-2xl mx-auto flex items-center gap-2 flex-wrap">
+      <button id="practice-log-btn" class="practice-btn" onclick="logPractice()">
+        <i class="fas fa-dumbbell mr-1"></i>今日練習した！
+      </button>
+      <div id="badges-area" class="flex gap-1.5 flex-wrap"></div>
+      <div id="class-stats" class="ml-auto text-xs text-gray-400 hidden"></div>
     </div>
   </div>
 
@@ -201,7 +229,7 @@
 
   <script>
     let student     = null;
-    let progressMap = {}; // taskId → { is_completed, memo, completed_level }
+    let progressMap = {}; // taskId → { is_completed, memo, completed_level, yt_speed }
     let kotoTasks   = []; // { id, title, description, order_num, level_count, ... }
     let allSongs    = []; // { id, title, artist }
     let songCache   = {}; // songId → [ { id, title, description } ]
@@ -209,6 +237,8 @@
     let memoTarget     = null;
     let uncheckTarget  = null;
     let songTabLoaded  = false;
+    let practiceLogs   = []; // DATE strings 'YYYY-MM-DD'
+    let feedbackMap    = {}; // taskId → comment string
 
     // ---- INIT ----
 
@@ -217,18 +247,153 @@
       if (!student || student.type !== 'student') { window.location.href = 'index.html'; return; }
       document.getElementById('student-name').textContent = `${student.grade}年${student.class}組 出席番号:${student.number}番`;
       document.getElementById('grade-badge').textContent  = `${student.grade}年生`;
-      await loadProgress();
+      await Promise.all([loadProgress(), loadPracticeLogs(), loadClassStats(), loadFeedback()]);
+      renderPracticeBar();
       loadContentTab();
       contentTabLoaded = true;
     }
 
     async function loadProgress() {
       const { data } = await db.from('student_progress')
-        .select('task_db_id, is_completed, memo, completed_level')
+        .select('task_db_id, is_completed, memo, completed_level, yt_speed')
         .eq('school_id', student.school_id)
         .eq('student_id', student.id);
       (data || []).forEach(r => {
-        progressMap[r.task_db_id] = { is_completed: r.is_completed, memo: r.memo || '', completed_level: r.completed_level || 0 };
+        progressMap[r.task_db_id] = {
+          is_completed: r.is_completed, memo: r.memo || '',
+          completed_level: r.completed_level || 0, yt_speed: r.yt_speed || '1.0'
+        };
+      });
+    }
+
+    // ---- FEATURE 3: 練習ログ ----
+
+    async function loadPracticeLogs() {
+      const { data } = await db.from('practice_logs')
+        .select('logged_at')
+        .eq('school_id', student.school_id)
+        .eq('student_id', student.id)
+        .order('logged_at', { ascending: false });
+      practiceLogs = (data || []).map(r => r.logged_at);
+    }
+
+    async function logPractice() {
+      const today = new Date().toISOString().slice(0, 10);
+      if (practiceLogs.includes(today)) return;
+      const btn = document.getElementById('practice-log-btn');
+      if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i>記録中...'; }
+      await db.from('practice_logs').upsert(
+        { school_id: student.school_id, student_id: student.id, logged_at: today },
+        { onConflict: 'school_id,student_id,logged_at' }
+      );
+      practiceLogs = [today, ...practiceLogs];
+      if (btn) btn.disabled = false;
+      renderPracticeBar();
+    }
+
+    function getPracticeStreak() {
+      if (!practiceLogs.length) return 0;
+      const todayStr = new Date().toISOString().slice(0, 10);
+      if (!practiceLogs.includes(todayStr)) return 0;
+      const sorted = [...practiceLogs].sort().reverse();
+      let streak = 0, expecting = todayStr;
+      for (const d of sorted) {
+        if (d !== expecting) break;
+        streak++;
+        const dt = new Date(expecting);
+        dt.setDate(dt.getDate() - 1);
+        expecting = dt.toISOString().slice(0, 10);
+      }
+      return streak;
+    }
+
+    // ---- FEATURE 5: クラス達成率 ----
+
+    async function loadClassStats() {
+      try {
+        const { data } = await db.rpc('class_completion_stats', {
+          p_school_id: student.school_id,
+          p_grade: String(student.grade),
+          p_class: String(student.class)
+        });
+        const el = document.getElementById('class-stats');
+        if (el && data && data.total_students > 0) {
+          el.textContent = `クラス達成率 ${data.rate}%（${data.total_students}人）`;
+          el.classList.remove('hidden');
+        }
+      } catch (_) {}
+    }
+
+    // ---- FEATURE 4: バッジ ----
+
+    function renderBadges() {
+      const area = document.getElementById('badges-area');
+      if (!area) return;
+      const done   = Object.values(progressMap).filter(p => p.is_completed).length;
+      const streak = getPracticeStreak();
+      const badges = [];
+      if (done >= 1)  badges.push('🎵 初達成');
+      if (done >= 5)  badges.push('⭐ 5課題');
+      if (done >= 10) badges.push('🌟 10課題');
+      if (done >= 20) badges.push('🏅 20課題');
+      if (streak >= 3) badges.push(`🔥 ${streak}日連続`);
+      if (practiceLogs.length >= 10) badges.push('📅 10日練習');
+      area.innerHTML = badges.map(b => `<span class="badge-chip">${b}</span>`).join('');
+    }
+
+    function renderPracticeBar() {
+      const today = new Date().toISOString().slice(0, 10);
+      const logged = practiceLogs.includes(today);
+      const streak = getPracticeStreak();
+      const btn = document.getElementById('practice-log-btn');
+      if (btn) {
+        if (logged) {
+          btn.className = 'practice-btn done';
+          btn.innerHTML = `<i class="fas fa-check mr-1"></i>本日練習済み${streak >= 2 ? ` 🔥${streak}日連続` : ''}`;
+        } else {
+          btn.className = 'practice-btn';
+          btn.innerHTML = '<i class="fas fa-dumbbell mr-1"></i>今日練習した！';
+        }
+      }
+      renderBadges();
+    }
+
+    // ---- FEATURE 1: 先生フィードバック（表示） ----
+
+    async function loadFeedback() {
+      const { data } = await db.from('teacher_feedback')
+        .select('task_db_id, comment')
+        .eq('school_id', student.school_id)
+        .eq('student_id', student.id);
+      (data || []).forEach(r => { if (r.comment) feedbackMap[r.task_db_id] = r.comment; });
+    }
+
+    // ---- FEATURE 6: YouTube速度メモ ----
+
+    function buildSpeedHtml(taskId, currentSpeed) {
+      const spd = currentSpeed || '1.0';
+      return `<div class="flex items-center gap-2 mt-2 flex-wrap">
+        <span class="text-xs text-gray-400 flex-shrink-0"><i class="fas fa-tachometer-alt mr-1"></i>速度メモ:</span>
+        ${['0.5', '0.75', '1.0', '1.25'].map(s =>
+          `<button class="yt-speed-btn${spd === s ? ' active' : ''}"
+            onclick="saveYtSpeed('${taskId}','${s}')"
+            data-task="${taskId}" data-speed="${s}">${s}×</button>`
+        ).join('')}
+      </div>`;
+    }
+
+    async function saveYtSpeed(taskId, speed) {
+      if (!progressMap[taskId]) progressMap[taskId] = { is_completed: false, memo: '', completed_level: 0, yt_speed: '1.0' };
+      progressMap[taskId].yt_speed = speed;
+      await db.from('student_progress').upsert({
+        school_id: student.school_id, student_id: student.id, task_db_id: taskId,
+        is_completed: progressMap[taskId].is_completed,
+        completed_level: progressMap[taskId].completed_level || 0,
+        memo: progressMap[taskId].memo || '', yt_speed: speed,
+        updated_at: new Date().toISOString()
+      }, { onConflict: 'school_id,student_id,task_db_id' });
+      document.querySelectorAll(`[data-task="${taskId}"].yt-speed-btn`).forEach(btn => {
+        btn.className = `yt-speed-btn${btn.dataset.speed === speed ? ' active' : ''}`;
       });
     }
 
@@ -253,6 +418,7 @@
       kotoTasks.forEach((t, i) => container.appendChild(makeCard(t, i + 1)));
       container.classList.remove('hidden');
       initLazyYt();
+      renderBadges(); // タスク数が確定したのでバッジ再計算
     }
 
     // ---- SONG TASKS ----
@@ -388,6 +554,11 @@
         btnLabel = '完了';
       }
 
+      const feedbackHtml = feedbackMap[taskId]
+        ? `<div class="teacher-fb"><span class="text-xs font-bold text-amber-700"><i class="fas fa-comment-dots mr-1"></i>先生より: </span><span class="text-xs text-gray-700">${escH(feedbackMap[taskId])}</span></div>`
+        : '';
+      const speedHtml = task.youtube_url ? buildSpeedHtml(taskId, prog.yt_speed) : '';
+
       el.innerHTML = `
         <div class="flex items-center gap-3">
           <div class="task-num" id="tnum-${taskId}">${isDone ? '<i class="fas fa-check text-xs"></i>' : num}</div>
@@ -399,7 +570,9 @@
           <button class="kanryo-btn" id="done-btn-${taskId}">${btnLabel}</button>
         </div>
         ${criteriaHtml}
+        ${feedbackHtml}
         ${ytHtml}
+        ${speedHtml}
       `;
 
       el.querySelector(`#memo-btn-${taskId}`).addEventListener('click', e => {

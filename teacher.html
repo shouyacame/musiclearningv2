@@ -128,6 +128,7 @@
       <button class="tab-btn" id="tab-btn-preview-grade" onclick="switchTab('preview-grade')"><i class="fas fa-graduation-cap mr-1.5"></i>学年別課題</button>
       <button class="tab-btn" id="tab-btn-preview-song" onclick="switchTab('preview-song')"><i class="fas fa-music mr-1.5"></i>曲別課題</button>
       <button class="tab-btn" id="tab-btn-progress" onclick="switchTab('progress')"><i class="fas fa-chart-bar mr-1.5"></i>進捗管理</button>
+      <button class="tab-btn" id="tab-btn-student-preview" onclick="switchTab('student-preview')"><i class="fas fa-user-circle mr-1.5"></i>生徒プレビュー</button>
       <button class="tab-btn" id="tab-btn-announce" onclick="switchTab('announce')"><i class="fas fa-bullhorn mr-1.5"></i>お知らせ</button>
       <button class="tab-btn" id="tab-btn-roster" onclick="switchTab('roster')"><i class="fas fa-users mr-1.5"></i>生徒名簿</button>
       <button class="tab-btn" id="tab-btn-classes" onclick="switchTab('classes')"><i class="fas fa-school mr-1.5"></i>クラス設定</button>
@@ -180,6 +181,28 @@
       <div id="matrix-wrap" class="card p-4 overflow-x-auto">
         <div class="text-center text-gray-400 text-sm py-6">クラスを選択してください</div>
       </div>
+    </div>
+
+    <!-- 生徒プレビュー (Feature 7 + Feature 1) -->
+    <div id="tab-student-preview" class="tab-content hidden space-y-4">
+      <div class="card p-4">
+        <div class="section-title"><i class="fas fa-user-circle text-red-400"></i>生徒プレビュー・フィードバック</div>
+        <div class="flex flex-wrap gap-3 items-end">
+          <div>
+            <label class="block text-xs font-semibold text-gray-600 mb-1">学年</label>
+            <select id="sp-grade" class="inp w-24" onchange="onSpGradeChange()"><option value="">選択</option></select>
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-gray-600 mb-1">組</label>
+            <select id="sp-class" class="inp w-24" disabled onchange="loadSpStudents()"><option value="">選択</option></select>
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-gray-600 mb-1">生徒</label>
+            <select id="sp-student" class="inp w-48" disabled onchange="loadStudentPreview()"><option value="">選択してください</option></select>
+          </div>
+        </div>
+      </div>
+      <div id="sp-body"><div class="text-center text-gray-400 text-sm py-10">生徒を選択してください</div></div>
     </div>
 
     <!-- 課題管理 -->
@@ -993,10 +1016,11 @@
         dashboard: loadDashboard, progress: initProgress, tasks: loadTasks,
         announce: loadAnnounce, roster: initRoster, classes: loadClassesTab,
         settings: () => {}, help: () => {},
-        'preview-content': loadPreviewContentTab,
-        'preview-quiz':    loadPreviewQuizTab,
-        'preview-grade':   loadPreviewGradeTab,
-        'preview-song':    loadPreviewSongTab,
+        'preview-content':  loadPreviewContentTab,
+        'preview-quiz':     loadPreviewQuizTab,
+        'preview-grade':    loadPreviewGradeTab,
+        'preview-song':     loadPreviewSongTab,
+        'student-preview':  loadStudentPreviewTab,
       };
       if (loaders[name]) await loaders[name]();
     }
@@ -1068,6 +1092,160 @@
     await loadClassSelectors('prog-grade', 'prog-class');
   }
 
+  function openStudentFromMatrix(studentId) {
+    const grade = document.getElementById('prog-grade').value;
+    const cls   = document.getElementById('prog-class').value;
+    window._spPreset = { grade, cls, studentId };
+    switchTab('student-preview');
+  }
+
+  // ---- STUDENT PREVIEW (Feature 7) + FEEDBACK (Feature 1) ----
+
+  async function loadStudentPreviewTab() {
+    await loadClassSelectors('sp-grade', 'sp-class');
+    if (window._spPreset) {
+      const { grade, cls, studentId } = window._spPreset;
+      window._spPreset = null;
+      const gradeEl = document.getElementById('sp-grade');
+      if (gradeEl) { gradeEl.value = grade; await onSpGradeChange(); }
+      const classEl = document.getElementById('sp-class');
+      if (classEl) { classEl.value = cls; await loadSpStudents(); }
+      const stuEl = document.getElementById('sp-student');
+      if (stuEl) { stuEl.value = studentId; await loadStudentPreview(); }
+    }
+  }
+
+  async function onSpGradeChange() {
+    const grade = document.getElementById('sp-grade').value;
+    const cls   = document.getElementById('sp-class');
+    cls.innerHTML = '<option value="">選択</option>';
+    cls.disabled  = true;
+    if (!grade) return;
+    classesCache.filter(c => c.grade === grade).forEach(c => {
+      const o = document.createElement('option'); o.value = c.class_name; o.textContent = c.class_name + '組'; cls.appendChild(o);
+    });
+    cls.disabled = false;
+  }
+
+  async function loadSpStudents() {
+    const grade  = document.getElementById('sp-grade').value;
+    const cls    = document.getElementById('sp-class').value;
+    const stuEl  = document.getElementById('sp-student');
+    stuEl.innerHTML = '<option value="">選択してください</option>';
+    stuEl.disabled  = true;
+    document.getElementById('sp-body').innerHTML = '<div class="text-center text-gray-400 text-sm py-10">生徒を選択してください</div>';
+    if (!grade || !cls) return;
+    const { data } = await db.from('students').select('student_id, name, number')
+      .eq('school_id', T.school_id).eq('grade', grade).eq('class_name', cls).order('number');
+    (data || []).forEach(s => {
+      const o = document.createElement('option'); o.value = s.student_id;
+      o.textContent = `${s.number}番 ${s.name || ''}`; stuEl.appendChild(o);
+    });
+    stuEl.disabled = false;
+  }
+
+  async function loadStudentPreview() {
+    const studentId = document.getElementById('sp-student').value;
+    const spBody    = document.getElementById('sp-body');
+    if (!studentId) { spBody.innerHTML = '<div class="text-center text-gray-400 text-sm py-10">生徒を選択してください</div>'; return; }
+    spBody.innerHTML = '<div class="text-center py-10 text-gray-400"><i class="fas fa-spinner fa-spin text-2xl mb-2 block"></i>読み込み中...</div>';
+
+    const [taskRes, progRes, fbRes, logRes] = await Promise.all([
+      db.from('koto_tasks').select('id,title,description,order_num,level_count,level_1_text,level_2_text,level_3_text')
+        .eq('school_id', T.school_id).eq('is_active', true).order('order_num'),
+      db.from('student_progress').select('task_db_id,is_completed,completed_level')
+        .eq('school_id', T.school_id).eq('student_id', studentId),
+      db.from('teacher_feedback').select('task_db_id,comment')
+        .eq('school_id', T.school_id).eq('student_id', studentId),
+      db.from('practice_logs').select('logged_at')
+        .eq('school_id', T.school_id).eq('student_id', studentId).order('logged_at', { ascending: false })
+    ]);
+
+    const tasks = taskRes.data || [];
+    const progMap = {}; (progRes.data || []).forEach(r => { progMap[r.task_db_id] = r; });
+    const fbMap  = {}; (fbRes.data  || []).forEach(r => { fbMap[r.task_db_id]  = r.comment || ''; });
+    const logs   = (logRes.data || []).map(r => r.logged_at);
+    const doneCount = Object.values(progMap).filter(p => p.is_completed).length;
+    const stuName = document.getElementById('sp-student').options[document.getElementById('sp-student').selectedIndex]?.text || studentId;
+
+    let html = `<div class="card p-4 mb-4">
+      <div class="flex items-center gap-4">
+        <div class="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center text-xl font-bold text-red-500 flex-shrink-0">
+          ${escHtml(stuName.slice(0, 1))}
+        </div>
+        <div>
+          <div class="font-bold text-gray-800 text-base">${escHtml(stuName)}</div>
+          <div class="flex flex-wrap gap-3 mt-1">
+            <span class="text-xs text-gray-500"><i class="fas fa-check-circle text-green-500 mr-1"></i>${doneCount}/${tasks.length} 課題完了</span>
+            <span class="text-xs text-gray-500"><i class="fas fa-dumbbell text-blue-400 mr-1"></i>練習記録 ${logs.length}日</span>
+            ${logs.length ? `<span class="text-xs text-gray-400">最終練習: ${logs[0]}</span>` : ''}
+          </div>
+        </div>
+        <div class="ml-auto">
+          <div class="text-3xl font-bold text-center" style="color:${doneCount / (tasks.length || 1) >= 0.8 ? '#10B981' : '#C07878'}">${tasks.length ? Math.round(doneCount / tasks.length * 100) : 0}%</div>
+          <div class="text-xs text-gray-400 text-center">達成率</div>
+        </div>
+      </div>
+    </div>`;
+
+    html += tasks.map((t, i) => {
+      const prog = progMap[t.id] || { is_completed: false, completed_level: 0 };
+      const lc = t.level_count || 1;
+      const cl = prog.completed_level || 0;
+      const isDone = prog.is_completed;
+
+      const circlesHtml = lc >= 2 ? `<div class="flex gap-1">` + Array.from({length: lc}, (_, j) => {
+        const lvl = j + 1;
+        const bg = lvl <= cl ? '#7BBAA8' : '#f3f4f6';
+        const color = lvl <= cl ? '#fff' : '#9ca3af';
+        return `<div style="width:22px;height:22px;min-width:22px;border-radius:50%;background:${bg};color:${color};display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;border:2px solid ${lvl <= cl ? '#7BBAA8' : '#d1d5db'}">${lvl}</div>`;
+      }).join('') + `</div>` : '';
+
+      const statusBadge = isDone
+        ? `<span class="badge badge-green">✓ 完了</span>`
+        : cl > 0 ? `<span class="badge badge-amber">Lv${cl} 達成中</span>`
+        : `<span class="badge badge-gray">未達成</span>`;
+
+      const levelsHtml = lc >= 2 ? `<div style="border-left:3px solid #B8DDD4;padding:6px 10px;margin-top:8px;background:#F5FBF9;border-radius:0 8px 8px 0;font-size:12px">` +
+        [t.level_1_text, t.level_2_text, t.level_3_text].slice(0, lc).map((txt, j) =>
+          `<div style="display:flex;align-items:flex-start;gap:6px;padding:3px 0;${j > 0 ? 'border-top:1px solid #f0f0f0' : ''}">
+            <span style="background:${j + 1 <= cl ? '#7BBAA8' : '#EDF9F5'};color:${j + 1 <= cl ? '#fff' : '#2D7568'};border-radius:4px;padding:1px 5px;font-size:10px;font-weight:700;flex-shrink:0">Lv.${j + 1}</span>
+            <span style="color:#374151">${escHtml(txt || '（未設定）')}</span>
+          </div>`).join('') + `</div>`
+        : (t.description ? `<div style="border-left:3px solid #B8DDD4;padding:6px 10px;margin-top:8px;background:#F5FBF9;border-radius:0 8px 8px 0;font-size:12px;color:#374151">${escHtml(t.description)}</div>` : '');
+
+      return `<div class="card p-4 mb-3${isDone ? ' border-2' : ''}" style="${isDone ? 'border-color:#A7F3D0;background:#F0FDF4' : ''}">
+        <div class="flex items-center gap-3 mb-1">
+          <div style="width:26px;height:26px;min-width:26px;border-radius:50%;background:${isDone ? '#10B981' : '#7BBAA8'};color:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0">${isDone ? '✓' : i + 1}</div>
+          <div class="flex-1 font-semibold text-gray-800 text-sm leading-snug">${escHtml(t.title)}</div>
+          ${circlesHtml}
+          ${statusBadge}
+        </div>
+        ${levelsHtml}
+        <div class="mt-3 pt-3 border-t border-gray-100">
+          <label class="block text-xs font-semibold mb-1" style="color:#B45309"><i class="fas fa-comment-dots mr-1"></i>先生コメント</label>
+          <div class="flex gap-2">
+            <textarea class="inp resize-none text-xs flex-1" rows="2" id="fb-${t.id}" placeholder="生徒へのアドバイス・コメント...">${escHtml(fbMap[t.id] || '')}</textarea>
+            <button class="btn-sm btn-edit flex-shrink-0 self-end" onclick="saveFeedback('${studentId}','${t.id}')"><i class="fas fa-save mr-1"></i>保存</button>
+          </div>
+        </div>
+      </div>`;
+    }).join('');
+
+    spBody.innerHTML = html;
+  }
+
+  async function saveFeedback(studentId, taskId) {
+    const el = document.getElementById(`fb-${taskId}`);
+    if (!el) return;
+    const comment = el.value.trim();
+    const { error } = await db.from('teacher_feedback').upsert({
+      school_id: T.school_id, student_id: studentId, task_db_id: taskId,
+      comment, teacher_id: T.id, updated_at: new Date().toISOString()
+    }, { onConflict: 'school_id,student_id,task_db_id' });
+    if (!error) toast('コメントを保存しました', 'success');
+  }
+
   async function onProgTypeChange() {
     const type = document.getElementById('prog-type').value;
     const wrap = document.getElementById('prog-song-wrap');
@@ -1106,27 +1284,36 @@
     const prefix   = `${grade}${cls}`;
     const studProm = db.from('students').select('student_id, name, number').eq('school_id', T.school_id).eq('grade', grade).eq('class_name', cls).order('number');
     const progProm = db.from('student_progress').select('student_id, task_db_id, is_completed').eq('school_id', T.school_id).like('student_id', prefix + '%');
+    const logProm  = db.from('practice_logs').select('student_id').eq('school_id', T.school_id).like('student_id', prefix + '%');
 
     if (type === 'koto') {
-      const [studRes, taskRes, progRes] = await Promise.all([studProm,
+      const [studRes, taskRes, progRes, logRes] = await Promise.all([studProm,
         db.from('koto_tasks').select('id, title').eq('school_id', T.school_id).eq('is_active', true).order('order_num'),
-        progProm]);
-      renderMatrix(wrap, studRes.data || [], taskRes.data || [], progRes.data || [], 'koto', []);
+        progProm, logProm]);
+      const practiceCounts = buildPracticeCounts(logRes.data || []);
+      renderMatrix(wrap, studRes.data || [], taskRes.data || [], progRes.data || [], 'koto', [], practiceCounts);
     } else {
-      const [studRes, songsRes, stRes, progRes] = await Promise.all([studProm,
+      const [studRes, songsRes, stRes, progRes, logRes] = await Promise.all([studProm,
         db.from('songs').select('id, title').eq('school_id', T.school_id).eq('is_active', true).order('order_num'),
         db.from('song_tasks').select('id, title, song_id').eq('school_id', T.school_id).order('order_num'),
-        progProm]);
+        progProm, logProm]);
       const selectedSongId = document.getElementById('prog-song')?.value || '';
       const groups = (songsRes.data || [])
         .filter(song => !selectedSongId || song.id === selectedSongId)
         .map(song => ({ song, tasks: (stRes.data || []).filter(t => t.song_id === song.id) }))
         .filter(g => g.tasks.length);
-      renderMatrix(wrap, studRes.data || [], groups.flatMap(g => g.tasks), progRes.data || [], 'song', groups);
+      const practiceCounts = buildPracticeCounts(logRes.data || []);
+      renderMatrix(wrap, studRes.data || [], groups.flatMap(g => g.tasks), progRes.data || [], 'song', groups, practiceCounts);
     }
   }
 
-  function renderMatrix(wrap, students, flatTasks, progress, type, songGroups) {
+  function buildPracticeCounts(logRows) {
+    const counts = {};
+    logRows.forEach(r => { counts[r.student_id] = (counts[r.student_id] || 0) + 1; });
+    return counts;
+  }
+
+  function renderMatrix(wrap, students, flatTasks, progress, type, songGroups, practiceCounts = {}) {
     if (!students.length || !flatTasks.length) {
       wrap.innerHTML = '<div class="text-center text-gray-400 text-sm py-6">生徒または課題が登録されていません</div>'; return;
     }
@@ -1143,28 +1330,36 @@
 
     const SC = 'position:sticky;top:0;left:0;z-index:3;background:#FFF0F0';
     const ST = 'position:sticky;top:0;z-index:2;background:#FFF0F0';
+    const practiceThStyle = `${ST};min-width:52px;color:#2563EB;font-size:10px`;
 
     let head = '';
     if (type === 'koto') {
-      head = `<tr><th style="${SC}">生徒</th>${flatTasks.map((t, i) => taskTh(t, i + 1, 0)).join('')}</tr>`;
+      head = `<tr><th style="${SC}">生徒</th>${flatTasks.map((t, i) => taskTh(t, i + 1, 0)).join('')}<th style="${practiceThStyle}">練習<br>日数</th></tr>`;
     } else {
       const r1 = `<tr><th rowspan="2" style="${SC}">生徒</th>` +
         songGroups.map(({ song, tasks }) =>
           `<th colspan="${tasks.length}" style="${ST};background:#FEF3C7;font-size:11px;border-bottom:1px solid #d1d5db">${escHtml(song.title)}</th>`
-        ).join('') + '</tr>';
+        ).join('') + `<th rowspan="2" style="${practiceThStyle}">練習<br>日数</th></tr>`;
       const r2 = '<tr>' + songGroups.flatMap(({ tasks }) =>
         tasks.map((t, i) => taskTh(t, i + 1, 26))
       ).join('') + '</tr>';
       head = r1 + r2;
     }
 
-    const body = students.map(s =>
-      `<tr><td class="font-medium whitespace-nowrap" style="position:sticky;left:0;z-index:1;background:#fff;padding:4px 8px">${s.number}番 ${escHtml(s.name || '')}</td>` +
-      flatTasks.map(t => {
-        const done = progMap[`${s.student_id}_${t.id}`] || false;
-        return `<td class="text-center p-1"><div class="matrix-cell ${done ? 'done' : 'todo'} mx-auto" onclick="toggleMatrix('${s.student_id}','${t.id}',this)">${done ? '✓' : ''}</div></td>`;
-      }).join('') + '</tr>'
-    ).join('');
+    const body = students.map(s => {
+      const pDays = practiceCounts[s.student_id] || 0;
+      return `<tr>
+        <td class="font-medium whitespace-nowrap" style="position:sticky;left:0;z-index:1;background:#fff;padding:4px 8px;cursor:pointer;color:#C07878"
+          onclick="openStudentFromMatrix('${s.student_id}')" title="生徒プレビューを開く">
+          ${s.number}番 ${escHtml(s.name || '')}
+        </td>` +
+        flatTasks.map(t => {
+          const done = progMap[`${s.student_id}_${t.id}`] || false;
+          return `<td class="text-center p-1"><div class="matrix-cell ${done ? 'done' : 'todo'} mx-auto" onclick="toggleMatrix('${s.student_id}','${t.id}',this)">${done ? '✓' : ''}</div></td>`;
+        }).join('') +
+        `<td class="text-center p-1" style="font-size:12px;color:${pDays >= 5 ? '#2563EB' : '#9ca3af'};font-weight:${pDays >= 3 ? '700' : '400'}">${pDays}</td>
+      </tr>`;
+    }).join('');
 
     const legend = type === 'koto'
       ? flatTasks.map((t, i) => `<span class="text-xs text-gray-500">${i + 1}: ${escHtml(t.title)}</span>`).join('')
