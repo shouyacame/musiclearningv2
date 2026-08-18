@@ -124,7 +124,7 @@
     <div class="max-w-7xl mx-auto flex overflow-x-auto">
       <button class="tab-btn active" id="tab-btn-dashboard" onclick="switchTab('dashboard')"><i class="fas fa-home mr-1.5"></i>ダッシュボード</button>
       <button class="tab-btn" id="tab-btn-preview-content" onclick="switchTab('preview-content')"><i class="fas fa-book-open mr-1.5"></i>基礎知識</button>
-      <button class="tab-btn" id="tab-btn-preview-quiz" onclick="switchTab('preview-quiz')"><i class="fas fa-pencil-alt mr-1.5"></i>穴埋めクイズ</button>
+      <button class="tab-btn" id="tab-btn-preview-quiz" onclick="switchTab('preview-quiz')"><i class="fas fa-pencil-alt mr-1.5"></i>ワークシート</button>
       <button class="tab-btn" id="tab-btn-preview-grade" onclick="switchTab('preview-grade')"><i class="fas fa-graduation-cap mr-1.5"></i>学年別課題</button>
       <button class="tab-btn" id="tab-btn-preview-song" onclick="switchTab('preview-song')"><i class="fas fa-music mr-1.5"></i>曲別課題</button>
       <button class="tab-btn" id="tab-btn-progress" onclick="switchTab('progress')"><i class="fas fa-chart-bar mr-1.5"></i>進捗管理</button>
@@ -370,10 +370,10 @@
       <div id="preview-content-body" class="space-y-3"></div>
     </div>
 
-    <!-- 穴埋めクイズ -->
+    <!-- ワークシート -->
     <div id="tab-preview-quiz" class="tab-content hidden space-y-3">
       <div class="card p-4 flex items-center gap-2 flex-wrap">
-        <div class="section-title mb-0 mr-auto"><i class="fas fa-pencil-alt text-red-500"></i>穴埋めクイズ</div>
+        <div class="section-title mb-0 mr-auto"><i class="fas fa-pencil-alt text-red-500"></i>ワークシート</div>
         <button class="btn-gray text-xs" onclick="downloadStudyQuizTemplate()"><i class="fas fa-file-download mr-1"></i>テンプレ</button>
         <button class="btn-gray text-xs" onclick="document.getElementById('pq-csv-input').click()"><i class="fas fa-file-import mr-1"></i>CSVインポート</button>
         <button class="btn-red text-xs" onclick="openStudyTopicModal(null,'quiz')"><i class="fas fa-plus mr-1"></i>トピック追加</button>
@@ -838,7 +838,7 @@
           <label class="block text-xs font-semibold text-gray-600 mb-1">種類 <span class="text-red-500">*</span></label>
           <select id="st-type" class="inp">
             <option value="content">📖 読み物</option>
-            <option value="quiz">✏️ 穴埋めクイズ</option>
+            <option value="quiz">✏️ ワークシート</option>
           </select>
         </div>
       </div>
@@ -1170,7 +1170,7 @@
     if (!studentId) { spBody.innerHTML = '<div class="text-center text-gray-400 text-sm py-10">生徒を選択してください</div>'; return; }
     spBody.innerHTML = '<div class="text-center py-10 text-gray-400"><i class="fas fa-spinner fa-spin text-2xl mb-2 block"></i>読み込み中...</div>';
 
-    const [taskRes, progRes, fbRes, logRes] = await Promise.all([
+    const [taskRes, progRes, fbRes, logRes, quizTopicRes, quizQRes, quizAnsRes] = await Promise.all([
       db.from('koto_tasks').select('id,title,description,order_num,level_count,level_1_text,level_2_text,level_3_text')
         .eq('school_id', T.school_id).eq('is_active', true).order('order_num'),
       db.from('student_progress').select('task_db_id,is_completed,completed_level')
@@ -1178,12 +1178,25 @@
       db.from('teacher_feedback').select('task_db_id,comment')
         .eq('school_id', T.school_id).eq('student_id', studentId),
       db.from('practice_logs').select('logged_at')
-        .eq('school_id', T.school_id).eq('student_id', studentId).order('logged_at', { ascending: false })
+        .eq('school_id', T.school_id).eq('student_id', studentId).order('logged_at', { ascending: false }),
+      db.from('study_topics').select('id,title,icon')
+        .eq('school_id', T.school_id).eq('topic_type', 'quiz').eq('is_active', true).order('order_num'),
+      db.from('quiz_questions').select('id,quiz_set_id')
+        .eq('school_id', T.school_id),
+      db.from('quiz_answers').select('question_id,is_correct')
+        .eq('school_id', T.school_id).eq('student_id', studentId)
     ]);
 
     const tasks = taskRes.data || [];
     const progMap = {}; (progRes.data || []).forEach(r => { progMap[r.task_db_id] = r; });
     const fbMap  = {}; (fbRes.data  || []).forEach(r => { fbMap[r.task_db_id]  = r.comment || ''; });
+
+    // ワークシート集計: topic → sets → questions → answers の結合
+    const quizTopics = quizTopicRes.data || [];
+    const quizQMap   = {}; // question_id → quiz_set_id
+    (quizQRes.data || []).forEach(q => { quizQMap[q.id] = q.quiz_set_id; });
+    const quizAnsMap = {}; // question_id → is_correct
+    (quizAnsRes.data || []).forEach(a => { quizAnsMap[a.question_id] = a.is_correct; });
     const logs   = (logRes.data || []).map(r => r.logged_at);
     const doneCount = Object.values(progMap).filter(p => p.is_completed).length;
     const stuName = document.getElementById('sp-student').options[document.getElementById('sp-student').selectedIndex]?.text || studentId;
@@ -1251,6 +1264,39 @@
         </div>
       </div>`;
     }).join('');
+
+    // ワークシートセクション（quiz_sets を topic ごとに集計）
+    if (quizTopics.length) {
+      // quiz_sets を一括取得して topic_id でグループ化
+      const { data: sets } = await db.from('quiz_sets').select('id,topic_id')
+        .eq('school_id', T.school_id);
+      const setsByTopic = {}; // topic_id → Set of set_ids
+      (sets || []).forEach(s => {
+        if (!setsByTopic[s.topic_id]) setsByTopic[s.topic_id] = new Set();
+        setsByTopic[s.topic_id].add(s.id);
+      });
+
+      const quizRows = quizTopics.map(t => {
+        const setIds   = setsByTopic[t.id] || new Set();
+        const qIds     = Object.entries(quizQMap).filter(([, sid]) => setIds.has(sid)).map(([qid]) => qid);
+        const total    = qIds.length;
+        const correct  = qIds.filter(qid => quizAnsMap[qid] === true).length;
+        const answered = qIds.filter(qid => qid in quizAnsMap).length;
+        const pct      = total ? Math.round(correct / total * 100) : 0;
+        const barColor = pct >= 80 ? '#10B981' : pct >= 40 ? '#F59E0B' : '#9CA3AF';
+        return `<div class="flex items-center gap-3 py-1.5 border-b border-gray-50 last:border-0">
+          <span class="text-base flex-shrink-0">${escHtml(t.icon || '📝')}</span>
+          <span class="text-sm text-gray-700 flex-1 truncate">${escHtml(t.title)}</span>
+          <span class="text-xs text-gray-400 flex-shrink-0">${answered}/${total}問回答</span>
+          <span class="text-xs font-bold flex-shrink-0" style="color:${barColor};min-width:36px;text-align:right">${correct}/${total}正解</span>
+        </div>`;
+      }).join('');
+
+      html += `<div class="card p-4 mb-3">
+        <div class="section-title text-sm mb-3"><i class="fas fa-pencil-alt text-teal-500 mr-1"></i>ワークシート進捗</div>
+        ${quizRows}
+      </div>`;
+    }
 
     spBody.innerHTML = html;
   }
@@ -3147,7 +3193,7 @@
     renderPreviewQuizTopicList();
     const bodyEl = document.getElementById('preview-quiz-body');
     if (!previewQuizTopics.length) {
-      bodyEl.innerHTML = '<div class="card p-6 text-center text-gray-400 text-sm">穴埋めクイズトピックがありません。「CSVで追加・管理」から作成してください。</div>';
+      bodyEl.innerHTML = '<div class="card p-6 text-center text-gray-400 text-sm">ワークシートトピックがありません。「CSVで追加・管理」から作成してください。</div>';
       return;
     }
     currentPreviewQuizTopicId = previewQuizTopics[0].id;

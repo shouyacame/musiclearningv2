@@ -135,7 +135,7 @@
         <i class="fas fa-book-open mr-1.5"></i>基礎知識
       </button>
       <button class="tab-btn" id="tab-quiz" onclick="showTab('quiz')">
-        <i class="fas fa-pencil-alt mr-1.5"></i>穴埋めクイズ
+        <i class="fas fa-pencil-alt mr-1.5"></i>ワークシート
       </button>
       <button class="tab-btn" id="tab-grade" onclick="showTab('grade')">
         <i class="fas fa-graduation-cap mr-1.5"></i>学年別課題
@@ -894,7 +894,7 @@
       const bodyEl  = document.getElementById('quiz-body');
       if (!quizTopics.length) {
         pillsEl.style.display = 'none';
-        bodyEl.innerHTML = '<p class="text-gray-400 text-sm text-center py-12">穴埋めクイズがありません</p>';
+        bodyEl.innerHTML = '<p class="text-gray-400 text-sm text-center py-12">ワークシートがありません</p>';
         return;
       }
       currentQuizTopicId = quizTopics[0].id;
@@ -1000,7 +1000,7 @@
                   <div class="flex items-center gap-2">
                     <label class="text-sm text-gray-700 flex-1">${escH(q.question_text)}${iconHtml}</label>
                     <input id="qi-${q.id}" type="text" class="border-2 ${borderCls} rounded-lg px-3 py-1.5 text-sm w-32 focus:outline-none focus:border-teal-400"
-                           placeholder="入力" ${prev === true ? 'disabled value="✓正解"' : ''}>
+                           placeholder="入力" ${prev === true ? `disabled value="${escH(q.correct_answer)}"` : ''}>
                     ${prev !== true ? `<button onclick="gradeQuestion('${q.id}','${escH(q.correct_answer)}','${escH(q.hint)}','${escH(q.alt_answers||'')}')"
                       class="bg-teal-500 text-white text-xs font-bold px-3 py-1.5 rounded-lg hover:bg-teal-600 whitespace-nowrap">採点</button>` : ''}
                     ${q.hint && prev !== true ? `<button onclick="showHint('${escH(q.hint)}')" class="text-gray-300 hover:text-gray-500"><i class="fas fa-lightbulb"></i></button>` : ''}
@@ -1033,7 +1033,6 @@
 
       if (isCorrect) {
         input.disabled = true;
-        input.value = '✓正解';
         input.className = input.className.replace(/border-\w+-\d+/g, '') + ' border-green-400 bg-green-50';
       } else {
         input.className = input.className.replace(/border-\w+-\d+/g, '') + ' border-red-300';
