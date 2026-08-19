@@ -850,6 +850,11 @@
         <label class="block text-xs font-semibold text-gray-600 mb-1">先生メモ（授業準備用・生徒には非表示）</label>
         <textarea id="st-memo" class="inp resize-none text-sm" rows="3" placeholder="授業で説明するポイント、参考資料など"></textarea>
       </div>
+      <div>
+        <label class="block text-xs font-semibold text-gray-600 mb-1"><i class="fab fa-google-drive text-blue-500 mr-1"></i>画像フォルダURL（GoogleドライブなどのURL）</label>
+        <input type="url" id="st-drive-url" class="inp text-sm" placeholder="https://drive.google.com/drive/folders/...">
+        <p class="text-xs text-gray-400 mt-1">このトピックで使う画像を置いたフォルダのURL。ここに保管してあるという目印として使えます。</p>
+      </div>
       <input type="hidden" id="st-id">
       <div class="flex gap-2 mt-2">
         <button type="submit" class="btn-red flex-1">保存</button>
@@ -2586,6 +2591,7 @@
       document.getElementById('st-type').value  = defaultType;
       document.getElementById('st-active').checked = true;
       document.getElementById('st-memo').value  = '';
+      document.getElementById('st-drive-url').value = '';
     } else {
       db.from('study_topics').select('*').eq('id', id).single().then(({ data }) => {
         if (!data) return;
@@ -2594,6 +2600,7 @@
         document.getElementById('st-type').value     = data.topic_type;
         document.getElementById('st-active').checked = data.is_active;
         document.getElementById('st-memo').value     = data.teacher_memo || '';
+        document.getElementById('st-drive-url').value = data.drive_url || '';
       });
     }
     document.getElementById('study-topic-modal').classList.remove('hidden');
@@ -2609,6 +2616,7 @@
       topic_type:  document.getElementById('st-type').value,
       is_active:   document.getElementById('st-active').checked,
       teacher_memo: document.getElementById('st-memo').value.trim(),
+      drive_url:   document.getElementById('st-drive-url').value.trim(),
     };
     if (!id) {
       const { data: last } = await db.from('study_topics').select('order_num')
@@ -3119,6 +3127,7 @@
               ${t.is_active ? '公開' : '非公開'}
             </button>
             <button onclick="openStudyTopicModal('${t.id}')" class="text-xs px-1.5 py-0.5 rounded bg-blue-50 text-blue-600 hover:bg-blue-100" title="編集"><i class="fas fa-edit"></i></button>
+            ${t.drive_url ? `<a href="${escHtml(t.drive_url)}" target="_blank" rel="noopener" class="text-xs px-1.5 py-0.5 rounded bg-yellow-50 text-yellow-600 hover:bg-yellow-100" title="画像フォルダを開く"><i class="fab fa-google-drive"></i></a>` : ''}
             <button onclick="deleteStudyTopic('${t.id}')" class="text-xs px-1.5 py-0.5 rounded bg-red-50 text-red-500 hover:bg-red-100" title="削除"><i class="fas fa-trash"></i></button>
           </div>
           <button class="song-pill${t.id === currentPreviewContentTopicId ? ' active' : ''}" onclick="selectPreviewContentTopic('${t.id}')"
@@ -3277,6 +3286,7 @@
               ${t.is_active ? '公開' : '非公開'}
             </button>
             <button onclick="openStudyTopicModal('${t.id}')" class="text-xs px-1.5 py-0.5 rounded bg-blue-50 text-blue-600 hover:bg-blue-100" title="編集"><i class="fas fa-edit"></i></button>
+            ${t.drive_url ? `<a href="${escHtml(t.drive_url)}" target="_blank" rel="noopener" class="text-xs px-1.5 py-0.5 rounded bg-yellow-50 text-yellow-600 hover:bg-yellow-100" title="画像フォルダを開く"><i class="fab fa-google-drive"></i></a>` : ''}
             <button onclick="deleteStudyTopic('${t.id}')" class="text-xs px-1.5 py-0.5 rounded bg-red-50 text-red-500 hover:bg-red-100" title="削除"><i class="fas fa-trash"></i></button>
           </div>
           <button class="song-pill${t.id === currentPreviewQuizTopicId ? ' active' : ''}" onclick="selectPreviewQuizTopic('${t.id}')"
