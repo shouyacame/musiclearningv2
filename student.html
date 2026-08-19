@@ -154,7 +154,7 @@
     </div>
   </div>
 
-  <!-- 穴埋めクイズ -->
+  <!-- ワークシート -->
   <div id="panel-quiz" class="hidden max-w-2xl mx-auto">
     <div id="quiz-pills" class="flex gap-2 overflow-x-auto px-4 pt-3 pb-2 bg-white border-b border-gray-100 sticky top-[48px] z-10"></div>
     <div id="quiz-body" class="px-4 py-4">
@@ -883,7 +883,7 @@
       await renderContentTopic(topicId, '', el);
     }
 
-    // ---- 穴埋めクイズタブ ----
+    // ---- ワークシートタブ ----
 
     async function loadQuizTab() {
       const { data } = await db.from('study_topics')

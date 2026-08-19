@@ -191,7 +191,7 @@
     <div id="tab-content-mgmt" class="tab-content hidden space-y-4">
       <div class="card p-4">
         <div class="section-title"><i class="fas fa-book-open text-indigo-500"></i>コンテンツ管理</div>
-        <p class="text-xs text-gray-400 mb-3">管理する学校を選択してください。基礎知識・穴埋めクイズ・学年別課題・曲別課題を管理できます。</p>
+        <p class="text-xs text-gray-400 mb-3">管理する学校を選択してください。基礎知識・ワークシート・学年別課題・曲別課題を管理できます。</p>
         <select id="admin-school-select" class="inp" style="max-width:400px" onchange="selectAdminSchool(this.value)">
           <option value="">学校を選択...</option>
         </select>
@@ -200,7 +200,7 @@
         <div class="bg-white rounded-xl shadow-sm mb-4 overflow-x-auto" style="border-bottom:2px solid #f3f4f6">
           <div class="flex">
             <button class="sub-tab-btn active" id="admin-sub-btn-content" onclick="adminSwitchSubTab('content')"><i class="fas fa-book-open mr-1.5"></i>基礎知識</button>
-            <button class="sub-tab-btn" id="admin-sub-btn-quiz" onclick="adminSwitchSubTab('quiz')"><i class="fas fa-pencil-alt mr-1.5"></i>穴埋めクイズ</button>
+            <button class="sub-tab-btn" id="admin-sub-btn-quiz" onclick="adminSwitchSubTab('quiz')"><i class="fas fa-pencil-alt mr-1.5"></i>ワークシート</button>
             <button class="sub-tab-btn" id="admin-sub-btn-grade" onclick="adminSwitchSubTab('grade')"><i class="fas fa-graduation-cap mr-1.5"></i>学年別課題</button>
             <button class="sub-tab-btn" id="admin-sub-btn-song" onclick="adminSwitchSubTab('song')"><i class="fas fa-music mr-1.5"></i>曲別課題</button>
           </div>
@@ -220,10 +220,10 @@
           </div>
           <div id="admin-content-body" class="space-y-3"></div>
         </div>
-        <!-- 穴埋めクイズ -->
+        <!-- ワークシート -->
         <div id="admin-sub-quiz" class="space-y-3 hidden">
           <div class="card p-4 flex items-center gap-2 flex-wrap">
-            <div class="section-title mb-0 mr-auto"><i class="fas fa-pencil-alt text-indigo-500"></i>穴埋めクイズ</div>
+            <div class="section-title mb-0 mr-auto"><i class="fas fa-pencil-alt text-indigo-500"></i>ワークシート</div>
             <button class="btn-gray text-xs" onclick="adminDownloadQuizTemplate()"><i class="fas fa-file-download mr-1"></i>テンプレ</button>
             <button class="btn-gray text-xs" onclick="document.getElementById('admin-pq-csv-input').click()"><i class="fas fa-file-import mr-1"></i>CSVインポート</button>
             <button class="btn-indigo text-xs" onclick="openAdminTopicModal(null,'quiz')"><i class="fas fa-plus mr-1"></i>トピック追加</button>
@@ -420,7 +420,7 @@
         <label class="block text-xs font-semibold text-gray-600 mb-1">種別</label>
         <select id="adm-st-type" class="inp">
           <option value="content">📖 読み物（基礎知識）</option>
-          <option value="quiz">✏️ 穴埋めクイズ</option>
+          <option value="quiz">✏️ ワークシート</option>
         </select>
       </div>
       <div>
@@ -1362,7 +1362,7 @@
     else await loadAdminContentTab();
   }
 
-  // 穴埋めクイズ
+  // ワークシート
 
   async function loadAdminQuizTab() {
     const { data } = await db.from('study_topics').select('*').eq('school_id', adminSchoolId).eq('topic_type', 'quiz').order('order_num');
