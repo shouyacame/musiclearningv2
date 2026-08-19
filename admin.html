@@ -192,9 +192,15 @@
       <div class="card p-4">
         <div class="section-title"><i class="fas fa-book-open text-indigo-500"></i>コンテンツ管理</div>
         <p class="text-xs text-gray-400 mb-3">管理する学校を選択してください。基礎知識・ワークシート・学年別課題・曲別課題を管理できます。</p>
-        <select id="admin-school-select" class="inp" style="max-width:400px" onchange="selectAdminSchool(this.value)">
-          <option value="">学校を選択...</option>
-        </select>
+        <div class="flex gap-2 items-center flex-wrap">
+          <select id="admin-school-select" class="inp" style="max-width:360px" onchange="selectAdminSchool(this.value)">
+            <option value="">学校を選択...</option>
+          </select>
+          <button class="btn-indigo text-xs" onclick="seedDefaultContent()" title="三線の基礎知識・ワークシートのデフォルトデータを選択中の学校に追加します">
+            <i class="fas fa-magic mr-1"></i>デフォルトコンテンツを適用
+          </button>
+        </div>
+        <p class="text-xs text-gray-400 mt-1">※「デフォルトコンテンツを適用」は学校選択後に押してください。同名トピックがある場合はスキップされます。</p>
       </div>
       <div id="admin-content-area" class="hidden">
         <div class="bg-white rounded-xl shadow-sm mb-4 overflow-x-auto" style="border-bottom:2px solid #f3f4f6">
@@ -1139,6 +1145,17 @@
     (data || []).forEach(t => { if (!schoolMap[t.school_id]) schoolMap[t.school_id] = { school_id: t.school_id, school_name: t.school_name || t.school_id }; });
     const schools = Object.values(schoolMap).sort((a, b) => a.school_id.localeCompare(b.school_id));
     el.innerHTML = '<option value="">学校を選択...</option>' + schools.map(s => `<option value="${escHtml(s.school_id)}">${escHtml(s.school_name)} (${escHtml(s.school_id)})</option>`).join('');
+  }
+
+  async function seedDefaultContent() {
+    if (!adminSchoolId) { toast('先に学校を選択してください', 'error'); return; }
+    const schoolName = document.getElementById('admin-school-select').options[document.getElementById('admin-school-select').selectedIndex]?.text || adminSchoolId;
+    if (!confirm(`「${schoolName}」にデフォルトコンテンツ（三線の基礎知識・ワークシート）を追加しますか？\n※同名トピックが既にある場合はスキップされます。`)) return;
+    const { data, error } = await db.rpc('seed_default_content', { p_school_id: adminSchoolId });
+    if (error) { toast('エラー: ' + error.message, 'error'); return; }
+    toast('デフォルトコンテンツを適用しました', 'success');
+    adminSubLoaded = { content: false, quiz: false, grade: false, song: false };
+    await loadAdminContentTab();
   }
 
   async function selectAdminSchool(sid) {
