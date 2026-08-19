@@ -363,6 +363,20 @@
         <button class="btn-red text-xs" onclick="openStudyTopicModal(null,'content')"><i class="fas fa-plus mr-1"></i>トピック追加</button>
         <input type="file" id="pc-csv-input" accept=".csv" class="hidden" onchange="onStudyContentCSVSelected(event)">
       </div>
+      <div class="card p-3">
+        <div class="flex items-center gap-2 flex-wrap">
+          <span class="text-xs font-semibold text-gray-500 flex-shrink-0 flex items-center gap-1">
+            <i class="fab fa-google-drive text-blue-400"></i>データ保管場所
+          </span>
+          <input type="url" id="teacher-drive-url" class="inp text-sm flex-1 py-1.5 min-w-0"
+            placeholder="画像フォルダのURL（Googleドライブ等）を貼り付け">
+          <button onclick="saveTeacherDriveUrl()" class="btn-gray text-xs flex-shrink-0 py-1.5">保存</button>
+          <a id="teacher-drive-link" href="#" target="_blank" rel="noopener"
+            class="hidden text-xs text-blue-500 hover:underline flex-shrink-0 flex items-center gap-0.5">
+            <i class="fas fa-external-link-alt text-xs"></i>開く
+          </a>
+        </div>
+      </div>
       <div class="card p-4">
         <p class="text-xs text-gray-400 mb-2">トピック（▲▼で並び替え、公開/非公開で切替）</p>
         <div id="preview-content-topic-list"></div>
@@ -3236,7 +3250,32 @@
 
   // ---- PREVIEW: 基礎知識 ----
 
+  async function loadTeacherDriveUrl() {
+    const { data } = await db.from('teacher_profiles').select('image_drive_url').eq('id', T.id).maybeSingle();
+    const url = data?.image_drive_url || '';
+    const input = document.getElementById('teacher-drive-url');
+    const link = document.getElementById('teacher-drive-link');
+    if (input) input.value = url;
+    if (link) {
+      if (url) { link.href = url; link.classList.remove('hidden'); }
+      else { link.classList.add('hidden'); }
+    }
+  }
+
+  async function saveTeacherDriveUrl() {
+    const url = document.getElementById('teacher-drive-url').value.trim();
+    const { error } = await db.from('teacher_profiles').update({ image_drive_url: url }).eq('id', T.id);
+    if (error) { alert('保存に失敗しました: ' + error.message); return; }
+    const link = document.getElementById('teacher-drive-link');
+    if (link) {
+      if (url) { link.href = url; link.classList.remove('hidden'); }
+      else { link.classList.add('hidden'); }
+    }
+    toast('データ保管場所を保存しました');
+  }
+
   async function loadPreviewContentTab() {
+    await loadTeacherDriveUrl();
     const { data } = await db.from('study_topics')
       .select('*').eq('school_id', T.school_id).eq('topic_type', 'content').order('order_num');
     previewContentTopics = data || [];
