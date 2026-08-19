@@ -91,8 +91,16 @@ BEGIN
     RETURNING id INTO v_topic;
 
     -- セット①
-    INSERT INTO quiz_sets (topic_id, school_id, title, order_num)
-    VALUES (v_topic, p_school_id, '①各部の名前を答えよう', 1) RETURNING id INTO v_set1;
+    INSERT INTO quiz_sets (topic_id, school_id, title, body, order_num)
+    VALUES (v_topic, p_school_id, '①各部の名前を答えよう',
+'三線は次の部品からできています。それぞれの名前を覚えましょう。
+
+| 部品名 | 役割 |
+| チーガ | 蛇皮が張られた丸い胴。音を響かせる。 |
+| 棹（さお） | 弦を張る細長い部分。 |
+| カラクイ | 弦の張り（音の高さ）を調整するペグ。 |
+| 爪（つめ） | 人差し指に付けて弦をはじく道具。 |',
+    1) RETURNING id INTO v_set1;
     INSERT INTO quiz_questions (quiz_set_id, school_id, question_text, correct_answer, alt_answers, hint, order_num) VALUES
     (v_set1, p_school_id, '弦の張りを調整するための部品', 'カラクイ', 'からくい', 'ペグとも呼ばれる', 1),
     (v_set1, p_school_id, '蛇皮が張られた丸い胴の部分', 'チーガ', 'ちーが', '音を響かせる役割がある', 2),
@@ -100,8 +108,15 @@ BEGIN
     (v_set1, p_school_id, '三線の弦を張る細長い部分', '棹（さお）', 'さお', 'ネックとも呼ばれる', 4);
 
     -- セット②
-    INSERT INTO quiz_sets (topic_id, school_id, title, order_num)
-    VALUES (v_topic, p_school_id, '②三線の弦について', 2) RETURNING id INTO v_set2;
+    INSERT INTO quiz_sets (topic_id, school_id, title, body, order_num)
+    VALUES (v_topic, p_school_id, '②三線の弦について',
+'三線には3本の弦があります。太さと音の高さを確認しましょう。
+
+| 弦の名前 | 太さ | 音の高さ |
+| 男絃（うーじる） | 太い | 低い |
+| 中絃（なかじる） | 中くらい | 中くらい |
+| 女絃（みーじる） | 細い | 高い |',
+    2) RETURNING id INTO v_set2;
     INSERT INTO quiz_questions (quiz_set_id, school_id, question_text, correct_answer, alt_answers, hint, order_num) VALUES
     (v_set2, p_school_id, '三線の弦は何本あるか', '3', '三', '3本の弦で演奏する', 1),
     (v_set2, p_school_id, '3本の弦のうち一番太い弦の名前', '男絃（うーじる）', 'うーじる', '低い音が出る弦', 2),
@@ -118,8 +133,15 @@ BEGIN
     RETURNING id INTO v_topic;
 
     -- セット①
-    INSERT INTO quiz_sets (topic_id, school_id, title, order_num)
-    VALUES (v_topic, p_school_id, '①三線と三味線を比べよう', 1) RETURNING id INTO v_set3;
+    INSERT INTO quiz_sets (topic_id, school_id, title, body, order_num)
+    VALUES (v_topic, p_school_id, '①三線と三味線を比べよう',
+'三線と三味線はよく似ていますが、生まれた地域と特徴がちがいます。
+
+| 項目 | 三線 | 三味線 |
+| 広まった地域 | 沖縄・琉球 | **日本本土** |
+| 皮 | 蛇皮が伝統的 | 猫皮や犬皮が伝統的 |
+| 音の感じ | やわらかい、あたたかみがある | はっきりしている、するどさがある |',
+    1) RETURNING id INTO v_set3;
     INSERT INTO quiz_questions (quiz_set_id, school_id, question_text, correct_answer, alt_answers, hint, order_num) VALUES
     (v_set3, p_school_id, '三線が主に発展した地域', '沖縄', '琉球', '沖縄・奄美地方で広まった', 1),
     (v_set3, p_school_id, '三味線が主に発展した地域', '日本本土', '本土', '本州・四国・九州', 2),
@@ -127,8 +149,9 @@ BEGIN
     (v_set3, p_school_id, '三味線の胴に張られている伝統的な素材', '猫皮', 'ねこかわ', '猫または犬の皮が使われる', 4);
 
     -- セット②
-    INSERT INTO quiz_sets (topic_id, school_id, title, order_num)
-    VALUES (v_topic, p_school_id, '②音の感じの違い', 2) RETURNING id INTO v_set4;
+    INSERT INTO quiz_sets (topic_id, school_id, title, body, order_num)
+    VALUES (v_topic, p_school_id, '②音の感じの違い',
+'三線と三味線は、音の感じがちがいます。どちらがどんな音か覚えましょう。', 2) RETURNING id INTO v_set4;
     INSERT INTO quiz_questions (quiz_set_id, school_id, question_text, correct_answer, alt_answers, hint, order_num) VALUES
     (v_set4, p_school_id, '三線の音の感じとして正しいもの', 'やわらかい', 'あたたかみがある', '沖縄の風土を表した音色', 1),
     (v_set4, p_school_id, '三味線の音の感じとして正しいもの', 'するどい', 'はっきりしている', '三味線は「さわり」という独特の響きがある', 2);

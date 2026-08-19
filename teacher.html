@@ -2665,6 +2665,7 @@
 
   async function addPreviewQuizSet(topicId) {
     const title   = document.getElementById('pq-nqs-title').value.trim();
+    const body    = document.getElementById('pq-nqs-body').value.trim();
     const image   = document.getElementById('pq-nqs-image').value.trim();
     const caption = document.getElementById('pq-nqs-caption').value.trim();
     if (!title) { toast('タイトルを入力してください', 'error'); return; }
@@ -2672,7 +2673,7 @@
     const order_num = (existing?.[0]?.order_num || 0) + 1;
     const { error } = await db.from('quiz_sets').insert({
       topic_id: topicId, school_id: T.school_id,
-      title, image_url: image, image_caption: caption, order_num
+      title, body, image_url: image, image_caption: caption, order_num
     });
     if (error) { toast('追加失敗', 'error'); return; }
     toast('追加しました', 'success');
@@ -3345,6 +3346,7 @@
             <button onclick="deletePreviewQuizSet('${s.id}','${topicId}')" class="btn-sm btn-del"><i class="fas fa-trash"></i></button>
           </div>
         </div>
+        ${prevRenderBody(s.body)}
         ${prevMediaHtml(s.image_url, s.image_caption)}
         <div class="space-y-1.5 mt-2">
           ${s._qs.map(q => `
@@ -3359,6 +3361,7 @@
         <p class="text-xs font-semibold text-gray-500 mb-2"><i class="fas fa-plus mr-1 text-teal-500"></i>クイズセットを追加</p>
         <div class="space-y-2">
           <input type="text" id="pq-nqs-title" class="inp" placeholder="セットのタイトル（例: ①各部の名称）">
+          <textarea id="pq-nqs-body" class="inp h-24 resize-y" placeholder="本文（マークダウン表も使えます）&#10;例: | 項目 | 三線 | 三味線 |&#10;    | 皮  | 蛇皮 | 猫皮 |"></textarea>
           <input type="text" id="pq-nqs-image" class="inp" placeholder="画像URL（Googleドライブ共有リンク等）">
           <input type="text" id="pq-nqs-caption" class="inp" placeholder="画像キャプション">
           <button class="btn-red w-full" onclick="addPreviewQuizSet('${topicId}')"><i class="fas fa-plus mr-1"></i>クイズセット追加</button>

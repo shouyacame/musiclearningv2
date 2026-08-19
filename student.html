@@ -1033,6 +1033,7 @@
               <div class="w-1 h-5 rounded-full bg-teal-500"></div>
               <h3 class="font-bold text-gray-800 text-sm">${escH(s.title)}</h3>
             </div>
+            ${renderBody(s.body)}
             ${mediaHtml(s.image_url, s.image_caption)}
             <div class="space-y-3 mt-2">
               ${s._questions.map(q => {
