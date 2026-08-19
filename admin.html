@@ -450,6 +450,45 @@
   </div>
 </div>
 
+<!-- 表ビルダーモーダル -->
+<div id="table-builder-modal" class="modal-overlay hidden">
+  <div class="modal-box" style="max-width:660px">
+    <div class="flex items-center justify-between mb-4">
+      <h3 class="font-bold text-gray-800"><i class="fas fa-table mr-2 text-indigo-500"></i>表を作成</h3>
+      <button onclick="closeTableBuilder()" class="text-gray-400 hover:text-gray-600 text-2xl leading-none">&times;</button>
+    </div>
+    <div class="flex flex-wrap items-center gap-4 mb-3">
+      <div class="flex items-center gap-2">
+        <label class="text-xs font-semibold text-gray-600">列数</label>
+        <select id="tb-cols" class="inp w-16 text-sm py-1" onchange="renderTableBuilderGrid()">
+          <option value="2">2</option>
+          <option value="3" selected>3</option>
+          <option value="4">4</option>
+          <option value="5">5</option>
+        </select>
+      </div>
+      <div class="flex items-center gap-2">
+        <label class="text-xs font-semibold text-gray-600">データ行数</label>
+        <select id="tb-data-rows" class="inp w-16 text-sm py-1" onchange="renderTableBuilderGrid()">
+          <option value="1">1</option>
+          <option value="2">2</option>
+          <option value="3" selected>3</option>
+          <option value="4">4</option>
+          <option value="5">5</option>
+          <option value="6">6</option>
+          <option value="8">8</option>
+        </select>
+      </div>
+      <p class="text-xs text-gray-400">1行目（青）がヘッダーになります</p>
+    </div>
+    <div id="table-builder-grid" class="mb-4 rounded-lg border border-gray-200 overflow-hidden overflow-x-auto"></div>
+    <div class="flex gap-2">
+      <button onclick="insertTableMarkdown()" class="btn-indigo flex-1"><i class="fas fa-check mr-1"></i>この表を挿入</button>
+      <button onclick="closeTableBuilder()" class="btn-gray flex-1">キャンセル</button>
+    </div>
+  </div>
+</div>
+
 <!-- 管理者: 問題管理モーダル -->
 <div id="admin-questions-modal" class="modal-overlay hidden">
   <div class="modal-box" style="max-width:560px">
@@ -1263,6 +1302,7 @@
         <div class="space-y-2">
           <input type="text" id="admin-ns-title" class="inp" placeholder="見出し（例: ①起源と由来）">
           <textarea id="admin-ns-body" class="inp" rows="3" placeholder="説明文（改行可）" style="resize:vertical"></textarea>
+          <button type="button" onclick="openTableBuilder('admin-ns-body')" class="flex items-center gap-1 text-xs text-teal-600 hover:text-teal-800 font-medium mt-0.5"><i class="fas fa-table mr-1"></i>表ビルダーで入力</button>
           <input type="text" id="admin-ns-image" class="inp" placeholder="画像URL">
           <input type="text" id="admin-ns-caption" class="inp" placeholder="画像キャプション">
           <input type="text" id="admin-ns-youtube" class="inp" placeholder="YouTube URL（任意）">
@@ -1473,6 +1513,8 @@
         <p class="text-xs font-semibold text-gray-500 mb-2"><i class="fas fa-plus mr-1 text-indigo-500"></i>クイズセットを追加</p>
         <div class="space-y-2">
           <input type="text" id="admin-nqs-title" class="inp" placeholder="セットのタイトル（例: ①各部の名称）">
+          <textarea id="admin-nqs-body" class="inp" rows="3" placeholder="本文（説明文）" style="resize:vertical"></textarea>
+          <button type="button" onclick="openTableBuilder('admin-nqs-body')" class="flex items-center gap-1 text-xs text-teal-600 hover:text-teal-800 font-medium mt-0.5"><i class="fas fa-table mr-1"></i>表ビルダーで入力</button>
           <input type="text" id="admin-nqs-image" class="inp" placeholder="画像URL（任意）">
           <input type="text" id="admin-nqs-caption" class="inp" placeholder="画像キャプション（任意）">
           <button class="btn-red w-full" onclick="addAdminQuizSet('${topicId}')"><i class="fas fa-plus mr-1"></i>クイズセット追加</button>
@@ -1488,12 +1530,13 @@
 
   async function addAdminQuizSet(topicId) {
     const title   = document.getElementById('admin-nqs-title').value.trim();
+    const body    = document.getElementById('admin-nqs-body').value.trim();
     const image   = document.getElementById('admin-nqs-image').value.trim();
     const caption = document.getElementById('admin-nqs-caption').value.trim();
     if (!title) { toast('タイトルを入力してください', 'error'); return; }
     const { data: existing } = await db.from('quiz_sets').select('order_num').eq('topic_id', topicId).order('order_num', { ascending: false }).limit(1);
     const order_num = (existing?.[0]?.order_num || 0) + 1;
-    const { error } = await db.from('quiz_sets').insert({ topic_id: topicId, school_id: adminSchoolId, title, image_url: image, image_caption: caption, order_num });
+    const { error } = await db.from('quiz_sets').insert({ topic_id: topicId, school_id: adminSchoolId, title, body, image_url: image, image_caption: caption, order_num });
     if (error) { toast('追加失敗', 'error'); return; }
     toast('追加しました', 'success');
     await loadAdminQuizSets(topicId);
@@ -2139,6 +2182,64 @@
   }
 
   document.addEventListener('DOMContentLoaded', init);
+
+  // ---- 表ビルダー ----
+  let _tbTarget = null;
+
+  function openTableBuilder(targetId) {
+    _tbTarget = targetId;
+    document.getElementById('tb-cols').value = '3';
+    document.getElementById('tb-data-rows').value = '3';
+    renderTableBuilderGrid();
+    document.getElementById('table-builder-modal').classList.remove('hidden');
+  }
+
+  function closeTableBuilder() {
+    document.getElementById('table-builder-modal').classList.add('hidden');
+  }
+
+  function renderTableBuilderGrid() {
+    const cols = parseInt(document.getElementById('tb-cols').value) || 3;
+    const dataRows = parseInt(document.getElementById('tb-data-rows').value) || 3;
+    let html = '<table class="w-full border-collapse text-sm">';
+    for (let r = 0; r <= dataRows; r++) {
+      const isHeader = r === 0;
+      html += '<tr>';
+      for (let c = 0; c < cols; c++) {
+        const bg = isHeader ? 'bg-teal-500' : r % 2 === 1 ? 'bg-white' : 'bg-gray-50';
+        const inputCls = isHeader
+          ? 'font-semibold text-white placeholder-teal-200'
+          : 'text-gray-700 placeholder-gray-300';
+        html += `<td class="border border-gray-200 p-1.5 ${bg}">
+          <input type="text" class="tb-cell w-full outline-none bg-transparent text-sm ${inputCls}"
+            data-r="${r}" data-c="${c}" placeholder="${isHeader ? 'ヘッダー' : '内容'}">
+        </td>`;
+      }
+      html += '</tr>';
+    }
+    html += '</table>';
+    document.getElementById('table-builder-grid').innerHTML = html;
+  }
+
+  function insertTableMarkdown() {
+    const cols = parseInt(document.getElementById('tb-cols').value) || 3;
+    const dataRows = parseInt(document.getElementById('tb-data-rows').value) || 3;
+    const cells = [...document.querySelectorAll('#table-builder-grid .tb-cell')];
+    const grid = Array.from({length: dataRows + 1}, () => Array(cols).fill(''));
+    cells.forEach(cell => {
+      grid[parseInt(cell.dataset.r)][parseInt(cell.dataset.c)] = cell.value.trim() || ' ';
+    });
+    let md = '\n';
+    grid.forEach(row => { md += '| ' + row.join(' | ') + ' |\n'; });
+    md += '\n';
+    const ta = document.getElementById(_tbTarget);
+    if (ta) {
+      const pos = ta.selectionStart ?? ta.value.length;
+      ta.value = ta.value.slice(0, pos) + md + ta.value.slice(pos);
+      ta.focus();
+    }
+    closeTableBuilder();
+  }
 </script>
 </body>
 </html>

@@ -949,13 +949,16 @@
       let html = '', tableRows = [];
       function flushTable() {
         if (!tableRows.length) return;
-        html += '<div class="overflow-x-auto my-3"><table class="w-full text-sm border-collapse">';
+        html += '<div class="overflow-x-auto my-3 rounded-xl border border-gray-200 shadow-sm overflow-hidden"><table class="w-full text-sm border-collapse">';
         tableRows.forEach((row, i) => {
           const cells = row.split('|').slice(1, -1).map(c => c.trim());
-          html += '<tr>';
+          html += `<tr class="${i === 0 ? 'bg-teal-500' : i % 2 === 1 ? 'bg-white' : 'bg-gray-50'}">`;
           cells.forEach(cell => {
             const tag = i === 0 ? 'th' : 'td';
-            html += `<${tag} class="border border-gray-200 px-3 py-1.5 ${i === 0 ? 'bg-teal-50 font-bold text-teal-800 text-left' : 'text-gray-700'}">${inline(cell)}</${tag}>`;
+            const cls = i === 0
+              ? 'px-4 py-2.5 text-white font-semibold text-left text-xs tracking-wide'
+              : 'px-4 py-2 text-gray-700 border-b border-gray-100';
+            html += `<${tag} class="${cls}">${inline(cell)}</${tag}>`;
           });
           html += '</tr>';
         });
