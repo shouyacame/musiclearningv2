@@ -1041,16 +1041,17 @@
             <div class="space-y-3 mt-2">
               ${s._questions.map(q => {
                 const prev = answerMap[q.id];
-                const borderCls = prev === true ? 'border-green-400' : prev === false ? 'border-red-300' : 'border-gray-200';
-                const iconHtml  = prev === true ? '<i class="fas fa-check-circle text-green-500 ml-1"></i>' : prev === false ? '<i class="fas fa-times-circle text-red-400 ml-1"></i>' : '';
+                const borderCls = prev === true ? 'border-green-400 bg-green-50' : prev === false ? 'border-red-300' : 'border-gray-200';
                 return `
                   <div class="flex items-center gap-2">
-                    <label class="text-sm text-gray-700 flex-1">${escH(q.question_text)}${iconHtml}</label>
+                    <label class="text-sm text-gray-700 flex-1">${escH(q.question_text)}</label>
                     <input id="qi-${q.id}" type="text" class="border-2 ${borderCls} rounded-lg px-3 py-1.5 text-sm w-32 focus:outline-none focus:border-teal-400"
                            placeholder="入力" ${prev === true ? `disabled value="${escH(q.correct_answer)}"` : ''}>
-                    ${prev !== true ? `<button onclick="gradeQuestion('${q.id}','${escH(q.correct_answer)}','${escH(q.hint)}','${escH(q.alt_answers||'')}')"
-                      class="bg-teal-500 text-white text-xs font-bold px-3 py-1.5 rounded-lg hover:bg-teal-600 whitespace-nowrap">採点</button>` : ''}
-                    ${q.hint && prev !== true ? `<button onclick="showHint('${escH(q.hint)}')" class="text-gray-300 hover:text-gray-500"><i class="fas fa-lightbulb"></i></button>` : ''}
+                    ${prev === true
+                      ? `<span class="flex items-center gap-1 text-green-600 font-bold text-sm whitespace-nowrap"><i class="fas fa-circle-check"></i> 正解</span>`
+                      : `<button onclick="gradeQuestion('${q.id}','${escH(q.correct_answer)}','${escH(q.hint)}','${escH(q.alt_answers||'')}')"
+                          class="bg-teal-500 text-white text-xs font-bold px-3 py-1.5 rounded-lg hover:bg-teal-600 whitespace-nowrap">採点</button>
+                        ${q.hint ? `<button onclick="showHint('${escH(q.hint)}')" class="text-gray-300 hover:text-gray-500"><i class="fas fa-lightbulb"></i></button>` : ''}`}
                   </div>`;
               }).join('')}
             </div>
@@ -1081,6 +1082,15 @@
       if (isCorrect) {
         input.disabled = true;
         input.className = input.className.replace(/border-\w+-\d+/g, '') + ' border-green-400 bg-green-50';
+        // 採点・ヒントボタンを「正解」バッジに差し替え
+        const row = input.closest('.flex.items-center.gap-2');
+        if (row) {
+          row.querySelectorAll('button').forEach(btn => btn.remove());
+          const badge = document.createElement('span');
+          badge.className = 'flex items-center gap-1 text-green-600 font-bold text-sm whitespace-nowrap';
+          badge.innerHTML = '<i class="fas fa-circle-check"></i> 正解';
+          row.appendChild(badge);
+        }
       } else {
         input.className = input.className.replace(/border-\w+-\d+/g, '') + ' border-red-300';
         input.select();
