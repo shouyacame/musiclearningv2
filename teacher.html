@@ -2297,10 +2297,10 @@
 
   function downloadStudyContentTemplate() {
     const rows = [
-      ['トピック名', 'アイコン', '先生メモ', '見出し', '本文', '画像URL', '画像キャプション', 'YouTubeURL'],
-      ['三線の歴史', '📚', '授業で使う参考資料：○○', '①起源と由来', '三線は沖縄の伝統的な楽器です。', '', '', ''],
-      ['三線の歴史', '📚', '', '②各部の名称', '棹・胴・弦の3つで構成されます。', 'https://drive.google.com/...', '図1 各部の名称', ''],
-      ['三線の歴史', '📚', '', '③演奏の基本', '爪（つめ）を使って弦を弾きます。', '', '', 'https://www.youtube.com/watch?v=...'],
+      ['トピック名', 'アイコン', '先生メモ', '見出し', '本文', '画像URL', '画像キャプション', '画像URL2', '画像キャプション2', 'YouTubeURL'],
+      ['三線の歴史', '📚', '授業で使う参考資料', '①起源と由来', '三線は沖縄の伝統的な楽器です。', '', '', '', '', ''],
+      ['三線の歴史', '📚', '', '②各部の名称', '棹・胴・弦の3つで構成されます。', 'https://drive.google.com/file/d/FILE_ID/view', '図1 各部の名称', '', '', ''],
+      ['三線の歴史', '📚', '', '③三味線との違い', '| 項目 | 三線 | 三味線 |\n| 広まった地域 | 沖縄 | **日本本土** |\n| 皮 | 蛇皮 | 猫皮や犬皮 |', 'https://drive.google.com/file/d/三線ID/view', '三線', 'https://drive.google.com/file/d/三味線ID/view', '三味線', ''],
     ];
     downloadCSVFile(rows, 'study_content_template.csv');
     toast('読み物テンプレートをダウンロードしました', 'success');
@@ -2356,28 +2356,32 @@
 
       const headers = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g, ''));
       const idx = {
-        topic:   headers.findIndex(h => /トピック名|topic/.test(h)),
-        icon:    headers.findIndex(h => /アイコン|icon/.test(h)),
-        memo:    headers.findIndex(h => /先生メモ|memo/.test(h)),
-        heading: headers.findIndex(h => /見出し|heading|section/.test(h)),
-        body:    headers.findIndex(h => /本文|body/.test(h)),
-        image:   headers.findIndex(h => /画像URL|image/.test(h)),
-        caption: headers.findIndex(h => /キャプション|caption/.test(h)),
-        youtube: headers.findIndex(h => /YouTube|youtube/.test(h)),
+        topic:    headers.findIndex(h => /トピック名|topic/.test(h)),
+        icon:     headers.findIndex(h => /アイコン|icon/.test(h)),
+        memo:     headers.findIndex(h => /先生メモ|memo/.test(h)),
+        heading:  headers.findIndex(h => /見出し|heading|section/.test(h)),
+        body:     headers.findIndex(h => /本文|body/.test(h)),
+        image:    headers.findIndex(h => /画像URL/.test(h) && !/画像URL2/.test(h)),
+        caption:  headers.findIndex(h => /画像キャプション/.test(h) && !/画像キャプション2/.test(h)),
+        image2:   headers.findIndex(h => /画像URL2/.test(h)),
+        caption2: headers.findIndex(h => /画像キャプション2/.test(h)),
+        youtube:  headers.findIndex(h => /YouTube|youtube/.test(h)),
       };
       if (idx.topic < 0 || idx.heading < 0) { toast('「トピック名」「見出し」列が必要です', 'error'); return; }
 
       const rows = lines.slice(1).map(line => {
         const v = parseCSVLine(line);
         return {
-          topic:   v[idx.topic]   || '',
-          icon:    v[idx.icon]    || '📚',
-          memo:    v[idx.memo]    || '',
-          heading: v[idx.heading] || '',
-          body:    v[idx.body]    || '',
-          image:   v[idx.image]   || '',
-          caption: v[idx.caption] || '',
-          youtube: v[idx.youtube] || '',
+          topic:    v[idx.topic]    || '',
+          icon:     v[idx.icon]     || '📚',
+          memo:     v[idx.memo]     || '',
+          heading:  v[idx.heading]  || '',
+          body:     v[idx.body]     || '',
+          image:    v[idx.image]    || '',
+          caption:  v[idx.caption]  || '',
+          image2:   idx.image2  >= 0 ? (v[idx.image2]   || '') : '',
+          caption2: idx.caption2 >= 0 ? (v[idx.caption2] || '') : '',
+          youtube:  v[idx.youtube]  || '',
         };
       }).filter(r => r.topic && r.heading);
 
@@ -2422,6 +2426,7 @@
             topic_id: topicId, school_id: T.school_id,
             title: sec.heading, body: sec.body,
             image_url: sec.image, image_caption: sec.caption,
+            image_url_2: sec.image2, image_caption_2: sec.caption2,
             youtube_url: sec.youtube, is_visible: true, order_num: orderNum
           });
           if (sErr) skip++; else ok++;
@@ -2630,18 +2635,21 @@
   }
 
   async function addPreviewSection(topicId) {
-    const title   = document.getElementById('pc-ns-title').value.trim();
-    const body    = document.getElementById('pc-ns-body').value.trim();
-    const image   = document.getElementById('pc-ns-image').value.trim();
-    const caption = document.getElementById('pc-ns-caption').value.trim();
-    const youtube = document.getElementById('pc-ns-youtube').value.trim();
-    const visible = document.getElementById('pc-ns-visible').checked;
+    const title    = document.getElementById('pc-ns-title').value.trim();
+    const body     = document.getElementById('pc-ns-body').value.trim();
+    const image    = document.getElementById('pc-ns-image').value.trim();
+    const caption  = document.getElementById('pc-ns-caption').value.trim();
+    const image2   = document.getElementById('pc-ns-image2').value.trim();
+    const caption2 = document.getElementById('pc-ns-caption2').value.trim();
+    const youtube  = document.getElementById('pc-ns-youtube').value.trim();
+    const visible  = document.getElementById('pc-ns-visible').checked;
     if (!title) { toast('見出しを入力してください', 'error'); return; }
     const { data: existing } = await db.from('study_sections').select('order_num').eq('topic_id', topicId).order('order_num', { ascending: false }).limit(1);
     const order_num = (existing?.[0]?.order_num || 0) + 1;
     const { error } = await db.from('study_sections').insert({
       topic_id: topicId, school_id: T.school_id,
       title, body, image_url: image, image_caption: caption,
+      image_url_2: image2, image_caption_2: caption2,
       youtube_url: youtube, is_visible: visible, order_num
     });
     if (error) { toast('追加失敗', 'error'); return; }
@@ -3005,14 +3013,57 @@
   let previewSongTaskCache        = {};
   let previewKotoTasks            = [];
 
-  function prevMediaHtml(url, caption) {
-    if (!url) return '';
-    const m   = url.match(/\/file\/d\/([^\/\?]+)/);
-    const src = m ? `https://drive.google.com/file/d/${m[1]}/preview` : url;
-    const tag = m
-      ? `<iframe src="${escHtml(src)}" class="w-full rounded-xl" style="height:200px;border:1px solid #e5e7eb" allowfullscreen></iframe>`
-      : `<img src="${escHtml(src)}" alt="${escHtml(caption)}" class="w-full rounded-xl object-contain max-h-52">`;
-    return `<div class="my-2">${tag}${caption ? `<p class="text-xs text-center text-gray-400 mt-1">${escHtml(caption)}</p>` : ''}</div>`;
+  function prevMediaHtml(url, caption, url2, caption2) {
+    function oneTag(u, c, compact) {
+      if (!u) return '';
+      const m = u.match(/\/file\/d\/([^\/\?]+)/);
+      const src = m ? `https://drive.google.com/file/d/${m[1]}/preview` : u;
+      const h = compact ? '150px' : '200px';
+      const tag = m
+        ? `<iframe src="${escHtml(src)}" class="w-full rounded-xl" style="height:${h};border:1px solid #e5e7eb" allowfullscreen></iframe>`
+        : `<img src="${escHtml(src)}" alt="${escHtml(c)}" class="w-full rounded-xl object-contain" style="max-height:${h}">`;
+      return `<div>${tag}${c ? `<p class="text-xs text-center text-gray-400 mt-1">${escHtml(c)}</p>` : ''}</div>`;
+    }
+    if (!url && !url2) return '';
+    if (url && url2) {
+      return `<div class="grid grid-cols-2 gap-2 my-2">${oneTag(url, caption, true)}${oneTag(url2, caption2, true)}</div>`;
+    }
+    const u = url || url2, c = url ? caption : caption2;
+    return `<div class="my-2">${oneTag(u, c, false).replace(/^<div>|<\/div>$/, '')}</div>`;
+  }
+
+  function prevRenderBody(text) {
+    if (!text) return '';
+    function inline(s) { return escHtml(s).replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>'); }
+    const lines = text.split('\n');
+    let html = '', tableRows = [];
+    function flushTable() {
+      if (!tableRows.length) return;
+      html += '<div class="overflow-x-auto my-2"><table class="w-full text-xs border-collapse">';
+      tableRows.forEach((row, i) => {
+        const cells = row.split('|').slice(1, -1).map(c => c.trim());
+        html += '<tr>';
+        cells.forEach(cell => {
+          const tag = i === 0 ? 'th' : 'td';
+          html += `<${tag} class="border border-gray-200 px-2 py-1 ${i === 0 ? 'bg-teal-50 font-bold text-teal-800 text-left' : 'text-gray-700'}">${inline(cell)}</${tag}>`;
+        });
+        html += '</tr>';
+      });
+      html += '</table></div>';
+      tableRows = [];
+    }
+    for (const line of lines) {
+      const t = line.trim();
+      if (t.startsWith('|') && t.endsWith('|')) {
+        if (/^\|[-\s:|]+\|$/.test(t)) continue;
+        tableRows.push(t);
+      } else {
+        flushTable();
+        if (t) html += `<p class="text-xs text-gray-700 leading-relaxed mb-1">${inline(line)}</p>`;
+      }
+    }
+    flushTable();
+    return html;
   }
 
   async function swapOrderNum(tableName, items, id, dir) {
@@ -3130,8 +3181,8 @@
             <button onclick="deletePreviewSection('${s.id}','${topicId}')" class="btn-sm btn-del"><i class="fas fa-trash"></i></button>
           </div>
         </div>
-        ${s.body ? `<p class="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap mb-2">${escHtml(s.body)}</p>` : ''}
-        ${prevMediaHtml(s.image_url, s.image_caption)}
+        ${prevRenderBody(s.body)}
+        ${prevMediaHtml(s.image_url, s.image_caption, s.image_url_2, s.image_caption_2)}
         ${s.youtube_url ? `<p class="text-xs text-red-400 mt-1"><i class="fab fa-youtube mr-1"></i>${escHtml(s.youtube_url)}</p>` : ''}
       </div>`;
     }).join('');
@@ -3140,9 +3191,11 @@
         <p class="text-xs font-semibold text-gray-500 mb-2"><i class="fas fa-plus mr-1 text-teal-500"></i>セクションを追加</p>
         <div class="space-y-2">
           <input type="text" id="pc-ns-title" class="inp" placeholder="見出し（例: ①起源と由来）">
-          <textarea id="pc-ns-body" class="inp" rows="3" placeholder="説明文（改行可）" style="resize:vertical"></textarea>
-          <input type="text" id="pc-ns-image" class="inp" placeholder="画像URL（Googleドライブ共有リンク等）">
-          <input type="text" id="pc-ns-caption" class="inp" placeholder="画像キャプション">
+          <textarea id="pc-ns-body" class="inp" rows="4" placeholder="説明文（改行可）&#10;表を入れる場合は | 項目 | 三線 | 三味線 | の形式で入力" style="resize:vertical"></textarea>
+          <input type="text" id="pc-ns-image" class="inp" placeholder="画像URL①（Googleドライブ共有リンク等）">
+          <input type="text" id="pc-ns-caption" class="inp" placeholder="画像①キャプション">
+          <input type="text" id="pc-ns-image2" class="inp" placeholder="画像URL②（入力すると①と横並び表示）">
+          <input type="text" id="pc-ns-caption2" class="inp" placeholder="画像②キャプション">
           <input type="text" id="pc-ns-youtube" class="inp" placeholder="YouTube URL（任意）">
           <label class="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
             <input type="checkbox" id="pc-ns-visible" checked class="w-4 h-4">

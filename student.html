@@ -923,14 +923,57 @@
 
     function escH(s) { return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 
-    function mediaHtml(url, caption) {
-      if (!url) return '';
-      const m = url.match(/\/file\/d\/([^\/\?]+)/);
-      const src = m ? `https://drive.google.com/file/d/${m[1]}/preview` : url;
-      const tag = m
-        ? `<iframe src="${escH(src)}" class="w-full rounded-xl" style="height:260px;border:1px solid #e5e7eb" allowfullscreen></iframe>`
-        : `<img src="${escH(src)}" alt="${escH(caption)}" class="w-full rounded-xl object-contain max-h-64">`;
-      return `<div class="my-3">${tag}${caption?`<p class="text-xs text-center text-gray-400 mt-1">${escH(caption)}</p>`:''}</div>`;
+    function mediaHtml(url, caption, url2, caption2) {
+      function oneTag(u, c, compact) {
+        if (!u) return '';
+        const m = u.match(/\/file\/d\/([^\/\?]+)/);
+        const src = m ? `https://drive.google.com/file/d/${m[1]}/preview` : u;
+        const h = compact ? '180px' : '260px';
+        const tag = m
+          ? `<iframe src="${escH(src)}" class="w-full rounded-xl" style="height:${h};border:1px solid #e5e7eb" allowfullscreen></iframe>`
+          : `<img src="${escH(src)}" alt="${escH(c)}" class="w-full rounded-xl object-contain" style="max-height:${h}">`;
+        return `<div>${tag}${c ? `<p class="text-xs text-center text-gray-400 mt-1">${escH(c)}</p>` : ''}</div>`;
+      }
+      if (!url && !url2) return '';
+      if (url && url2) {
+        return `<div class="grid grid-cols-2 gap-3 my-3">${oneTag(url, caption, true)}${oneTag(url2, caption2, true)}</div>`;
+      }
+      const u = url || url2, c = url ? caption : caption2;
+      return `<div class="my-3">${oneTag(u, c, false).replace(/^<div>|<\/div>$/, '')}</div>`;
+    }
+
+    function renderBody(text) {
+      if (!text) return '';
+      function inline(s) { return escH(s).replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>'); }
+      const lines = text.split('\n');
+      let html = '', tableRows = [];
+      function flushTable() {
+        if (!tableRows.length) return;
+        html += '<div class="overflow-x-auto my-3"><table class="w-full text-sm border-collapse">';
+        tableRows.forEach((row, i) => {
+          const cells = row.split('|').slice(1, -1).map(c => c.trim());
+          html += '<tr>';
+          cells.forEach(cell => {
+            const tag = i === 0 ? 'th' : 'td';
+            html += `<${tag} class="border border-gray-200 px-3 py-1.5 ${i === 0 ? 'bg-teal-50 font-bold text-teal-800 text-left' : 'text-gray-700'}">${inline(cell)}</${tag}>`;
+          });
+          html += '</tr>';
+        });
+        html += '</table></div>';
+        tableRows = [];
+      }
+      for (const line of lines) {
+        const t = line.trim();
+        if (t.startsWith('|') && t.endsWith('|')) {
+          if (/^\|[-\s:|]+\|$/.test(t)) continue;
+          tableRows.push(t);
+        } else {
+          flushTable();
+          if (t) html += `<p class="text-sm text-gray-700 leading-relaxed mb-1">${inline(line)}</p>`;
+        }
+      }
+      flushTable();
+      return html;
     }
 
     async function renderContentTopic(topicId, title, el) {
@@ -945,8 +988,8 @@
               <div class="w-1 h-5 rounded-full bg-teal-500"></div>
               <h3 class="font-bold text-gray-800 text-sm">${escH(s.title)}</h3>
             </div>
-            ${s.body ? `<p class="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap mb-2">${escH(s.body)}</p>` : ''}
-            ${mediaHtml(s.image_url, s.image_caption)}
+            ${renderBody(s.body)}
+            ${mediaHtml(s.image_url, s.image_caption, s.image_url_2, s.image_caption_2)}
             ${s.youtube_url ? buildYtHtml(s.youtube_url) : ''}
           </div>`).join('');
       initLazyYt();
