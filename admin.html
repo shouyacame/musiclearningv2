@@ -1171,16 +1171,31 @@
     return true;
   }
 
-  function parseCSVLine(line) {
-    const result = []; let cur = '', inQ = false;
-    for (let i = 0; i < line.length; i++) {
-      const c = line[i];
-      if (c === '"') { if (inQ && line[i+1] === '"') { cur += '"'; i++; } else inQ = !inQ; }
-      else if (c === ',' && !inQ) { result.push(cur.trim()); cur = ''; }
-      else cur += c;
+  function parseCSVText(text) {
+    const rows = [];
+    const raw = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+    let cur = '', inQ = false, fields = [];
+    const flush = () => { fields.push(cur); cur = ''; };
+    for (let i = 0; i < raw.length; i++) {
+      const c = raw[i];
+      if (c === '"') {
+        if (inQ && raw[i+1] === '"') { cur += '"'; i++; }
+        else inQ = !inQ;
+      } else if (c === ',' && !inQ) {
+        flush();
+      } else if (c === '\n' && !inQ) {
+        flush();
+        if (fields.some(f => f.trim())) rows.push(fields.map(f => f.trim()));
+        fields = [];
+      } else {
+        cur += c;
+      }
     }
-    result.push(cur.trim()); return result;
+    flush();
+    if (fields.some(f => f.trim())) rows.push(fields.map(f => f.trim()));
+    return rows;
   }
+  function parseCSVLine(line) { return parseCSVText(line)[0] || []; }
 
   async function loadAdminContentMgmt() {
     const el = document.getElementById('admin-school-select');
@@ -1732,12 +1747,12 @@
     const file = e.target.files[0]; if (!file) return;
     const reader = new FileReader();
     reader.onload = async ev => {
-      const lines = ev.target.result.replace(/\r/g,'').split('\n').filter(l => l.trim());
-      if (lines.length < 2) { toast('データが見つかりません', 'error'); return; }
-      const headers = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g,''));
-      const idx = { topic: headers.findIndex(h => /トピック名|topic/.test(h)), icon: headers.findIndex(h => /アイコン|icon/.test(h)), memo: headers.findIndex(h => /先生メモ|memo/.test(h)), heading: headers.findIndex(h => /見出し|heading|section/.test(h)), body: headers.findIndex(h => /本文|body/.test(h)), image: headers.findIndex(h => /画像URL|image/.test(h)), caption: headers.findIndex(h => /キャプション|caption/.test(h)), youtube: headers.findIndex(h => /YouTube|youtube/.test(h)) };
+      const allRows = parseCSVText(ev.target.result);
+      if (allRows.length < 2) { toast('データが見つかりません', 'error'); return; }
+      const headers = allRows[0];
+      const idx = { topic: headers.findIndex(h => /トピック名|topic/.test(h)), icon: headers.findIndex(h => /アイコン|icon/.test(h)), memo: headers.findIndex(h => /先生メモ|memo/.test(h)), heading: headers.findIndex(h => /見出し|heading|section/.test(h)), body: headers.findIndex(h => /本文|body/.test(h)), image: headers.findIndex(h => /画像URL/.test(h) && !/画像URL2/.test(h)), caption: headers.findIndex(h => /キャプション|caption/.test(h)), youtube: headers.findIndex(h => /YouTube|youtube/.test(h)) };
       if (idx.topic < 0 || idx.heading < 0) { toast('「トピック名」「見出し」列が必要です', 'error'); return; }
-      const rows = lines.slice(1).map(line => { const v = parseCSVLine(line); return { topic: v[idx.topic]||'', icon: v[idx.icon]||'📚', memo: v[idx.memo]||'', heading: v[idx.heading]||'', body: v[idx.body]||'', image: v[idx.image]||'', caption: v[idx.caption]||'', youtube: v[idx.youtube]||'' }; }).filter(r => r.topic && r.heading);
+      const rows = allRows.slice(1).map(v => ({ topic: v[idx.topic]||'', icon: v[idx.icon]||'📚', memo: v[idx.memo]||'', heading: v[idx.heading]||'', body: v[idx.body]||'', image: v[idx.image]||'', caption: v[idx.caption]||'', youtube: v[idx.youtube]||'' })).filter(r => r.topic && r.heading);
       if (!rows.length) { toast('有効なデータがありません', 'error'); return; }
       const topicNames = [...new Set(rows.map(r => r.topic))];
       const topicMetaMap = {}; rows.forEach(r => { if (!topicMetaMap[r.topic]) topicMetaMap[r.topic] = r; });
@@ -1762,12 +1777,12 @@
     const file = e.target.files[0]; if (!file) return;
     const reader = new FileReader();
     reader.onload = async ev => {
-      const lines = ev.target.result.replace(/\r/g,'').split('\n').filter(l => l.trim());
-      if (lines.length < 2) { toast('データが見つかりません', 'error'); return; }
-      const headers = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g,''));
-      const idx = { topic: headers.findIndex(h => /トピック名|topic/.test(h)), icon: headers.findIndex(h => /アイコン|icon/.test(h)), memo: headers.findIndex(h => /先生メモ|memo/.test(h)), setTitle: headers.findIndex(h => /クイズセット名|セット名|set/.test(h)), setImage: headers.findIndex(h => /クイズセット画像|セット画像|set.image/.test(h)), qtext: headers.findIndex(h => /問題文|question/.test(h)), answer: headers.findIndex(h => /^正解$|^answer$/.test(h)), alts: headers.findIndex(h => /別解|alt/.test(h)), hint: headers.findIndex(h => /ヒント|hint/.test(h)) };
+      const allRows = parseCSVText(ev.target.result);
+      if (allRows.length < 2) { toast('データが見つかりません', 'error'); return; }
+      const headers = allRows[0];
+      const idx = { topic: headers.findIndex(h => /トピック名|topic/.test(h)), icon: headers.findIndex(h => /アイコン|icon/.test(h)), memo: headers.findIndex(h => /先生メモ|memo/.test(h)), setTitle: headers.findIndex(h => /クイズセット名|セット名/.test(h)), setBody: headers.findIndex(h => /クイズセット本文|セット本文/.test(h)), setImage: headers.findIndex(h => /クイズセット画像|セット画像/.test(h)), qtext: headers.findIndex(h => /問題文|question/.test(h)), answer: headers.findIndex(h => /^正解$|^answer$/.test(h)), alts: headers.findIndex(h => /別解|alt/.test(h)), hint: headers.findIndex(h => /ヒント|hint/.test(h)) };
       if (idx.topic < 0 || idx.qtext < 0 || idx.answer < 0) { toast('「トピック名」「問題文」「正解」列が必要です', 'error'); return; }
-      const rows = lines.slice(1).map(line => { const v = parseCSVLine(line); return { topic: v[idx.topic]||'', icon: v[idx.icon]||'🎵', memo: v[idx.memo]||'', setTitle: v[idx.setTitle]||'問題', setImage: idx.setImage>=0?(v[idx.setImage]||''):'', qtext: v[idx.qtext]||'', answer: v[idx.answer]||'', alts: idx.alts>=0?(v[idx.alts]||''):'', hint: idx.hint>=0?(v[idx.hint]||''):'' }; }).filter(r => r.topic && r.qtext && r.answer);
+      const rows = allRows.slice(1).map(v => ({ topic: v[idx.topic]||'', icon: v[idx.icon]||'🎵', memo: v[idx.memo]||'', setTitle: v[idx.setTitle]||'問題', setBody: idx.setBody>=0?(v[idx.setBody]||''):'', setImage: idx.setImage>=0?(v[idx.setImage]||''):'', qtext: v[idx.qtext]||'', answer: v[idx.answer]||'', alts: idx.alts>=0?(v[idx.alts]||''):'', hint: idx.hint>=0?(v[idx.hint]||''):'' })).filter(r => r.topic && r.qtext && r.answer);
       if (!rows.length) { toast('有効なデータがありません', 'error'); return; }
       const topicNames = [...new Set(rows.map(r => r.topic))];
       if (!confirm(`${topicNames.length}トピック、${rows.length}問をインポートします。`)) return;
@@ -1786,7 +1801,7 @@
           const setRows = rows.filter(r => r.topic === topicName && r.setTitle === setName);
           let { data: existSet } = await db.from('quiz_sets').select('id').eq('topic_id', topicId).eq('title', setName).maybeSingle();
           let setId = existSet?.id;
-          if (!setId) { const { data: ns, error: sErr } = await db.from('quiz_sets').insert({ topic_id: topicId, school_id: adminSchoolId, title: setName, image_url: setRows[0]?.setImage||'', order_num: setOrder }).select('id').single(); if (sErr) { skip++; continue; } setId = ns.id; }
+          if (!setId) { const { data: ns, error: sErr } = await db.from('quiz_sets').insert({ topic_id: topicId, school_id: adminSchoolId, title: setName, body: setRows[0]?.setBody||'', image_url: setRows[0]?.setImage||'', order_num: setOrder }).select('id').single(); if (sErr) { skip++; continue; } setId = ns.id; }
           const { data: existQs } = await db.from('quiz_questions').select('order_num').eq('quiz_set_id', setId).order('order_num', { ascending: false }).limit(1);
           let qOrder = (existQs?.[0]?.order_num || 0);
           for (const row of setRows) { qOrder++; const { error: qErr } = await db.from('quiz_questions').insert({ quiz_set_id: setId, school_id: adminSchoolId, question_text: row.qtext, correct_answer: row.answer, alt_answers: row.alts, hint: row.hint, order_num: qOrder }); if (qErr) skip++; else okQ++; }
@@ -1799,13 +1814,31 @@
   }
 
   function adminDownloadContentTemplate() {
-    const csv = 'トピック名,アイコン,先生メモ,見出し,本文,画像URL,キャプション,YouTube\n三線の基礎,📚,基礎知識トピック,①三線の歴史,三線は沖縄・奄美の伝統楽器です。,,,\n';
+    const rows = [
+      ['トピック名', 'アイコン', '先生メモ', '見出し', '本文', '画像URL', '画像キャプション', '画像URL2', '画像キャプション2', 'YouTubeURL'],
+      ['三線の基礎知識', '📚', '授業の導入で使う', '①三線とは',
+       '三線（さんしん）は沖縄・奄美地方の伝統的な弦楽器です。\n3本の弦を「爪（つめ）」ではじいて演奏します。',
+       '', '', '', '', ''],
+      ['三線の基礎知識', '📚', '', '②三味線との違い',
+       '三線と三味線を比べてみましょう。\n\n| 項目 | 三線 | 三味線 |\n| 広まった地域 | 沖縄・琉球 | 日本本土 |\n| 皮 | 蛇皮 | 猫皮や犬皮 |\n| 音の感じ | やわらかい | するどい |',
+       'https://drive.google.com/file/d/三線ID/view', '三線の写真', 'https://drive.google.com/file/d/三味線ID/view', '三味線の写真', ''],
+    ];
+    const csv = rows.map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\n');
     const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' });
     const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'content_template.csv'; a.click();
   }
 
   function adminDownloadQuizTemplate() {
-    const csv = 'トピック名,アイコン,先生メモ,クイズセット名,クイズセット画像,問題文,正解,別解,ヒント\n三線の基礎,🎵,クイズトピック,①各部の名称,,三線の胴の部分は何と呼ぶ？,チーガ,,胴体部分\n';
+    const rows = [
+      ['トピック名', 'アイコン', '先生メモ', 'クイズセット名', 'クイズセット本文', 'クイズセット画像URL', '問題文', '正解', '別解（カンマ区切り）', 'ヒント'],
+      ['各部の名称', '🎵', '', '①各部の名前を答えよう',
+       '三線の各部品の名前を覚えましょう。\n\n| 部品名 | 役割 |\n| チーガ | 蛇皮が張られた胴。音を響かせる。 |\n| 棹（さお） | 弦を張る細長い部分。 |',
+       '', '蛇皮が張られた丸い胴の部分', 'チーガ', 'ちーが', '音を響かせる'],
+      ['各部の名称', '🎵', '', '①各部の名前を答えよう', '', '', '弦の張りを調整する部品', 'カラクイ', 'からくい', 'ペグとも呼ばれる'],
+      ['各部の名称', '🎵', '', '②弦について', '3本の弦の名前と特徴を覚えましょう。', '', '一番太い弦の名前', '男絃（うーじる）', 'うーじる', '低い音が出る'],
+      ['各部の名称', '🎵', '', '②弦について', '', '', '一番細い弦の名前', '女絃（みーじる）', 'みーじる', '高い音が出る'],
+    ];
+    const csv = rows.map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\n');
     const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' });
     const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'quiz_template.csv'; a.click();
   }
