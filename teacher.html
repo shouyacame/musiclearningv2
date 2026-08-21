@@ -2773,12 +2773,17 @@
             .select('id').eq('topic_id', topicId).eq('title', setName).maybeSingle();
           let setId = existSet?.id;
           if (!setId) {
-            const { data: ns, error: sErr } = await db.from('quiz_sets').insert({
-              topic_id: topicId, school_id: T.school_id,
-              title: setName, body: setBodyText, image_url: setImageUrl, order_num: setOrder
-            }).select('id').single();
-            if (sErr) { skip++; continue; }
-            setId = ns.id;
+            const setPayload = { topic_id: topicId, school_id: T.school_id, title: setName, image_url: setImageUrl, order_num: setOrder };
+            if (setBodyText) setPayload.body = setBodyText;
+            const { data: ns, error: sErr } = await db.from('quiz_sets').insert(setPayload).select('id').single();
+            if (sErr) {
+              // body列がない場合はbody抜きで再試行
+              const { data: ns2, error: sErr2 } = await db.from('quiz_sets').insert({ topic_id: topicId, school_id: T.school_id, title: setName, image_url: setImageUrl, order_num: setOrder }).select('id').single();
+              if (sErr2) { skip++; continue; }
+              setId = ns2.id;
+            } else {
+              setId = ns.id;
+            }
           }
 
           const { data: existQs } = await db.from('quiz_questions')
