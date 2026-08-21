@@ -166,6 +166,7 @@
             <select id="prog-type" class="inp w-36" onchange="onProgTypeChange()">
               <option value="koto">基礎課題</option>
               <option value="song">楽曲課題</option>
+              <option value="quiz">ワークシート</option>
             </select>
           </div>
           <div id="prog-song-wrap" class="hidden">
@@ -1518,6 +1519,15 @@
         progProm, logProm]);
       const practiceCounts = buildPracticeCounts(logRes.data || []);
       renderMatrix(wrap, studRes.data || [], taskRes.data || [], progRes.data || [], 'koto', [], practiceCounts);
+    } else if (type === 'quiz') {
+      const [studRes, topicsRes, setsRes, qRes, ansRes] = await Promise.all([
+        studProm,
+        db.from('study_topics').select('id,title,icon').eq('school_id', T.school_id).eq('topic_type','quiz').eq('is_active',true).order('order_num'),
+        db.from('quiz_sets').select('id,topic_id').eq('school_id', T.school_id),
+        db.from('quiz_questions').select('id,quiz_set_id').eq('school_id', T.school_id),
+        db.from('quiz_answers').select('student_id,question_id,is_correct').eq('school_id', T.school_id).like('student_id', prefix + '%')
+      ]);
+      renderQuizMatrix(wrap, studRes.data || [], topicsRes.data || [], setsRes.data || [], qRes.data || [], ansRes.data || []);
     } else {
       const [studRes, songsRes, stRes, progRes, logRes] = await Promise.all([studProm,
         db.from('songs').select('id, title').eq('school_id', T.school_id).eq('is_active', true).order('order_num'),
@@ -1599,6 +1609,84 @@
         <table style="font-size:12px;border-collapse:collapse"><thead>${head}</thead><tbody>${body}</tbody></table>
       </div>
       <div class="mt-3 flex flex-wrap gap-x-4 gap-y-1">${legend}</div>`;
+  }
+
+  function renderQuizMatrix(wrap, students, topics, sets, questions, answers) {
+    if (!students.length || !topics.length) {
+      wrap.innerHTML = '<div class="text-center text-gray-400 text-sm py-6">生徒またはワークシートトピックが登録されていません</div>';
+      return;
+    }
+
+    // question_id → topic_id のルックアップ
+    const setToTopic = {};
+    sets.forEach(s => { setToTopic[s.id] = s.topic_id; });
+    const qToTopic = {};
+    questions.forEach(q => { qToTopic[q.id] = setToTopic[q.quiz_set_id]; });
+
+    // topic_id ごとの問題数
+    const topicTotal = {};
+    questions.forEach(q => {
+      const tid = qToTopic[q.id];
+      if (!tid) return;
+      topicTotal[tid] = (topicTotal[tid] || 0) + 1;
+    });
+
+    // 生徒×トピック ごとの正解数・回答数
+    const correctMap = {}, answeredMap = {};
+    answers.forEach(a => {
+      const tid = qToTopic[a.question_id];
+      if (!tid) return;
+      const key = `${a.student_id}_${tid}`;
+      answeredMap[key] = (answeredMap[key] || 0) + 1;
+      if (a.is_correct) correctMap[key] = (correctMap[key] || 0) + 1;
+    });
+
+    const SC = 'position:sticky;top:0;left:0;z-index:3;background:#FFF0F0';
+    const ST = 'position:sticky;top:0;z-index:2;background:#FFF0F0';
+
+    const head = `<tr><th style="${SC}">生徒</th>` +
+      topics.map(t => {
+        const s = t.title.length > 7 ? t.title.slice(0, 6) + '…' : t.title;
+        return `<th style="${ST};min-width:56px;padding:2px 3px;text-align:center" title="${escHtml(t.title)}">
+          <div style="font-size:14px;line-height:1.4">${escHtml(t.icon || '📝')}</div>
+          <div style="font-size:9px;font-weight:400;color:#888;max-width:56px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis">${escHtml(s)}</div>
+        </th>`;
+      }).join('') + '</tr>';
+
+    const body = students.map(s => {
+      return `<tr>
+        <td class="font-medium whitespace-nowrap" style="position:sticky;left:0;z-index:1;background:#fff;padding:4px 8px;cursor:pointer;color:#C07878"
+          onclick="openStudentFromMatrix('${s.student_id}')" title="生徒プレビューを開く">
+          ${s.number}番 ${escHtml(s.name || '')}
+        </td>` +
+        topics.map(t => {
+          const total    = topicTotal[t.id] || 0;
+          if (total === 0) return `<td class="text-center p-1"><span style="font-size:11px;color:#d1d5db">-</span></td>`;
+          const key      = `${s.student_id}_${t.id}`;
+          const correct  = correctMap[key] || 0;
+          const answered = answeredMap[key] || 0;
+          const pct      = Math.round(correct / total * 100);
+          const bg   = answered === 0 ? '#f9fafb' : pct >= 80 ? '#D1FAE5' : pct >= 40 ? '#FEF3C7' : '#FEE2E2';
+          const fg   = answered === 0 ? '#d1d5db' : pct >= 80 ? '#059669' : pct >= 40 ? '#D97706' : '#DC2626';
+          const label = answered === 0 ? '—' : `${correct}/${total}`;
+          return `<td class="text-center p-1">
+            <div style="min-width:44px;height:28px;border-radius:6px;background:${bg};color:${fg};display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;margin:auto">${label}</div>
+          </td>`;
+        }).join('') +
+        '</tr>';
+    }).join('');
+
+    wrap.innerHTML = `
+      <div style="overflow:auto;max-height:520px">
+        <table style="font-size:12px;border-collapse:collapse"><thead>${head}</thead><tbody>${body}</tbody></table>
+      </div>
+      <div class="mt-3 flex flex-wrap gap-3 items-center">
+        <span class="text-xs text-gray-400 mr-1">凡例（正解数/問題数）：</span>
+        <div class="flex items-center gap-1"><div style="width:16px;height:16px;border-radius:3px;background:#D1FAE5"></div><span class="text-xs text-gray-500">80%以上</span></div>
+        <div class="flex items-center gap-1"><div style="width:16px;height:16px;border-radius:3px;background:#FEF3C7"></div><span class="text-xs text-gray-500">40〜79%</span></div>
+        <div class="flex items-center gap-1"><div style="width:16px;height:16px;border-radius:3px;background:#FEE2E2"></div><span class="text-xs text-gray-500">40%未満</span></div>
+        <div class="flex items-center gap-1"><div style="width:16px;height:16px;border-radius:3px;background:#f9fafb;border:1px solid #e5e7eb"></div><span class="text-xs text-gray-500">未回答</span></div>
+      </div>`;
   }
 
   async function toggleMatrix(studentId, taskId, cell) {
