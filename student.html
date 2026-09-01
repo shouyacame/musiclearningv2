@@ -1076,6 +1076,7 @@
       await db.from('quiz_answers').upsert({
         school_id: student.school_id, student_id: student.id,
         question_id: questionId, is_correct: isCorrect,
+        answer_text: val,
         answered_at: new Date().toISOString()
       }, { onConflict: 'school_id,student_id,question_id' });
 
