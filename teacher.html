@@ -2476,29 +2476,79 @@
   // ---- PROGRESS CSV EXPORT ----
 
   async function exportProgressCSV() {
-    const [studRes, kotoRes, progRes] = await Promise.all([
+    const [studRes, kotoRes, progRes, songsRes, stRes, topicsRes, setsRes, qRes, ansRes] = await Promise.all([
       db.from('students').select('student_id, grade, class_name, number, name').eq('school_id', T.school_id).order('grade').order('class_name').order('number'),
       db.from('koto_tasks').select('id, title, order_num').eq('school_id', T.school_id).eq('is_active', true).order('order_num'),
-      db.from('student_progress').select('student_id, task_db_id, is_completed').eq('school_id', T.school_id)
+      db.from('student_progress').select('student_id, task_db_id, is_completed').eq('school_id', T.school_id),
+      db.from('songs').select('id, title, order_num').eq('school_id', T.school_id).eq('is_active', true).order('order_num'),
+      db.from('song_tasks').select('id, song_id, title, order_num').eq('school_id', T.school_id).order('order_num'),
+      db.from('study_topics').select('id, title, order_num').eq('school_id', T.school_id).eq('topic_type', 'quiz').eq('is_active', true).order('order_num'),
+      db.from('quiz_sets').select('id, topic_id, title, order_num').eq('school_id', T.school_id).order('order_num'),
+      db.from('quiz_questions').select('id, quiz_set_id, order_num').eq('school_id', T.school_id).order('order_num'),
+      db.from('quiz_answers').select('student_id, question_id, is_correct, answer_text').eq('school_id', T.school_id)
     ]);
+
     const students = studRes.data || [];
-    const tasks    = kotoRes.data || [];
-    const progress = progRes.data || [];
     if (!students.length) { toast('生徒データがありません', 'error'); return; }
-    if (!tasks.length)    { toast('課題データがありません', 'error'); return; }
 
-    const progMap = {};
-    progress.forEach(p => { progMap[`${p.student_id}_${p.task_db_id}`] = p.is_completed; });
+    // ---- 基礎課題 ----
+    const kotoTasks = kotoRes.data || [];
+    const progMap   = {};
+    (progRes.data || []).forEach(p => { progMap[`${p.student_id}_${p.task_db_id}`] = p.is_completed; });
 
-    const header = ['学年', '組', '番号', '名前', ...tasks.map(t => t.title)];
+    // ---- 楽曲課題 ----
+    const songs     = songsRes.data || [];
+    const songTasks = stRes.data || [];
+    // 曲名付きのフラット課題リスト（列ヘッダー用）
+    const songCols  = songs.flatMap(song =>
+      songTasks.filter(t => t.song_id === song.id).sort((a, b) => a.order_num - b.order_num)
+               .map(t => ({ id: t.id, header: `【${song.title}】${t.title}` }))
+    );
+
+    // ---- ワークシート ----
+    const quizTopics = topicsRes.data || [];
+    const quizSets   = setsRes.data  || [];
+    const quizQs     = qRes.data     || [];
+    const setsByTopic = {};
+    quizSets.forEach(s => { (setsByTopic[s.topic_id] = setsByTopic[s.topic_id] || []).push(s); });
+    const qsBySet = {};
+    quizQs.forEach(q => { (qsBySet[q.quiz_set_id] = qsBySet[q.quiz_set_id] || []).push(q); });
+    Object.values(qsBySet).forEach(qs => qs.sort((a, b) => a.order_num - b.order_num));
+
+    const nums = ['①','②','③','④','⑤','⑥','⑦','⑧','⑨','⑩'];
+    const quizCols = quizTopics.flatMap(t =>
+      (setsByTopic[t.id] || []).sort((a, b) => a.order_num - b.order_num).flatMap(s =>
+        (qsBySet[s.id] || []).map((q, i) => ({ id: q.id, header: `【${t.title}】${s.title}-${nums[i] || (i+1)}` }))
+      )
+    );
+
+    const ansMap = {};
+    (ansRes.data || []).forEach(a => { ansMap[`${a.student_id}_${a.question_id}`] = { correct: a.is_correct, text: a.answer_text || '' }; });
+
+    // ---- ヘッダー行 ----
+    const header = [
+      '学年', '組', '番号', '名前',
+      ...kotoTasks.map(t => `【基礎】${t.title}`),
+      ...songCols.map(c => c.header),
+      ...quizCols.map(c => c.header)
+    ];
+
+    // ---- データ行 ----
     const rows = [header];
     students.forEach(s => {
       const row = [s.grade + '年', s.class_name + '組', s.number, s.name || ''];
-      tasks.forEach(t => row.push(progMap[`${s.student_id}_${t.id}`] ? '○' : ''));
+      kotoTasks.forEach(t => row.push(progMap[`${s.student_id}_${t.id}`] ? '○' : ''));
+      songCols.forEach(c  => row.push(progMap[`${s.student_id}_${c.id}`]  ? '○' : ''));
+      quizCols.forEach(c => {
+        const ans = ansMap[`${s.student_id}_${c.id}`];
+        if (!ans) { row.push(''); return; }
+        row.push(ans.text || (ans.correct ? '○' : '✗'));
+      });
       rows.push(row);
     });
-    downloadCSVFile(rows, `progress_${T.school_id}_${new Date().toISOString().slice(0,10)}.csv`);
-    toast('進捗CSVをダウンロードしました', 'success');
+
+    downloadCSVFile(rows, `progress_all_${T.school_id}_${new Date().toISOString().slice(0,10)}.csv`);
+    toast('進捗CSV（全種別）をダウンロードしました', 'success');
   }
 
   // ---- QR CODE ----
