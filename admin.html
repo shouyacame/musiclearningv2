@@ -931,13 +931,15 @@
   }
 
   async function openSchoolTeachersModal(schoolId, schoolName) {
-    document.getElementById('school-teachers-title').textContent = schoolName + ' の先生一覧';
+    const modal = document.getElementById('school-teachers-modal');
+    modal.dataset.schoolId = schoolId;
+    document.getElementById('school-teachers-title').textContent = (schoolName || schoolId) + ' の先生一覧';
     document.getElementById('school-teachers-body').innerHTML =
       '<div class="text-center py-6 text-gray-400"><i class="fas fa-spinner fa-spin"></i> 読み込み中...</div>';
-    document.getElementById('school-teachers-modal').classList.remove('hidden');
+    modal.classList.remove('hidden');
 
     const { data, error } = await db.from('teacher_profiles')
-      .select('username, name, email').eq('school_id', schoolId).order('username');
+      .select('id, username, name, email, plain_password').eq('school_id', schoolId).order('username');
     if (error) {
       document.getElementById('school-teachers-body').innerHTML = `<p class="text-red-500 text-sm">${error.message}</p>`;
       return;
@@ -947,21 +949,98 @@
       document.getElementById('school-teachers-body').innerHTML = '<p class="text-gray-400 text-center py-4">先生が登録されていません</p>';
       return;
     }
-    const rows = teachers.map(t => `<tr>
-      <td class="font-mono text-sm">${escHtml(t.username || '')}</td>
-      <td>${escHtml(t.name || '')}</td>
-      <td class="font-mono text-xs text-gray-400">${escHtml(t.email || '')}</td>
-    </tr>`).join('');
+    const rows = teachers.map(t => {
+      const em  = escHtml(t.email || '');
+      const pw  = escHtml(t.plain_password || '');
+      const uid = escHtml(t.id || '');
+      return `<tr>
+        <td class="font-mono text-sm font-semibold">${escHtml(t.username || '')}</td>
+        <td>${escHtml(t.name || '')}</td>
+        <td class="font-mono text-xs" style="color:#6366f1">${pw || '<span style="color:#ccc">（未保存）</span>'}</td>
+        <td class="whitespace-nowrap">
+          <button class="btn-sm btn-edit" onclick="openChangePasswordModal('${em}','${pw}','${escHtml(t.username||'')}','${uid}')">
+            <i class="fas fa-key mr-1"></i>変更
+          </button>
+        </td>
+      </tr>`;
+    }).join('');
     document.getElementById('school-teachers-body').innerHTML = `
-      <div class="overflow-x-auto mb-3">
+      <div class="overflow-x-auto mb-2">
         <table>
-          <thead><tr><th>ユーザー名</th><th>氏名</th><th>メール（ログインID）</th></tr></thead>
+          <thead><tr><th>ユーザー名</th><th>氏名</th><th>パスワード</th><th>操作</th></tr></thead>
           <tbody>${rows}</tbody>
         </table>
       </div>
-      <div class="bg-amber-50 border border-amber-200 rounded-lg p-3 text-xs text-amber-800">
-        <i class="fas fa-lock mr-1"></i>パスワードはセキュリティのため取得できません。パスワード変更が必要な場合は <strong>Supabaseダッシュボード → Authentication → Users</strong> から「メール（ログインID）」を検索して変更してください。
-      </div>`;
+      <p class="text-xs text-gray-400 mt-1">※「未保存」はv14マイグレーション前に作成された先生です。変更ボタンから新パスワードを設定してください。</p>`;
+  }
+
+  function openChangePasswordModal(email, currentPw, username, userId) {
+    document.getElementById('cpw-email').value    = email;
+    document.getElementById('cpw-current').value  = currentPw;
+    document.getElementById('cpw-user-id').value  = userId;
+    document.getElementById('cpw-username').textContent = username;
+    document.getElementById('cpw-new').value       = '';
+    document.getElementById('cpw-admin-pass').value = '';
+    document.getElementById('cpw-err').classList.add('hidden');
+    document.getElementById('change-pw-modal').classList.remove('hidden');
+    setTimeout(() => document.getElementById('cpw-new').focus(), 100);
+  }
+
+  async function doChangeTeacherPassword() {
+    const email    = document.getElementById('cpw-email').value;
+    const currentPw = document.getElementById('cpw-current').value;
+    const userId   = document.getElementById('cpw-user-id').value;
+    const newPw    = document.getElementById('cpw-new').value.trim();
+    const adminPw  = document.getElementById('cpw-admin-pass').value;
+    const errEl    = document.getElementById('cpw-err');
+    const btn      = document.getElementById('cpw-btn');
+    errEl.classList.add('hidden');
+
+    if (newPw.length < 6) { errEl.textContent = '新パスワードは6文字以上で入力してください'; errEl.classList.remove('hidden'); return; }
+    if (!adminPw)         { errEl.textContent = '管理者パスワードを入力してください';      errEl.classList.remove('hidden'); return; }
+
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i>変更中...';
+
+    // 先生としてサインイン
+    const { data: siData, error: siErr } = await db.auth.signInWithPassword({ email, password: currentPw || '' });
+    if (siErr || !siData?.user) {
+      // 現在のパスワードが不明な場合は admin pass で auth 再ログイン後に直接 teacher_profiles だけ更新
+      const { error: reErr } = await db.auth.signInWithPassword({ email: adminProfile.email, password: adminPw });
+      if (reErr) { errEl.textContent = '管理者パスワードが正しくありません'; errEl.classList.remove('hidden'); btn.disabled = false; btn.innerHTML = '<i class="fas fa-key mr-1"></i>変更する'; return; }
+      // Supabase Auth のパスワードは変更できないが DB の plain_password だけ更新
+      await db.from('teacher_profiles').update({ plain_password: newPw }).eq('id', userId);
+      document.getElementById('change-pw-modal').classList.add('hidden');
+      btn.disabled = false; btn.innerHTML = '<i class="fas fa-key mr-1"></i>変更する';
+      toast('DBのパスワード記録を更新しました（Supabase Authのパスワードは旧パスワードが不明なため変更できませんでした）', 'success');
+      await openSchoolTeachersModal(document.getElementById('school-teachers-modal').dataset.schoolId, '');
+      return;
+    }
+
+    // 先生のパスワードを更新
+    const { error: upErr } = await db.auth.updateUser({ password: newPw });
+    await db.auth.signOut();
+
+    // 管理者として再ログイン
+    const { error: reLoginErr } = await db.auth.signInWithPassword({ email: adminProfile.email, password: adminPw });
+    if (reLoginErr) {
+      alert('パスワードを変更しましたが、管理者パスワードが正しくないためログインページに移動します。');
+      window.location.href = 'admin-login.html';
+      return;
+    }
+
+    if (upErr) { errEl.textContent = '変更失敗: ' + upErr.message; errEl.classList.remove('hidden'); btn.disabled = false; btn.innerHTML = '<i class="fas fa-key mr-1"></i>変更する'; return; }
+
+    // teacher_profiles の plain_password を更新
+    await db.from('teacher_profiles').update({ plain_password: newPw }).eq('id', userId);
+
+    document.getElementById('change-pw-modal').classList.add('hidden');
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fas fa-key mr-1"></i>変更する';
+    toast('パスワードを変更しました', 'success');
+
+    const sid = document.getElementById('school-teachers-modal').dataset.schoolId;
+    if (sid) await openSchoolTeachersModal(sid, '');
   }
 
   function openDeleteSchoolModal(schoolId, schoolName) {
@@ -1050,7 +1129,8 @@
     const { error: pErr } = await db.from('teacher_profiles').insert({
       id: userId, username, email: fakeEmail,
       name: name || username,
-      school_id: schoolId, school_name: schoolName, department: '音楽科'
+      school_id: schoolId, school_name: schoolName, department: '音楽科',
+      plain_password: pass
     });
 
     if (pErr) {
@@ -1184,7 +1264,8 @@
       const { error: pErr } = await db.from('teacher_profiles').insert({
         id: userId, username: row.username, email: fakeEmail,
         name: row.name || row.username,
-        school_id: row.school_id, school_name: row.school_name || '', department: '音楽科'
+        school_id: row.school_id, school_name: row.school_name || '', department: '音楽科',
+        plain_password: row.password
       });
 
       if (pErr) { failed++; failedNames.push(row.username); }
@@ -2349,6 +2430,37 @@
     </div>
     <div id="school-teachers-body"></div>
     <button class="btn-gray w-full mt-4" onclick="document.getElementById('school-teachers-modal').classList.add('hidden')">閉じる</button>
+  </div>
+</div>
+
+<!-- パスワード変更モーダル -->
+<div id="change-pw-modal" class="modal-overlay hidden">
+  <div class="modal-box" style="max-width:400px">
+    <div class="flex items-center justify-between mb-4">
+      <h3 class="font-bold text-gray-800"><i class="fas fa-key mr-2 text-indigo-500"></i>パスワード変更</h3>
+      <button onclick="document.getElementById('change-pw-modal').classList.add('hidden')" class="text-gray-400 hover:text-gray-600 text-2xl leading-none">&times;</button>
+    </div>
+    <p class="text-sm text-gray-600 mb-3">先生「<strong id="cpw-username"></strong>」のパスワードを変更します。</p>
+    <input type="hidden" id="cpw-email">
+    <input type="hidden" id="cpw-current">
+    <input type="hidden" id="cpw-user-id">
+    <div class="space-y-3">
+      <div>
+        <label class="block text-xs font-semibold text-gray-600 mb-1">新しいパスワード（6文字以上）</label>
+        <input type="text" id="cpw-new" class="inp" placeholder="新パスワード">
+      </div>
+      <div>
+        <label class="block text-xs font-semibold text-gray-600 mb-1">管理者パスワード（再確認）</label>
+        <input type="password" id="cpw-admin-pass" class="inp" placeholder="管理者パスワード" autocomplete="current-password">
+      </div>
+      <p id="cpw-err" class="text-red-500 text-xs hidden"></p>
+      <div class="flex gap-3 pt-1">
+        <button class="btn-gray flex-1" onclick="document.getElementById('change-pw-modal').classList.add('hidden')">キャンセル</button>
+        <button id="cpw-btn" class="btn-indigo flex-1" onclick="doChangeTeacherPassword()">
+          <i class="fas fa-key mr-1"></i>変更する
+        </button>
+      </div>
+    </div>
   </div>
 </div>
 
