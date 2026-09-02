@@ -2771,7 +2771,7 @@
         alts:     headers.findIndex(h => /別解|alt/.test(h)),
         hint:     headers.findIndex(h => /ヒント|hint/.test(h)),
       };
-      if (idx.topic < 0 || idx.qtext < 0 || idx.answer < 0) { toast('「トピック名」「問題文」「正解」列が必要です', 'error'); return; }
+      if (idx.topic < 0) { toast('「トピック名」列が必要です', 'error'); return; }
 
       const rows = allRows.slice(1).map(v => ({
         topic:    v[idx.topic]    || '',
@@ -2780,16 +2780,17 @@
         setTitle: v[idx.setTitle] || '問題',
         setBody:  idx.setBody  >= 0 ? (v[idx.setBody]  || '') : '',
         setImage: idx.setImage >= 0 ? (v[idx.setImage] || '') : '',
-        qtext:    v[idx.qtext]    || '',
-        answer:   v[idx.answer]   || '',
-        alts:     idx.alts >= 0   ? (v[idx.alts] || '') : '',
-        hint:     idx.hint >= 0   ? (v[idx.hint] || '') : '',
-      })).filter(r => r.topic && r.qtext && r.answer);
+        qtext:    idx.qtext  >= 0 ? (v[idx.qtext]  || '') : '',
+        answer:   idx.answer >= 0 ? (v[idx.answer] || '') : '',
+        alts:     idx.alts   >= 0 ? (v[idx.alts]   || '') : '',
+        hint:     idx.hint   >= 0 ? (v[idx.hint]   || '') : '',
+      })).filter(r => r.topic && r.setTitle);  // トピック名＋セット名があれば通す
 
       if (!rows.length) { toast('有効なデータがありません', 'error'); return; }
 
       const topicNames = [...new Set(rows.map(r => r.topic))];
-      if (!confirm(`${topicNames.length}トピック、${rows.length}問をインポートします。`)) return;
+      const qCount = rows.filter(r => r.qtext && r.answer).length;
+      if (!confirm(`${topicNames.length}トピック、${qCount}問をインポートします。\n※正解が空の行はセットのみ作成します。`)) return;
 
       let okQ = 0, skip = 0;
       const topicMetaMap = {};
@@ -2845,6 +2846,7 @@
           let qOrder = (existQs?.[0]?.order_num || 0);
 
           for (const row of setRows) {
+            if (!row.qtext || !row.answer) continue; // 問題文か正解が空の行はセットのみ作成してスキップ
             qOrder++;
             const { error: qErr } = await db.from('quiz_questions').insert({
               quiz_set_id: setId, school_id: T.school_id,
