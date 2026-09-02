@@ -176,7 +176,13 @@
             </select>
           </div>
           <button class="btn-red" onclick="loadProgressMatrix()"><i class="fas fa-sync-alt mr-1"></i>表示</button>
-          <button class="btn-gray ml-auto" onclick="exportProgressCSV()"><i class="fas fa-file-export mr-1"></i>進捗CSV</button>
+        </div>
+        <div class="flex flex-wrap gap-2 mt-3 pt-3 border-t border-gray-100">
+          <span class="text-xs font-semibold text-gray-500 self-center mr-1"><i class="fas fa-file-download mr-1"></i>CSV出力：</span>
+          <button class="btn-gray text-xs" onclick="exportProgressCSV('koto')">基礎課題</button>
+          <button class="btn-gray text-xs" onclick="exportProgressCSV('song')">楽曲課題</button>
+          <button class="btn-gray text-xs" onclick="exportProgressCSV('quiz')">ワークシート</button>
+          <button class="btn-gray text-xs" onclick="exportProgressCSVAll()"><i class="fas fa-layer-group mr-1"></i>まとめて（全種別）</button>
         </div>
       </div>
       <div id="matrix-wrap" class="card p-4 overflow-x-auto">
@@ -200,6 +206,14 @@
           <div>
             <label class="block text-xs font-semibold text-gray-600 mb-1">生徒</label>
             <select id="sp-student" class="inp w-48" disabled onchange="loadStudentPreview()"><option value="">選択してください</option></select>
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-gray-600 mb-1">種別</label>
+            <select id="sp-type" class="inp w-36" onchange="loadStudentPreview()">
+              <option value="koto">基礎課題</option>
+              <option value="song">楽曲課題</option>
+              <option value="quiz">ワークシート</option>
+            </select>
           </div>
         </div>
       </div>
@@ -295,6 +309,9 @@
             <button class="btn-gray" onclick="loadRoster()"><i class="fas fa-sync-alt mr-1"></i>表示</button>
           </div>
           <div class="flex gap-2">
+            <button class="btn-gray" onclick="downloadRosterTemplate()">
+              <i class="fas fa-file-alt mr-1"></i>CSVテンプレ
+            </button>
             <button class="btn-gray" onclick="document.getElementById('csv-input').click()">
               <i class="fas fa-file-import mr-1"></i>CSVインポート
             </button>
@@ -1276,7 +1293,8 @@
   function openStudentFromMatrix(studentId) {
     const grade = document.getElementById('prog-grade').value;
     const cls   = document.getElementById('prog-class').value;
-    window._spPreset = { grade, cls, studentId };
+    const type  = document.getElementById('prog-type').value;
+    window._spPreset = { grade, cls, studentId, type };
     switchTab('student-preview');
   }
 
@@ -1285,12 +1303,14 @@
   async function loadStudentPreviewTab() {
     await loadClassSelectors('sp-grade', 'sp-class');
     if (window._spPreset) {
-      const { grade, cls, studentId } = window._spPreset;
+      const { grade, cls, studentId, type } = window._spPreset;
       window._spPreset = null;
       const gradeEl = document.getElementById('sp-grade');
       if (gradeEl) { gradeEl.value = grade; await onSpGradeChange(); }
       const classEl = document.getElementById('sp-class');
       if (classEl) { classEl.value = cls; await loadSpStudents(); }
+      const typeEl = document.getElementById('sp-type');
+      if (typeEl && type) typeEl.value = type;
       const stuEl = document.getElementById('sp-student');
       if (stuEl) { stuEl.value = studentId; await loadStudentPreview(); }
     }
@@ -1327,11 +1347,24 @@
 
   async function loadStudentPreview() {
     const studentId = document.getElementById('sp-student').value;
+    const type      = document.getElementById('sp-type').value;
     const spBody    = document.getElementById('sp-body');
     if (!studentId) { spBody.innerHTML = '<div class="text-center text-gray-400 text-sm py-10">生徒を選択してください</div>'; return; }
     spBody.innerHTML = '<div class="text-center py-10 text-gray-400"><i class="fas fa-spinner fa-spin text-2xl mb-2 block"></i>読み込み中...</div>';
 
-    const [taskRes, progRes, fbRes, logRes, quizTopicRes, quizQRes, quizAnsRes] = await Promise.all([
+    const stuName = document.getElementById('sp-student').options[document.getElementById('sp-student').selectedIndex]?.text || studentId;
+
+    if (type === 'koto') {
+      await _loadSpKoto(studentId, stuName, spBody);
+    } else if (type === 'song') {
+      await _loadSpSong(studentId, stuName, spBody);
+    } else {
+      await _loadSpQuiz(studentId, stuName, spBody);
+    }
+  }
+
+  async function _loadSpKoto(studentId, stuName, spBody) {
+    const [taskRes, progRes, fbRes, logRes] = await Promise.all([
       db.from('koto_tasks').select('id,title,description,order_num,level_count,level_1_text,level_2_text,level_3_text')
         .eq('school_id', T.school_id).eq('is_active', true).order('order_num'),
       db.from('student_progress').select('task_db_id,is_completed,completed_level')
@@ -1339,28 +1372,14 @@
       db.from('teacher_feedback').select('task_db_id,comment')
         .eq('school_id', T.school_id).eq('student_id', studentId),
       db.from('practice_logs').select('logged_at')
-        .eq('school_id', T.school_id).eq('student_id', studentId).order('logged_at', { ascending: false }),
-      db.from('study_topics').select('id,title,icon')
-        .eq('school_id', T.school_id).eq('topic_type', 'quiz').eq('is_active', true).order('order_num'),
-      db.from('quiz_questions').select('id,quiz_set_id')
-        .eq('school_id', T.school_id),
-      db.from('quiz_answers').select('question_id,is_correct')
-        .eq('school_id', T.school_id).eq('student_id', studentId)
+        .eq('school_id', T.school_id).eq('student_id', studentId).order('logged_at', { ascending: false })
     ]);
 
-    const tasks = taskRes.data || [];
+    const tasks   = taskRes.data || [];
     const progMap = {}; (progRes.data || []).forEach(r => { progMap[r.task_db_id] = r; });
-    const fbMap  = {}; (fbRes.data  || []).forEach(r => { fbMap[r.task_db_id]  = r.comment || ''; });
-
-    // ワークシート集計: topic → sets → questions → answers の結合
-    const quizTopics = quizTopicRes.data || [];
-    const quizQMap   = {}; // question_id → quiz_set_id
-    (quizQRes.data || []).forEach(q => { quizQMap[q.id] = q.quiz_set_id; });
-    const quizAnsMap = {}; // question_id → is_correct
-    (quizAnsRes.data || []).forEach(a => { quizAnsMap[a.question_id] = a.is_correct; });
-    const logs   = (logRes.data || []).map(r => r.logged_at);
-    const doneCount = Object.values(progMap).filter(p => p.is_completed).length;
-    const stuName = document.getElementById('sp-student').options[document.getElementById('sp-student').selectedIndex]?.text || studentId;
+    const fbMap   = {}; (fbRes.data   || []).forEach(r => { fbMap[r.task_db_id]  = r.comment || ''; });
+    const logs    = (logRes.data || []).map(r => r.logged_at);
+    const doneCount = tasks.filter(t => (progMap[t.id] || {}).is_completed).length;
 
     let html = `<div class="card p-4 mb-4">
       <div class="flex items-center gap-4">
@@ -1387,19 +1406,16 @@
       const lc = t.level_count || 1;
       const cl = prog.completed_level || 0;
       const isDone = prog.is_completed;
-
       const circlesHtml = lc >= 2 ? `<div class="flex gap-1">` + Array.from({length: lc}, (_, j) => {
         const lvl = j + 1;
         const bg = lvl <= cl ? '#7BBAA8' : '#f3f4f6';
         const color = lvl <= cl ? '#fff' : '#9ca3af';
         return `<div style="width:22px;height:22px;min-width:22px;border-radius:50%;background:${bg};color:${color};display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;border:2px solid ${lvl <= cl ? '#7BBAA8' : '#d1d5db'}">${lvl}</div>`;
       }).join('') + `</div>` : '';
-
       const statusBadge = isDone
         ? `<span class="badge badge-green">✓ 完了</span>`
         : cl > 0 ? `<span class="badge badge-amber">Lv${cl} 達成中</span>`
         : `<span class="badge badge-gray">未達成</span>`;
-
       const levelsHtml = lc >= 2 ? `<div style="border-left:3px solid #B8DDD4;padding:6px 10px;margin-top:8px;background:#F5FBF9;border-radius:0 8px 8px 0;font-size:12px">` +
         [t.level_1_text, t.level_2_text, t.level_3_text].slice(0, lc).map((txt, j) =>
           `<div style="display:flex;align-items:flex-start;gap:6px;padding:3px 0;${j > 0 ? 'border-top:1px solid #f0f0f0' : ''}">
@@ -1407,7 +1423,6 @@
             <span style="color:#374151">${escHtml(txt || '（未設定）')}</span>
           </div>`).join('') + `</div>`
         : (t.description ? `<div style="border-left:3px solid #B8DDD4;padding:6px 10px;margin-top:8px;background:#F5FBF9;border-radius:0 8px 8px 0;font-size:12px;color:#374151">${escHtml(t.description)}</div>` : '');
-
       return `<div class="card p-4 mb-3${isDone ? ' border-2' : ''}" style="${isDone ? 'border-color:#A7F3D0;background:#F0FDF4' : ''}">
         <div class="flex items-center gap-3 mb-1">
           <div style="width:26px;height:26px;min-width:26px;border-radius:50%;background:${isDone ? '#10B981' : '#7BBAA8'};color:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0">${isDone ? '✓' : i + 1}</div>
@@ -1426,37 +1441,152 @@
       </div>`;
     }).join('');
 
-    // ワークシートセクション（quiz_sets を topic ごとに集計）
-    if (quizTopics.length) {
-      // quiz_sets を一括取得して topic_id でグループ化
-      const { data: sets } = await db.from('quiz_sets').select('id,topic_id')
-        .eq('school_id', T.school_id);
-      const setsByTopic = {}; // topic_id → Set of set_ids
-      (sets || []).forEach(s => {
-        if (!setsByTopic[s.topic_id]) setsByTopic[s.topic_id] = new Set();
-        setsByTopic[s.topic_id].add(s.id);
+    spBody.innerHTML = html;
+  }
+
+  async function _loadSpSong(studentId, stuName, spBody) {
+    const [songsRes, stRes, progRes] = await Promise.all([
+      db.from('songs').select('id,order_num,title,artist').eq('school_id', T.school_id).eq('is_active', true).order('order_num'),
+      db.from('song_tasks').select('id,song_id,order_num,title,description,youtube_url').eq('school_id', T.school_id).order('order_num'),
+      db.from('student_progress').select('task_db_id,is_completed').eq('school_id', T.school_id).eq('student_id', studentId)
+    ]);
+
+    const songs     = songsRes.data || [];
+    const allTasks  = stRes.data    || [];
+    const progMap   = {}; (progRes.data || []).forEach(p => { progMap[p.task_db_id] = p.is_completed; });
+    const tasksBySong = {};
+    allTasks.forEach(t => { (tasksBySong[t.song_id] = tasksBySong[t.song_id] || []).push(t); });
+
+    const totalTasks = allTasks.length;
+    const doneTasks  = allTasks.filter(t => progMap[t.id]).length;
+
+    let html = `<div class="card p-4 mb-4">
+      <div class="flex items-center gap-4">
+        <div class="w-12 h-12 rounded-full bg-orange-100 flex items-center justify-center text-xl font-bold text-orange-500 flex-shrink-0">
+          ${escHtml(stuName.slice(0, 1))}
+        </div>
+        <div>
+          <div class="font-bold text-gray-800 text-base">${escHtml(stuName)}</div>
+          <div class="flex flex-wrap gap-3 mt-1">
+            <span class="text-xs text-gray-500"><i class="fas fa-music text-orange-400 mr-1"></i>${songs.length}曲 / ${totalTasks}課題</span>
+            <span class="text-xs text-gray-500"><i class="fas fa-check-circle text-green-500 mr-1"></i>${doneTasks}課題完了</span>
+          </div>
+        </div>
+        <div class="ml-auto">
+          <div class="text-3xl font-bold text-center" style="color:${doneTasks / (totalTasks || 1) >= 0.8 ? '#10B981' : '#C07878'}">${totalTasks ? Math.round(doneTasks / totalTasks * 100) : 0}%</div>
+          <div class="text-xs text-gray-400 text-center">達成率</div>
+        </div>
+      </div>
+    </div>`;
+
+    if (!songs.length) {
+      html += '<div class="text-center text-gray-400 text-sm py-6">楽曲データがありません</div>';
+    } else {
+      songs.forEach(song => {
+        const tasks    = (tasksBySong[song.id] || []).sort((a, b) => a.order_num - b.order_num);
+        const songDone = tasks.filter(t => progMap[t.id]).length;
+        html += `<div class="card p-4 mb-3">
+          <div class="flex items-center gap-2 mb-2">
+            <i class="fas fa-music text-orange-400"></i>
+            <span class="font-bold text-gray-800 text-sm">${escHtml(song.title)}</span>
+            ${song.artist ? `<span class="text-xs text-gray-400">${escHtml(song.artist)}</span>` : ''}
+            <span class="ml-auto text-xs text-gray-500">${songDone}/${tasks.length}</span>
+          </div>`;
+        if (!tasks.length) {
+          html += '<div class="text-xs text-gray-400 pl-6">課題がありません</div>';
+        } else {
+          tasks.forEach((t, i) => {
+            const done = !!progMap[t.id];
+            html += `<div class="flex items-center gap-2 py-1.5 border-b border-gray-50 last:border-0">
+              <div style="width:20px;height:20px;min-width:20px;border-radius:50%;background:${done ? '#10B981' : '#D1D5DB'};color:#fff;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700">${done ? '✓' : i + 1}</div>
+              <span class="text-sm flex-1 ${done ? 'text-green-700 font-semibold' : 'text-gray-700'}">${escHtml(t.title)}</span>
+              ${t.youtube_url ? `<a href="${escHtml(t.youtube_url)}" target="_blank" rel="noopener" class="text-xs text-blue-400 hover:underline flex-shrink-0"><i class="fab fa-youtube"></i></a>` : ''}
+              <span class="badge ${done ? 'badge-green' : 'badge-gray'} flex-shrink-0">${done ? '完了' : '未達成'}</span>
+            </div>`;
+          });
+        }
+        html += '</div>';
       });
+    }
 
-      const quizRows = quizTopics.map(t => {
-        const setIds   = setsByTopic[t.id] || new Set();
-        const qIds     = Object.entries(quizQMap).filter(([, sid]) => setIds.has(sid)).map(([qid]) => qid);
-        const total    = qIds.length;
-        const correct  = qIds.filter(qid => quizAnsMap[qid] === true).length;
-        const answered = qIds.filter(qid => qid in quizAnsMap).length;
-        const pct      = total ? Math.round(correct / total * 100) : 0;
-        const barColor = pct >= 80 ? '#10B981' : pct >= 40 ? '#F59E0B' : '#9CA3AF';
-        return `<div class="flex items-center gap-3 py-1.5 border-b border-gray-50 last:border-0">
-          <span class="text-base flex-shrink-0">${escHtml(t.icon || '📝')}</span>
-          <span class="text-sm text-gray-700 flex-1 truncate">${escHtml(t.title)}</span>
-          <span class="text-xs text-gray-400 flex-shrink-0">${answered}/${total}問回答</span>
-          <span class="text-xs font-bold flex-shrink-0" style="color:${barColor};min-width:36px;text-align:right">${correct}/${total}正解</span>
-        </div>`;
-      }).join('');
+    spBody.innerHTML = html;
+  }
 
-      html += `<div class="card p-4 mb-3">
-        <div class="section-title text-sm mb-3"><i class="fas fa-pencil-alt text-teal-500 mr-1"></i>ワークシート進捗</div>
-        ${quizRows}
-      </div>`;
+  async function _loadSpQuiz(studentId, stuName, spBody) {
+    const [topicsRes, setsRes, qRes, ansRes] = await Promise.all([
+      db.from('study_topics').select('id,title,icon').eq('school_id', T.school_id).eq('topic_type', 'quiz').eq('is_active', true).order('order_num'),
+      db.from('quiz_sets').select('id,topic_id,title,order_num').eq('school_id', T.school_id).order('order_num'),
+      db.from('quiz_questions').select('id,quiz_set_id,question_text,order_num').eq('school_id', T.school_id).order('order_num'),
+      db.from('quiz_answers').select('question_id,is_correct,answer_text').eq('school_id', T.school_id).eq('student_id', studentId)
+    ]);
+
+    const topics = topicsRes.data || [];
+    const sets   = setsRes.data  || [];
+    const qs     = qRes.data     || [];
+    const setsByTopic = {}; sets.forEach(s => { (setsByTopic[s.topic_id] = setsByTopic[s.topic_id] || []).push(s); });
+    const qsBySet = {};     qs.forEach(q   => { (qsBySet[q.quiz_set_id]  = qsBySet[q.quiz_set_id]  || []).push(q); });
+    Object.values(qsBySet).forEach(arr => arr.sort((a, b) => a.order_num - b.order_num));
+    const ansMap = {}; (ansRes.data || []).forEach(a => { ansMap[a.question_id] = { correct: a.is_correct, text: a.answer_text || '' }; });
+
+    const totalQ   = qs.length;
+    const answered = (ansRes.data || []).length;
+    const correct  = (ansRes.data || []).filter(a => a.is_correct).length;
+
+    let html = `<div class="card p-4 mb-4">
+      <div class="flex items-center gap-4">
+        <div class="w-12 h-12 rounded-full bg-teal-100 flex items-center justify-center text-xl font-bold text-teal-500 flex-shrink-0">
+          ${escHtml(stuName.slice(0, 1))}
+        </div>
+        <div>
+          <div class="font-bold text-gray-800 text-base">${escHtml(stuName)}</div>
+          <div class="flex flex-wrap gap-3 mt-1">
+            <span class="text-xs text-gray-500"><i class="fas fa-pencil-alt text-teal-400 mr-1"></i>${answered}/${totalQ}問回答</span>
+            <span class="text-xs text-gray-500"><i class="fas fa-check-circle text-green-500 mr-1"></i>${correct}問正解</span>
+          </div>
+        </div>
+        <div class="ml-auto">
+          <div class="text-3xl font-bold text-center" style="color:${correct / (totalQ || 1) >= 0.8 ? '#10B981' : '#C07878'}">${totalQ ? Math.round(correct / totalQ * 100) : 0}%</div>
+          <div class="text-xs text-gray-400 text-center">正解率</div>
+        </div>
+      </div>
+    </div>`;
+
+    if (!topics.length) {
+      html += '<div class="text-center text-gray-400 text-sm py-6">ワークシートデータがありません</div>';
+    } else {
+      const nums = ['①','②','③','④','⑤','⑥','⑦','⑧','⑨','⑩'];
+      topics.forEach(topic => {
+        const topicSets = (setsByTopic[topic.id] || []).sort((a, b) => a.order_num - b.order_num);
+        html += `<div class="card p-4 mb-3">
+          <div class="flex items-center gap-2 mb-2">
+            <span class="text-base">${escHtml(topic.icon || '📝')}</span>
+            <span class="font-bold text-gray-800 text-sm">${escHtml(topic.title)}</span>
+          </div>`;
+        topicSets.forEach(set => {
+          const setQs = (qsBySet[set.id] || []);
+          html += `<div class="mb-2 pl-2">
+            <div class="text-xs font-bold text-gray-600 mb-1">${escHtml(set.title)}</div>`;
+          if (!setQs.length) {
+            html += '<div class="text-xs text-gray-400">問題なし</div>';
+          } else {
+            setQs.forEach((q, i) => {
+              const ans = ansMap[q.id];
+              const num = nums[i] || String(i + 1);
+              const bg  = !ans ? '#F9FAFB' : ans.correct ? '#F0FDF4' : '#FFF1F2';
+              const border = !ans ? '#E5E7EB' : ans.correct ? '#86EFAC' : '#FCA5A5';
+              const text = ans ? (ans.text || (ans.correct ? '○' : '✗')) : '未回答';
+              const textColor = !ans ? '#9CA3AF' : ans.correct ? '#166534' : '#9B1C1C';
+              html += `<div style="display:flex;align-items:center;gap:8px;padding:5px 8px;margin-bottom:4px;background:${bg};border:1px solid ${border};border-radius:6px;">
+                <span style="font-size:11px;font-weight:700;color:#6B7280;flex-shrink:0">${num}</span>
+                ${q.question_text ? `<span style="font-size:12px;color:#374151;flex:1">${escHtml(q.question_text)}</span>` : '<span style="flex:1"></span>'}
+                <span style="font-size:12px;font-weight:600;color:${textColor};flex-shrink:0">${escHtml(text)}</span>
+              </div>`;
+            });
+          }
+          html += '</div>';
+        });
+        html += '</div>';
+      });
     }
 
     spBody.innerHTML = html;
@@ -1661,13 +1791,22 @@
       ci += span;
     }
 
-    const SC  = 'position:sticky;top:0;left:0;z-index:3;background:#FFF0F0;padding:4px 8px';
-    const ST0 = 'position:sticky;top:0;z-index:2;background:#FEE2E2;text-align:center;padding:3px 4px;font-size:11px;white-space:nowrap;border-bottom:2px solid #fca5a5';
-    const ST1 = 'position:sticky;top:27px;z-index:2;background:#FFF0F0;text-align:center;padding:2px 3px;font-size:13px;font-weight:400;border-bottom:1px solid #fde8e8';
+    // トピックspan計算
+    const topicSpans = [];
+    topics.forEach(t => {
+      const span = (setsByTopic[t.id] || []).reduce((s, set) => s + (questionsBySet[set.id] || []).length, 0);
+      if (span > 0) topicSpans.push({ title: t.title, span });
+    });
 
-    const r1 = '<tr><th rowspan="2" style="' + SC + '">生徒</th>' +
-      setSpans.map(s => `<th colspan="${s.span}" style="${ST0}">${escHtml(s.title)}</th>`).join('') + '</tr>';
-    const r2 = '<tr>' + cols.map(c => `<th style="${ST1}">${c.qNum}</th>`).join('') + '</tr>';
+    const SC  = 'position:sticky;top:0;left:0;z-index:3;background:#FFF0F0;padding:4px 8px';
+    const ST0 = 'position:sticky;top:0;z-index:2;background:#C7D2FE;text-align:center;padding:3px 4px;font-size:11px;font-weight:700;white-space:nowrap;border-bottom:1px solid #a5b4fc';
+    const ST1 = 'position:sticky;top:26px;z-index:2;background:#FEE2E2;text-align:center;padding:2px 4px;font-size:11px;white-space:nowrap;border-bottom:1px solid #fca5a5';
+    const ST2 = 'position:sticky;top:52px;z-index:2;background:#FFF0F0;text-align:center;padding:2px 3px;font-size:13px;font-weight:400;border-bottom:1px solid #fde8e8';
+
+    const r1 = '<tr><th rowspan="3" style="' + SC + '">生徒</th>' +
+      topicSpans.map(t => `<th colspan="${t.span}" style="${ST0}">${escHtml(t.title)}</th>`).join('') + '</tr>';
+    const r2 = '<tr>' + setSpans.map(s => `<th colspan="${s.span}" style="${ST1}">${escHtml(s.title)}</th>`).join('') + '</tr>';
+    const r3 = '<tr>' + cols.map(c => `<th style="${ST2}">${c.qNum}</th>`).join('') + '</tr>';
 
     const body = students.map(s => {
       return '<tr><td class="font-medium whitespace-nowrap" style="position:sticky;left:0;z-index:1;background:#fff;padding:4px 8px;cursor:pointer;color:#C07878" onclick="openStudentFromMatrix(\'' + s.student_id + '\')" title="生徒プレビューを開く">' +
@@ -1684,7 +1823,7 @@
 
     wrap.innerHTML = `
       <div style="overflow:auto;max-height:520px">
-        <table style="font-size:12px;border-collapse:collapse"><thead>${r1 + r2}</thead><tbody>${body}</tbody></table>
+        <table style="font-size:12px;border-collapse:collapse"><thead>${r1 + r2 + r3}</thead><tbody>${body}</tbody></table>
       </div>
       <div class="mt-3 flex flex-wrap gap-3 items-center">
         <div class="flex items-center gap-1"><div style="width:16px;height:16px;border-radius:3px;background:#D1FAE5"></div><span class="text-xs text-gray-500">正解（実際の回答を表示）</span></div>
@@ -1995,10 +2134,23 @@
   }
 
   async function downloadSongsCSV() {
-    const { data } = await db.from('songs').select('order_num, title, artist').eq('school_id', T.school_id).eq('is_active', true).order('order_num');
-    if (!data?.length) { toast('楽曲データがありません', 'error'); return; }
-    const rows = [['曲番号', '曲名', 'アーティスト']];
-    data.forEach(s => rows.push([s.order_num, s.title, s.artist || '']));
+    const [songsRes, tasksRes] = await Promise.all([
+      db.from('songs').select('id, order_num, title, artist').eq('school_id', T.school_id).eq('is_active', true).order('order_num'),
+      db.from('song_tasks').select('song_id, order_num, title, description, youtube_url').eq('school_id', T.school_id).order('order_num')
+    ]);
+    const songs = songsRes.data || [];
+    if (!songs.length) { toast('楽曲データがありません', 'error'); return; }
+    const tasksBySong = {};
+    (tasksRes.data || []).forEach(t => { (tasksBySong[t.song_id] = tasksBySong[t.song_id] || []).push(t); });
+    const rows = [['曲番号', '曲名', 'アーティスト', '課題番号', '課題名', '達成基準', 'YouTubeURL']];
+    songs.forEach(s => {
+      const tasks = tasksBySong[s.id] || [];
+      if (!tasks.length) {
+        rows.push([s.order_num, s.title, s.artist || '', '', '', '', '']);
+      } else {
+        tasks.forEach(t => rows.push([s.order_num, s.title, s.artist || '', t.order_num, t.title, t.description || '', t.youtube_url || '']));
+      }
+    });
     downloadCSVFile(rows, `songs_${T.school_id}.csv`);
     toast('CSVをダウンロードしました', 'success');
   }
@@ -2321,6 +2473,16 @@
     toast('CSVをダウンロードしました', 'success');
   }
 
+  function downloadRosterTemplate() {
+    const rows = [
+      ['出席番号', '名前', '学年', '組'],
+      ['1', '山田太郎', '1', 'A'],
+      ['2', '鈴木花子', '1', 'A']
+    ];
+    downloadCSVFile(rows, 'roster_template.csv');
+    toast('CSVテンプレをダウンロードしました', 'success');
+  }
+
   // ---- CLASSES ----
 
   async function loadClassesTab() {
@@ -2475,9 +2637,17 @@
 
   // ---- PROGRESS CSV EXPORT ----
 
-  async function exportProgressCSV() {
+  async function exportProgressCSVAll() {
+    const grade = document.getElementById('prog-grade').value;
+    const cls   = document.getElementById('prog-class').value;
+
+    let studQuery = db.from('students').select('student_id, grade, class_name, number, name')
+      .eq('school_id', T.school_id).order('grade').order('class_name').order('number');
+    if (grade) studQuery = studQuery.eq('grade', grade);
+    if (cls)   studQuery = studQuery.eq('class_name', cls);
+
     const [studRes, kotoRes, progRes, songsRes, stRes, topicsRes, setsRes, qRes, ansRes] = await Promise.all([
-      db.from('students').select('student_id, grade, class_name, number, name').eq('school_id', T.school_id).order('grade').order('class_name').order('number'),
+      studQuery,
       db.from('koto_tasks').select('id, title, order_num').eq('school_id', T.school_id).eq('is_active', true).order('order_num'),
       db.from('student_progress').select('student_id, task_db_id, is_completed').eq('school_id', T.school_id),
       db.from('songs').select('id, title, order_num').eq('school_id', T.school_id).eq('is_active', true).order('order_num'),
@@ -2491,64 +2661,139 @@
     const students = studRes.data || [];
     if (!students.length) { toast('生徒データがありません', 'error'); return; }
 
-    // ---- 基礎課題 ----
     const kotoTasks = kotoRes.data || [];
     const progMap   = {};
     (progRes.data || []).forEach(p => { progMap[`${p.student_id}_${p.task_db_id}`] = p.is_completed; });
 
-    // ---- 楽曲課題 ----
     const songs     = songsRes.data || [];
-    const songTasks = stRes.data || [];
-    // 曲名付きのフラット課題リスト（列ヘッダー用）
     const songCols  = songs.flatMap(song =>
-      songTasks.filter(t => t.song_id === song.id).sort((a, b) => a.order_num - b.order_num)
-               .map(t => ({ id: t.id, header: `【${song.title}】${t.title}` }))
+      (stRes.data || []).filter(t => t.song_id === song.id).sort((a, b) => a.order_num - b.order_num)
+        .map(t => ({ id: t.id, header: `【${song.title}】${t.title}` }))
     );
 
-    // ---- ワークシート ----
-    const quizTopics = topicsRes.data || [];
-    const quizSets   = setsRes.data  || [];
-    const quizQs     = qRes.data     || [];
+    const topics = topicsRes.data || [];
     const setsByTopic = {};
-    quizSets.forEach(s => { (setsByTopic[s.topic_id] = setsByTopic[s.topic_id] || []).push(s); });
+    (setsRes.data || []).forEach(s => { (setsByTopic[s.topic_id] = setsByTopic[s.topic_id] || []).push(s); });
     const qsBySet = {};
-    quizQs.forEach(q => { (qsBySet[q.quiz_set_id] = qsBySet[q.quiz_set_id] || []).push(q); });
+    (qRes.data || []).forEach(q => { (qsBySet[q.quiz_set_id] = qsBySet[q.quiz_set_id] || []).push(q); });
     Object.values(qsBySet).forEach(qs => qs.sort((a, b) => a.order_num - b.order_num));
-
     const nums = ['①','②','③','④','⑤','⑥','⑦','⑧','⑨','⑩'];
-    const quizCols = quizTopics.flatMap(t =>
+    const quizCols = topics.flatMap(t =>
       (setsByTopic[t.id] || []).sort((a, b) => a.order_num - b.order_num).flatMap(s =>
         (qsBySet[s.id] || []).map((q, i) => ({ id: q.id, header: `【${t.title}】${s.title}-${nums[i] || (i+1)}` }))
       )
     );
-
     const ansMap = {};
     (ansRes.data || []).forEach(a => { ansMap[`${a.student_id}_${a.question_id}`] = { correct: a.is_correct, text: a.answer_text || '' }; });
 
-    // ---- ヘッダー行 ----
     const header = [
       '学年', '組', '番号', '名前',
       ...kotoTasks.map(t => `【基礎】${t.title}`),
       ...songCols.map(c => c.header),
       ...quizCols.map(c => c.header)
     ];
-
-    // ---- データ行 ----
     const rows = [header];
     students.forEach(s => {
       const row = [s.grade + '年', s.class_name + '組', s.number, s.name || ''];
-      kotoTasks.forEach(t => row.push(progMap[`${s.student_id}_${t.id}`] ? '○' : ''));
-      songCols.forEach(c  => row.push(progMap[`${s.student_id}_${c.id}`]  ? '○' : ''));
+      kotoTasks.forEach(t  => row.push(progMap[`${s.student_id}_${t.id}`]  ? '○' : ''));
+      songCols.forEach(c   => row.push(progMap[`${s.student_id}_${c.id}`]  ? '○' : ''));
       quizCols.forEach(c => {
         const ans = ansMap[`${s.student_id}_${c.id}`];
-        if (!ans) { row.push(''); return; }
-        row.push(ans.text || (ans.correct ? '○' : '✗'));
+        row.push(ans ? (ans.text || (ans.correct ? '○' : '✗')) : '');
       });
       rows.push(row);
     });
 
-    downloadCSVFile(rows, `progress_all_${T.school_id}_${new Date().toISOString().slice(0,10)}.csv`);
-    toast('進捗CSV（全種別）をダウンロードしました', 'success');
+    const suffix = (grade ? `_${grade}年` : '') + (cls ? `${cls}組` : '');
+    downloadCSVFile(rows, `progress_全種別${suffix}_${T.school_id}_${new Date().toISOString().slice(0,10)}.csv`);
+    toast('進捗CSV（全種別まとめ）をダウンロードしました', 'success');
+  }
+
+  async function exportProgressCSV(typeArg) {
+    const type  = typeArg || document.getElementById('prog-type').value;
+    const grade = document.getElementById('prog-grade').value;
+    const cls   = document.getElementById('prog-class').value;
+
+    let studQuery = db.from('students').select('student_id, grade, class_name, number, name')
+      .eq('school_id', T.school_id).order('grade').order('class_name').order('number');
+    if (grade) studQuery = studQuery.eq('grade', grade);
+    if (cls)   studQuery = studQuery.eq('class_name', cls);
+    const students = (await studQuery).data || [];
+    if (!students.length) { toast('生徒データがありません', 'error'); return; }
+
+    let rows = [];
+
+    if (type === 'koto') {
+      const [kotoRes, progRes] = await Promise.all([
+        db.from('koto_tasks').select('id, title').eq('school_id', T.school_id).eq('is_active', true).order('order_num'),
+        db.from('student_progress').select('student_id, task_db_id, is_completed').eq('school_id', T.school_id)
+      ]);
+      const tasks = kotoRes.data || [];
+      const progMap = {};
+      (progRes.data || []).forEach(p => { progMap[`${p.student_id}_${p.task_db_id}`] = p.is_completed; });
+      rows = [['学年', '組', '番号', '名前', ...tasks.map(t => t.title)]];
+      students.forEach(s => {
+        const row = [s.grade + '年', s.class_name + '組', s.number, s.name || ''];
+        tasks.forEach(t => row.push(progMap[`${s.student_id}_${t.id}`] ? '○' : ''));
+        rows.push(row);
+      });
+
+    } else if (type === 'song') {
+      const [songsRes, stRes, progRes] = await Promise.all([
+        db.from('songs').select('id, title').eq('school_id', T.school_id).eq('is_active', true).order('order_num'),
+        db.from('song_tasks').select('id, song_id, title').eq('school_id', T.school_id).order('order_num'),
+        db.from('student_progress').select('student_id, task_db_id, is_completed').eq('school_id', T.school_id)
+      ]);
+      const songs = songsRes.data || [];
+      const progMap = {};
+      (progRes.data || []).forEach(p => { progMap[`${p.student_id}_${p.task_db_id}`] = p.is_completed; });
+      const cols = songs.flatMap(song =>
+        (stRes.data || []).filter(t => t.song_id === song.id)
+          .map(t => ({ id: t.id, header: `【${song.title}】${t.title}` }))
+      );
+      rows = [['学年', '組', '番号', '名前', ...cols.map(c => c.header)]];
+      students.forEach(s => {
+        const row = [s.grade + '年', s.class_name + '組', s.number, s.name || ''];
+        cols.forEach(c => row.push(progMap[`${s.student_id}_${c.id}`] ? '○' : ''));
+        rows.push(row);
+      });
+
+    } else if (type === 'quiz') {
+      const [topicsRes, setsRes, qRes, ansRes] = await Promise.all([
+        db.from('study_topics').select('id, title').eq('school_id', T.school_id).eq('topic_type', 'quiz').eq('is_active', true).order('order_num'),
+        db.from('quiz_sets').select('id, topic_id, title').eq('school_id', T.school_id).order('order_num'),
+        db.from('quiz_questions').select('id, quiz_set_id, order_num').eq('school_id', T.school_id).order('order_num'),
+        db.from('quiz_answers').select('student_id, question_id, is_correct, answer_text').eq('school_id', T.school_id)
+      ]);
+      const topics = topicsRes.data || [];
+      const setsByTopic = {};
+      (setsRes.data || []).forEach(s => { (setsByTopic[s.topic_id] = setsByTopic[s.topic_id] || []).push(s); });
+      const qsBySet = {};
+      (qRes.data || []).forEach(q => { (qsBySet[q.quiz_set_id] = qsBySet[q.quiz_set_id] || []).push(q); });
+      Object.values(qsBySet).forEach(qs => qs.sort((a, b) => a.order_num - b.order_num));
+      const nums = ['①','②','③','④','⑤','⑥','⑦','⑧','⑨','⑩'];
+      const cols = topics.flatMap(t =>
+        (setsByTopic[t.id] || []).flatMap(s =>
+          (qsBySet[s.id] || []).map((q, i) => ({ id: q.id, header: `【${t.title}】${s.title}-${nums[i] || (i+1)}` }))
+        )
+      );
+      const ansMap = {};
+      (ansRes.data || []).forEach(a => { ansMap[`${a.student_id}_${a.question_id}`] = { correct: a.is_correct, text: a.answer_text || '' }; });
+      rows = [['学年', '組', '番号', '名前', ...cols.map(c => c.header)]];
+      students.forEach(s => {
+        const row = [s.grade + '年', s.class_name + '組', s.number, s.name || ''];
+        cols.forEach(c => {
+          const ans = ansMap[`${s.student_id}_${c.id}`];
+          row.push(ans ? (ans.text || (ans.correct ? '○' : '✗')) : '');
+        });
+        rows.push(row);
+      });
+    }
+
+    const typeLabel = type === 'koto' ? '基礎課題' : type === 'song' ? '楽曲課題' : 'ワークシート';
+    const suffix    = (grade ? `_${grade}年` : '') + (cls ? `${cls}組` : '');
+    downloadCSVFile(rows, `progress_${typeLabel}${suffix}_${T.school_id}_${new Date().toISOString().slice(0,10)}.csv`);
+    toast(`進捗CSV（${typeLabel}）をダウンロードしました`, 'success');
   }
 
   // ---- QR CODE ----
