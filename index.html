@@ -139,6 +139,14 @@
       const params = new URLSearchParams(window.location.search);
       schoolId = params.get('school');
 
+      // URLにschool_idがある場合はlocalStorageに保存（PWA再起動時に使う）
+      if (schoolId) {
+        localStorage.setItem('savedSchoolId', schoolId);
+      } else {
+        // URLになければ保存済みのschool_idを使う（PWAとして起動した場合）
+        schoolId = localStorage.getItem('savedSchoolId');
+      }
+
       if (!schoolId) {
         document.getElementById('loading').classList.add('hidden');
         document.getElementById('no-school').classList.remove('hidden');
