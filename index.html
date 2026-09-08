@@ -139,9 +139,11 @@
       const params = new URLSearchParams(window.location.search);
       schoolId = params.get('school');
 
-      // URLにschool_idがある場合はlocalStorageに保存（PWA再起動時に使う）
       if (schoolId) {
+        // URLにschool_idがある → localStorageに保存
         localStorage.setItem('savedSchoolId', schoolId);
+        // PWAインストール用にmanifestのstart_urlをschool_id入りに書き換え
+        updateManifestStartUrl(schoolId);
       } else {
         // URLになければ保存済みのschool_idを使う（PWAとして起動した場合）
         schoolId = localStorage.getItem('savedSchoolId');
@@ -286,6 +288,32 @@
         localStorage.setItem('userType', 'student');
         window.location.href = 'student.html';
       }
+    }
+
+    // PWAインストール時にstart_urlへschool_idを含めるためmanifestを動的書き換え
+    function updateManifestStartUrl(sid) {
+      const manifestData = {
+        name: "音楽授業　楽器学習システム",
+        short_name: "楽器学習",
+        description: "学校の音楽授業向け楽器学習・進捗管理システム",
+        start_url: `./index.html?school=${sid}`,
+        scope: "./",
+        display: "standalone",
+        orientation: "any",
+        background_color: "#ffffff",
+        theme_color: "#2D7568",
+        lang: "ja",
+        icons: [
+          { src: "./icon-192.png", sizes: "192x192", type: "image/png", purpose: "any maskable" },
+          { src: "./icon-512.png", sizes: "512x512", type: "image/png", purpose: "any maskable" }
+        ]
+      };
+      try {
+        const blob = new Blob([JSON.stringify(manifestData)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const link = document.querySelector('link[rel="manifest"]');
+        if (link) link.href = url;
+      } catch(e) {}
     }
 
     document.addEventListener('DOMContentLoaded', () => {
