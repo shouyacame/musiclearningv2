@@ -46,6 +46,12 @@
     }
     .btn-teal:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(26,122,138,.4); }
   </style>
+  <link rel="manifest" href="./manifest.json">
+  <meta name="theme-color" content="#2D7568">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="楽器学習">
+  <link rel="apple-touch-icon" href="./icon-192.png">
 </head>
 <body class="bg-hero flex items-center justify-center p-4 min-h-screen">
   <div class="w-full max-w-sm">
@@ -280,5 +286,6 @@
       init();
     });
   </script>
+  <script>if("serviceWorker" in navigator) navigator.serviceWorker.register("./sw.js");</script>
 </body>
 </html>

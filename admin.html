@@ -56,6 +56,12 @@
     .sub-tab-btn:hover { color: #8B7BC8; background: #F5F3FF; }
     .sub-tab-btn.active { color: #8B7BC8; border-bottom-color: #8B7BC8; font-weight: 700; }
   </style>
+  <link rel="manifest" href="./manifest.json">
+  <meta name="theme-color" content="#2D7568">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="楽器学習">
+  <link rel="apple-touch-icon" href="./icon-192.png">
 </head>
 <body>
 
@@ -2488,5 +2494,6 @@
   </div>
 </div>
 
+  <script>if("serviceWorker" in navigator) navigator.serviceWorker.register("./sw.js");</script>
 </body>
 </html>

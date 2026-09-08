@@ -43,6 +43,12 @@
     tr:nth-child(even) td { background: #F9FFFE; }
     .tips-box { background: #EDF9F5; border-radius: 16px; padding: 18px 20px; }
   </style>
+  <link rel="manifest" href="./manifest.json">
+  <meta name="theme-color" content="#2D7568">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="楽器学習">
+  <link rel="apple-touch-icon" href="./icon-192.png">
 </head>
 <body>
 
@@ -333,5 +339,6 @@
     document.getElementById('hint-modal').style.display = 'none';
   }
 </script>
+  <script>if("serviceWorker" in navigator) navigator.serviceWorker.register("./sw.js");</script>
 </body>
 </html>

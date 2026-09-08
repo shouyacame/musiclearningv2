@@ -56,6 +56,12 @@
     .song-pill:hover:not(.active) { border-color: #C07878; color: #C07878; }
     .prev-card { background: #fff; border-radius: 14px; padding: 14px 16px; margin-bottom: 10px; box-shadow: 0 2px 8px rgba(0,0,0,.05); border: 1px solid #f0f0f0; }
   </style>
+  <link rel="manifest" href="./manifest.json">
+  <meta name="theme-color" content="#2D7568">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="楽器学習">
+  <link rel="apple-touch-icon" href="./icon-192.png">
 </head>
 <body>
 
@@ -4692,5 +4698,6 @@
     closeTableBuilder();
   }
 </script>
+  <script>if("serviceWorker" in navigator) navigator.serviceWorker.register("./sw.js");</script>
 </body>
 </html>
