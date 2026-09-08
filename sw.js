@@ -1,4 +1,4 @@
-const CACHE_NAME = 'music-learning-v1';
+const CACHE_NAME = 'music-learning-v2';
 const STATIC_FILES = [
   './',
   './index.html',
