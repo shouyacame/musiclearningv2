@@ -1,23 +1,15 @@
-const CACHE_NAME = 'music-learning-v2';
-const STATIC_FILES = [
-  './',
-  './index.html',
-  './teacher.html',
-  './teacher-login.html',
-  './student.html',
-  './admin.html',
-  './admin-login.html',
-  './study-preview.html',
+const CACHE_NAME = 'music-learning-v3';
+const STATIC_ASSETS = [
   './manifest.json',
   './icon-192.png',
   './icon-512.png',
   './supabase-config.js'
 ];
 
-// インストール時: 静的ファイルをキャッシュ
+// インストール時: アイコン等の静的アセットのみキャッシュ（HTMLは除外）
 self.addEventListener('install', e => {
   e.waitUntil(
-    caches.open(CACHE_NAME).then(cache => cache.addAll(STATIC_FILES))
+    caches.open(CACHE_NAME).then(cache => cache.addAll(STATIC_ASSETS))
   );
   self.skipWaiting();
 });
@@ -36,10 +28,24 @@ self.addEventListener('activate', e => {
 self.addEventListener('fetch', e => {
   const url = new URL(e.request.url);
 
-  // Supabase API 通信は常にネット経由（キャッシュしない）
+  // Supabase API 通信は常にネット経由
   if (url.hostname.includes('supabase.co')) return;
 
-  // 静的ファイル: キャッシュ優先、なければネット取得
+  // HTMLページ: ネット優先（常に最新版）、オフライン時のみキャッシュから
+  if (e.request.mode === 'navigate' || url.pathname.endsWith('.html') || url.pathname.endsWith('/')) {
+    e.respondWith(
+      fetch(e.request).then(res => {
+        if (res && res.status === 200) {
+          const clone = res.clone();
+          caches.open(CACHE_NAME).then(cache => cache.put(e.request, clone));
+        }
+        return res;
+      }).catch(() => caches.match(e.request))
+    );
+    return;
+  }
+
+  // その他の静的ファイル: キャッシュ優先
   e.respondWith(
     caches.match(e.request).then(cached => {
       if (cached) return cached;
