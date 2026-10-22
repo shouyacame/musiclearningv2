@@ -538,11 +538,8 @@
       // YouTube
       const ytHtml = buildYtHtml(task.youtube_url);
 
-      // 画像（Google Drive URLは直接表示用URLに変換）
-      const imgSrc = toDirectImgUrl(task.image_url);
-      const imgHtml = imgSrc
-        ? `<div class="mt-2" id="img-wrap-${taskId}"><a href="${escH(task.image_url)}" target="_blank" rel="noopener" class="block rounded-xl overflow-hidden border border-gray-200 hover:opacity-90 transition-opacity"><img src="${escH(imgSrc)}" alt="参考画像" class="w-full object-cover" loading="lazy" onerror="document.getElementById('img-wrap-${taskId}').style.display='none'"></a><p class="text-xs text-gray-400 mt-1 text-center"><i class="fas fa-expand-alt mr-1"></i>タップで拡大</p></div>`
-        : '';
+      // 画像・PDF（Google DriveはiFrame埋め込み、それ以外はimg）
+      const imgHtml = makeMediaHtml(task.image_url, taskId);
 
       // Button label
       let btnLabel;
@@ -994,12 +991,22 @@
 
     function escH(s) { return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 
-    function toDirectImgUrl(url) {
-      if (!url) return url;
-      // Google Drive /file/d/ID/view → 直接表示URL（新形式）
-      const m = url.match(/drive\.google\.com\/file\/d\/([^/?#]+)/);
-      if (m) return `https://drive.usercontent.google.com/download?id=${m[1]}&export=view&authuser=0`;
-      return url;
+    function makeMediaHtml(url, taskId) {
+      if (!url) return '';
+      const driveM = url.match(/drive\.google\.com\/file\/d\/([^/?#]+)/);
+      if (driveM) {
+        const preview = `https://drive.google.com/file/d/${driveM[1]}/preview`;
+        return `<div class="mt-2" id="img-wrap-${taskId}">
+          <iframe src="${escH(preview)}" class="w-full rounded-xl border border-gray-200" style="height:280px;min-height:200px" allowfullscreen></iframe>
+          <p class="text-xs text-gray-400 mt-1 text-center"><i class="fas fa-external-link-alt mr-1"></i><a href="${escH(url)}" target="_blank" rel="noopener" class="hover:underline">Driveで開く</a></p>
+        </div>`;
+      }
+      return `<div class="mt-2" id="img-wrap-${taskId}">
+        <a href="${escH(url)}" target="_blank" rel="noopener" class="block rounded-xl overflow-hidden border border-gray-200 hover:opacity-90 transition-opacity">
+          <img src="${escH(url)}" alt="参考画像" class="w-full object-cover" loading="lazy" onerror="document.getElementById('img-wrap-${taskId}').style.display='none'">
+        </a>
+        <p class="text-xs text-gray-400 mt-1 text-center"><i class="fas fa-expand-alt mr-1"></i>タップで拡大</p>
+      </div>`;
     }
 
     function mediaHtml(url, caption, url2, caption2) {
