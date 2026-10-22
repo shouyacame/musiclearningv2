@@ -784,6 +784,13 @@
         <label class="block text-xs font-semibold text-gray-600 mb-1">画像URL（任意）<span class="font-normal text-gray-400 ml-1">楽譜・参考画像など</span></label>
         <input type="text" id="edit-task-image" class="inp" placeholder="https://...">
       </div>
+      <div id="edit-task-descriptive-wrap">
+        <label class="flex items-center gap-2 cursor-pointer select-none">
+          <input type="checkbox" id="edit-task-descriptive" class="w-4 h-4 accent-red-400">
+          <span class="text-sm font-semibold text-gray-700">記述課題にする</span>
+          <span class="text-xs text-gray-400">（生徒がテキストで回答する）</span>
+        </label>
+      </div>
     </div>
     <div class="flex gap-2 mt-4">
       <button class="btn-gray flex-1" onclick="closeModal('edit-task-modal')">キャンセル</button>
@@ -1458,7 +1465,7 @@
   async function _loadSpSong(studentId, stuName, spBody) {
     const [songsRes, stRes, progRes, fbRes] = await Promise.all([
       db.from('songs').select('id,order_num,title,artist').eq('school_id', T.school_id).eq('is_active', true).order('order_num'),
-      db.from('song_tasks').select('id,song_id,order_num,title,description,youtube_url').eq('school_id', T.school_id).order('order_num'),
+      db.from('song_tasks').select('id,song_id,order_num,title,description,youtube_url,is_descriptive').eq('school_id', T.school_id).order('order_num'),
       db.from('student_progress').select('task_db_id,is_completed,memo').eq('school_id', T.school_id).eq('student_id', studentId),
       db.from('teacher_feedback').select('task_db_id,comment').eq('school_id', T.school_id).eq('student_id', studentId)
     ]);
@@ -1519,7 +1526,7 @@
                 ${t.youtube_url ? `<a href="${escHtml(t.youtube_url)}" target="_blank" rel="noopener" class="text-xs text-blue-400 hover:underline flex-shrink-0"><i class="fab fa-youtube"></i></a>` : ''}
                 <span class="badge ${done ? 'badge-green' : 'badge-gray'} flex-shrink-0">${done ? '完了' : '未達成'}</span>
               </div>
-              ${memo ? `<div class="mt-1 mb-2 px-2 py-1.5 bg-blue-50 border border-blue-200 rounded-lg text-xs text-blue-800"><i class="fas fa-sticky-note mr-1 text-blue-400"></i><span class="font-semibold">生徒メモ：</span>${escHtml(memo)}</div>` : ''}
+              ${memo ? `<div class="mt-1 mb-2 px-2 py-1.5 ${t.is_descriptive ? 'bg-purple-50 border border-purple-200' : 'bg-blue-50 border border-blue-200'} rounded-lg text-xs ${t.is_descriptive ? 'text-purple-800' : 'text-blue-800'}"><i class="fas fa-${t.is_descriptive ? 'pen-nib' : 'sticky-note'} mr-1 ${t.is_descriptive ? 'text-purple-400' : 'text-blue-400'}"></i><span class="font-semibold">${t.is_descriptive ? '記述回答：' : '生徒メモ：'}</span>${escHtml(memo)}</div>` : (t.is_descriptive ? `<div class="mt-1 mb-2 px-2 py-1.5 bg-gray-50 border border-dashed border-gray-300 rounded-lg text-xs text-gray-400 italic">未回答</div>` : '')}
               <div class="mt-2 pt-2 border-t border-gray-100">
                 <label class="block text-xs font-semibold mb-1" style="color:#B45309"><i class="fas fa-comment-dots mr-1"></i>先生コメント</label>
                 <div class="flex gap-2">
@@ -1935,8 +1942,10 @@
     document.getElementById('edit-task-l2').value = data.level_2_text || '';
     document.getElementById('edit-task-l3').value = data.level_3_text || '';
     document.getElementById('edit-task-yt').value     = data.youtube_url || '';
-    document.getElementById('edit-task-image').value  = data.image_url   || '';
+    document.getElementById('edit-task-image').value        = data.image_url     || '';
+    document.getElementById('edit-task-descriptive').checked = !!data.is_descriptive;
     document.getElementById('edit-task-image-wrap').classList.toggle('hidden', taskType !== 'song');
+    document.getElementById('edit-task-descriptive-wrap').classList.toggle('hidden', taskType !== 'song');
     document.getElementById('edit-level-fields').classList.toggle('hidden', lc < 2);
     document.getElementById('edit-task-l3').classList.toggle('hidden', lc < 3);
     document.getElementById('edit-task-modal').classList.remove('hidden');
@@ -1955,7 +1964,10 @@
       level_2_text: document.getElementById('edit-task-l2').value.trim(),
       level_3_text: document.getElementById('edit-task-l3').value.trim(),
       youtube_url:  document.getElementById('edit-task-yt').value.trim(),
-      ...(taskType === 'song' ? { image_url: document.getElementById('edit-task-image').value.trim() } : {})
+      ...(taskType === 'song' ? {
+        image_url:     document.getElementById('edit-task-image').value.trim(),
+        is_descriptive: document.getElementById('edit-task-descriptive').checked
+      } : {})
     };
     const table = (taskType === 'song') ? 'song_tasks' : 'koto_tasks';
     const { error } = await db.from(table).update(payload).eq('id', id);
