@@ -807,9 +807,20 @@
     <input type="hidden" id="song-tasks-song-id">
     <div id="song-tasks-list" class="space-y-1 mb-3 max-h-48 overflow-y-auto"></div>
     <form onsubmit="addSongTask(event)" class="space-y-2 mb-2">
-      <input type="text" id="new-song-task-title" class="inp" placeholder="課題タイトル" required>
-      <textarea id="new-song-task-desc" class="inp resize-none text-sm" rows="2" placeholder="達成基準（省略可）"></textarea>
-      <button type="submit" class="btn-red w-full"><i class="fas fa-plus mr-1"></i>追加</button>
+      <input type="text" id="new-song-task-title" class="inp" placeholder="課題タイトル（例: 前奏を弾く）" required>
+      <textarea id="new-song-task-desc" class="inp resize-none text-sm" rows="2" placeholder="達成基準の概要（省略可）"></textarea>
+      <select id="new-song-task-level" class="inp text-sm">
+        <option value="1">レベルなし（単一完了）</option>
+        <option value="2">2段階（Level 1〜2）</option>
+        <option value="3">3段階（Level 1〜3）</option>
+      </select>
+      <input type="text" id="new-song-task-yt" class="inp text-sm" placeholder="YouTube URL（任意）">
+      <input type="text" id="new-song-task-image" class="inp text-sm" placeholder="画像URL（任意）楽譜など">
+      <label class="flex items-center gap-2 cursor-pointer select-none px-1">
+        <input type="checkbox" id="new-song-task-descriptive" class="w-4 h-4 accent-red-400">
+        <span class="text-sm text-gray-700">記述課題にする（生徒がテキストで回答）</span>
+      </label>
+      <button type="submit" class="btn-red w-full"><i class="fas fa-plus mr-1"></i>課題を追加</button>
     </form>
     <div class="flex gap-2 mb-2">
       <button class="btn-gray flex-1 text-xs" onclick="document.getElementById('song-task-csv-input').click()">
@@ -2232,15 +2243,27 @@
 
   async function addSongTask(e) {
     e.preventDefault();
-    const songId = document.getElementById('song-tasks-song-id').value;
-    const title  = document.getElementById('new-song-task-title').value.trim();
-    const desc   = document.getElementById('new-song-task-desc').value.trim();
+    const songId       = document.getElementById('song-tasks-song-id').value;
+    const title        = document.getElementById('new-song-task-title').value.trim();
+    const desc         = document.getElementById('new-song-task-desc').value.trim();
+    const lc           = parseInt(document.getElementById('new-song-task-level').value) || 1;
+    const yt           = document.getElementById('new-song-task-yt').value.trim();
+    const image        = document.getElementById('new-song-task-image').value.trim();
+    const descriptive  = document.getElementById('new-song-task-descriptive').checked;
     const { data: last } = await db.from('song_tasks').select('order_num').eq('song_id', songId).order('order_num', { ascending: false }).limit(1);
     const order = (last?.[0]?.order_num || 0) + 1;
-    const { error } = await db.from('song_tasks').insert({ song_id: songId, school_id: T.school_id, title, description: desc, order_num: order });
+    const { error } = await db.from('song_tasks').insert({
+      song_id: songId, school_id: T.school_id, title, description: desc,
+      level_count: lc, youtube_url: yt, image_url: image,
+      is_descriptive: descriptive, order_num: order
+    });
     if (error) { toast('追加失敗', 'error'); return; }
-    document.getElementById('new-song-task-title').value = '';
-    document.getElementById('new-song-task-desc').value  = '';
+    document.getElementById('new-song-task-title').value       = '';
+    document.getElementById('new-song-task-desc').value        = '';
+    document.getElementById('new-song-task-level').value       = '1';
+    document.getElementById('new-song-task-yt').value          = '';
+    document.getElementById('new-song-task-image').value       = '';
+    document.getElementById('new-song-task-descriptive').checked = false;
     await loadSongTasksList(songId);
     toast('課題を追加しました', 'success');
   }
