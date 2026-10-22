@@ -538,9 +538,10 @@
       // YouTube
       const ytHtml = buildYtHtml(task.youtube_url);
 
-      // 画像
-      const imgHtml = task.image_url
-        ? `<div class="mt-2"><a href="${escH(task.image_url)}" target="_blank" rel="noopener" class="block rounded-xl overflow-hidden border border-gray-200 hover:opacity-90 transition-opacity"><img src="${escH(task.image_url)}" alt="参考画像" class="w-full object-cover" loading="lazy" onerror="this.parentElement.style.display='none'"></a><p class="text-xs text-gray-400 mt-1 text-center"><i class="fas fa-expand-alt mr-1"></i>タップで拡大</p></div>`
+      // 画像（Google Drive URLは直接表示用URLに変換）
+      const imgSrc = toDirectImgUrl(task.image_url);
+      const imgHtml = imgSrc
+        ? `<div class="mt-2" id="img-wrap-${taskId}"><a href="${escH(task.image_url)}" target="_blank" rel="noopener" class="block rounded-xl overflow-hidden border border-gray-200 hover:opacity-90 transition-opacity"><img src="${escH(imgSrc)}" alt="参考画像" class="w-full object-cover" loading="lazy" onerror="document.getElementById('img-wrap-${taskId}').style.display='none'"></a><p class="text-xs text-gray-400 mt-1 text-center"><i class="fas fa-expand-alt mr-1"></i>タップで拡大</p></div>`
         : '';
 
       // Button label
@@ -992,6 +993,13 @@
     // ---- STUDY (shared rendering) ----
 
     function escH(s) { return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+    function toDirectImgUrl(url) {
+      if (!url) return url;
+      const m = url.match(/drive\.google\.com\/file\/d\/([^/?#]+)/);
+      if (m) return `https://drive.google.com/uc?export=view&id=${m[1]}`;
+      return url;
+    }
 
     function mediaHtml(url, caption, url2, caption2) {
       function oneTag(u, c, compact) {
