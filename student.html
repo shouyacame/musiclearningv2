@@ -996,8 +996,9 @@
 
     function toDirectImgUrl(url) {
       if (!url) return url;
+      // Google Drive /file/d/ID/view → 直接表示URL（新形式）
       const m = url.match(/drive\.google\.com\/file\/d\/([^/?#]+)/);
-      if (m) return `https://drive.google.com/uc?export=view&id=${m[1]}`;
+      if (m) return `https://drive.usercontent.google.com/download?id=${m[1]}&export=view&authuser=0`;
       return url;
     }
 
