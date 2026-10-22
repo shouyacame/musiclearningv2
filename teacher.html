@@ -1464,7 +1464,8 @@
           <label class="block text-xs font-semibold mb-1" style="color:#B45309"><i class="fas fa-comment-dots mr-1"></i>先生コメント</label>
           <div class="flex gap-2">
             <textarea class="inp resize-none text-xs flex-1" rows="2" id="fb-${t.id}" placeholder="生徒へのアドバイス・コメント...">${escHtml(fbMap[t.id] || '')}</textarea>
-            <button class="btn-sm btn-edit flex-shrink-0 self-end" onclick="saveFeedback('${studentId}','${t.id}')"><i class="fas fa-save mr-1"></i>保存</button>
+            <button class="btn-sm flex-shrink-0 self-end" id="fb-btn-${t.id}" onclick="saveFeedback('${studentId}','${t.id}')"
+              style="${fbMap[t.id] ? 'background:#10B981;color:#fff' : ''}">${fbMap[t.id] ? '<i class="fas fa-check mr-1"></i>保存済み' : '<i class="fas fa-save mr-1"></i>保存'}</button>
           </div>
         </div>
       </div>`;
@@ -1542,7 +1543,8 @@
                 <label class="block text-xs font-semibold mb-1" style="color:#B45309"><i class="fas fa-comment-dots mr-1"></i>先生コメント</label>
                 <div class="flex gap-2">
                   <textarea class="inp resize-none text-xs flex-1" rows="2" id="fb-${t.id}" placeholder="生徒へのアドバイス・コメント...">${escHtml(fbMap[t.id] || '')}</textarea>
-                  <button class="btn-sm btn-edit flex-shrink-0 self-end" onclick="saveFeedback('${studentId}','${t.id}')"><i class="fas fa-save mr-1"></i>保存</button>
+                  <button class="btn-sm flex-shrink-0 self-end" id="fb-btn-${t.id}" onclick="saveFeedback('${studentId}','${t.id}')"
+                    style="${fbMap[t.id] ? 'background:#10B981;color:#fff' : ''}">${fbMap[t.id] ? '<i class="fas fa-check mr-1"></i>保存済み' : '<i class="fas fa-save mr-1"></i>保存'}</button>
                 </div>
               </div>
             </div>`;
@@ -1636,14 +1638,32 @@
   }
 
   async function saveFeedback(studentId, taskId) {
-    const el = document.getElementById(`fb-${taskId}`);
+    const el  = document.getElementById(`fb-${taskId}`);
+    const btn = document.getElementById(`fb-btn-${taskId}`);
     if (!el) return;
     const comment = el.value.trim();
+    if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i>'; }
     const { error } = await db.from('teacher_feedback').upsert({
       school_id: T.school_id, student_id: studentId, task_db_id: taskId,
       comment, teacher_id: T.id, updated_at: new Date().toISOString()
     }, { onConflict: 'school_id,student_id,task_db_id' });
-    if (!error) toast('コメントを保存しました', 'success');
+    if (!error) {
+      if (btn) {
+        btn.disabled = false;
+        btn.style.background = '#10B981';
+        btn.style.color = '#fff';
+        btn.innerHTML = '<i class="fas fa-check mr-1"></i>保存済み';
+        // テキストエリアの変更を検知したら「更新」に戻す
+        el.onchange = el.oninput = () => {
+          btn.style.background = '';
+          btn.style.color = '';
+          btn.innerHTML = '<i class="fas fa-edit mr-1"></i>更新';
+        };
+      }
+    } else {
+      if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-save mr-1"></i>保存'; }
+      toast('保存に失敗しました', 'error');
+    }
   }
 
   async function onProgTypeChange() {
