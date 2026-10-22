@@ -4343,6 +4343,11 @@
             </div>
           </div>
           <input type="text" id="ps-task-yt-${songId}" class="inp" placeholder="YouTube URL（任意）">
+          <input type="text" id="ps-task-image-${songId}" class="inp" placeholder="画像URL（任意）楽譜など">
+          <label class="flex items-center gap-2 cursor-pointer select-none px-1">
+            <input type="checkbox" id="ps-task-descriptive-${songId}" class="w-4 h-4 accent-red-400">
+            <span class="text-sm text-gray-700">記述課題にする（生徒がテキストで回答）</span>
+          </label>
           <button class="btn-red w-full" onclick="addPreviewSongTask('${songId}')"><i class="fas fa-plus mr-1"></i>課題を追加</button>
         </div>
       </div>`;
@@ -4504,14 +4509,17 @@
     const l1    = document.getElementById(`ps-task-l1-${songId}`).value.trim();
     const l2    = document.getElementById(`ps-task-l2-${songId}`).value.trim();
     const l3    = document.getElementById(`ps-task-l3-${songId}`).value.trim();
-    const yt    = document.getElementById(`ps-task-yt-${songId}`).value.trim();
+    const yt         = document.getElementById(`ps-task-yt-${songId}`).value.trim();
+    const image      = document.getElementById(`ps-task-image-${songId}`).value.trim();
+    const descriptive = document.getElementById(`ps-task-descriptive-${songId}`).checked;
     if (!title) { toast('タイトルを入力してください', 'error'); return; }
     const { data: last } = await db.from('song_tasks').select('order_num')
       .eq('song_id', songId).order('order_num', { ascending: false }).limit(1);
     const order_num = (last?.[0]?.order_num || 0) + 1;
     const { error } = await db.from('song_tasks').insert({
       song_id: songId, school_id: T.school_id, title, description: desc, order_num,
-      level_count: lc, level_1_text: l1, level_2_text: l2, level_3_text: l3, youtube_url: yt
+      level_count: lc, level_1_text: l1, level_2_text: l2, level_3_text: l3,
+      youtube_url: yt, image_url: image, is_descriptive: descriptive
     });
     if (error) { toast('追加失敗: ' + error.message, 'error'); return; }
     toast('課題を追加しました', 'success');
