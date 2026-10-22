@@ -137,14 +137,11 @@
   <!-- タブ -->
   <div class="tab-nav">
     <div class="max-w-2xl mx-auto flex">
-      <button class="tab-btn active" id="tab-content" onclick="showTab('content')">
-        <i class="fas fa-book-open mr-1.5"></i>基礎知識
+      <button class="tab-btn active" id="tab-grade" onclick="showTab('grade')">
+        <i class="fas fa-graduation-cap mr-1.5"></i>基礎課題
       </button>
       <button class="tab-btn" id="tab-quiz" onclick="showTab('quiz')">
         <i class="fas fa-pencil-alt mr-1.5"></i>ワークシート
-      </button>
-      <button class="tab-btn" id="tab-grade" onclick="showTab('grade')">
-        <i class="fas fa-graduation-cap mr-1.5"></i>学年別課題
       </button>
       <button class="tab-btn" id="tab-song" onclick="showTab('song')">
         <i class="fas fa-music mr-1.5"></i>曲別課題
@@ -152,8 +149,8 @@
     </div>
   </div>
 
-  <!-- 基礎知識 -->
-  <div id="panel-content" class="max-w-2xl mx-auto">
+  <!-- 基礎知識（非表示） -->
+  <div id="panel-content" class="hidden max-w-2xl mx-auto">
     <div id="content-pills" class="flex gap-2 overflow-x-auto px-4 pt-3 pb-2 bg-white border-b border-gray-100 sticky top-[48px] z-10"></div>
     <div id="content-body" class="px-4 py-4">
       <div class="text-center py-12 text-gray-400"><i class="fas fa-spinner fa-spin text-2xl mb-2 block"></i><p class="text-sm">読み込み中...</p></div>
@@ -168,8 +165,8 @@
     </div>
   </div>
 
-  <!-- 学年別課題 -->
-  <div id="panel-grade" class="hidden max-w-2xl mx-auto px-4 py-4">
+  <!-- 基礎課題 -->
+  <div id="panel-grade" class="max-w-2xl mx-auto px-4 py-4">
     <div id="grade-loading" class="text-center py-10 text-gray-400">
       <i class="fas fa-spinner fa-spin text-2xl mb-2 block"></i>
       <p class="text-sm">読み込み中...</p>
@@ -259,8 +256,8 @@
       document.getElementById('grade-badge').textContent  = `${student.grade}年生`;
       await Promise.all([loadProgress(), loadPracticeLogs(), loadClassStats(), loadFeedback()]);
       renderPracticeBar();
-      loadContentTab();
-      contentTabLoaded = true;
+      gradeTabLoaded = true;
+      loadGradeTasks();
     }
 
     async function loadProgress() {
@@ -460,7 +457,7 @@
 
       if (!songCache[songId]) {
         const { data } = await db.from('song_tasks')
-          .select('id, title, description, order_num, level_count, level_1_text, level_2_text, level_3_text, youtube_url')
+          .select('id, title, description, order_num, level_count, level_1_text, level_2_text, level_3_text, youtube_url, image_url')
           .eq('song_id', songId)
           .eq('school_id', student.school_id)
           .order('order_num');
@@ -540,6 +537,11 @@
       // YouTube
       const ytHtml = buildYtHtml(task.youtube_url);
 
+      // 画像
+      const imgHtml = task.image_url
+        ? `<div class="mt-2"><a href="${escH(task.image_url)}" target="_blank" rel="noopener" class="block rounded-xl overflow-hidden border border-gray-200 hover:opacity-90 transition-opacity"><img src="${escH(task.image_url)}" alt="参考画像" class="w-full object-cover" loading="lazy" onerror="this.parentElement.style.display='none'"></a><p class="text-xs text-gray-400 mt-1 text-center"><i class="fas fa-expand-alt mr-1"></i>タップで拡大</p></div>`
+        : '';
+
       // Button label
       let btnLabel;
       if (isDone) {
@@ -568,6 +570,7 @@
         ${criteriaHtml}
         ${feedbackHtml}
         ${ytHtml}
+        ${imgHtml}
         ${speedHtml}
       `;
 
@@ -846,7 +849,8 @@
     function showTab(tab) {
       ['content','quiz','grade','song'].forEach(t => {
         document.getElementById(`panel-${t}`).classList.toggle('hidden', t !== tab);
-        document.getElementById(`tab-${t}`).className = `tab-btn${t === tab ? ' active' : ''}`;
+        const btn = document.getElementById(`tab-${t}`);
+        if (btn) btn.className = `tab-btn${t === tab ? ' active' : ''}`;
       });
       if (tab === 'content' && !contentTabLoaded) { contentTabLoaded = true; loadContentTab(); }
       if (tab === 'quiz'    && !quizTabLoaded)    { quizTabLoaded    = true; loadQuizTab(); }

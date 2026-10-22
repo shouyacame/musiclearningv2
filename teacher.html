@@ -780,6 +780,10 @@
         <label class="block text-xs font-semibold text-gray-600 mb-1">YouTube URL（任意）</label>
         <input type="text" id="edit-task-yt" class="inp" placeholder="https://www.youtube.com/watch?v=...">
       </div>
+      <div id="edit-task-image-wrap">
+        <label class="block text-xs font-semibold text-gray-600 mb-1">画像URL（任意）<span class="font-normal text-gray-400 ml-1">楽譜・参考画像など</span></label>
+        <input type="text" id="edit-task-image" class="inp" placeholder="https://...">
+      </div>
     </div>
     <div class="flex gap-2 mt-4">
       <button class="btn-gray flex-1" onclick="closeModal('edit-task-modal')">キャンセル</button>
@@ -1373,7 +1377,7 @@
     const [taskRes, progRes, fbRes, logRes] = await Promise.all([
       db.from('koto_tasks').select('id,title,description,order_num,level_count,level_1_text,level_2_text,level_3_text')
         .eq('school_id', T.school_id).eq('is_active', true).order('order_num'),
-      db.from('student_progress').select('task_db_id,is_completed,completed_level')
+      db.from('student_progress').select('task_db_id,is_completed,completed_level,memo')
         .eq('school_id', T.school_id).eq('student_id', studentId),
       db.from('teacher_feedback').select('task_db_id,comment')
         .eq('school_id', T.school_id).eq('student_id', studentId),
@@ -1437,6 +1441,7 @@
           ${statusBadge}
         </div>
         ${levelsHtml}
+        ${(prog.memo || '') ? `<div class="mt-2 px-2 py-1.5 bg-blue-50 border border-blue-200 rounded-lg text-xs text-blue-800"><i class="fas fa-sticky-note mr-1 text-blue-400"></i><span class="font-semibold">生徒メモ：</span>${escHtml(prog.memo)}</div>` : ''}
         <div class="mt-3 pt-3 border-t border-gray-100">
           <label class="block text-xs font-semibold mb-1" style="color:#B45309"><i class="fas fa-comment-dots mr-1"></i>先生コメント</label>
           <div class="flex gap-2">
@@ -1451,20 +1456,22 @@
   }
 
   async function _loadSpSong(studentId, stuName, spBody) {
-    const [songsRes, stRes, progRes] = await Promise.all([
+    const [songsRes, stRes, progRes, fbRes] = await Promise.all([
       db.from('songs').select('id,order_num,title,artist').eq('school_id', T.school_id).eq('is_active', true).order('order_num'),
       db.from('song_tasks').select('id,song_id,order_num,title,description,youtube_url').eq('school_id', T.school_id).order('order_num'),
-      db.from('student_progress').select('task_db_id,is_completed').eq('school_id', T.school_id).eq('student_id', studentId)
+      db.from('student_progress').select('task_db_id,is_completed,memo').eq('school_id', T.school_id).eq('student_id', studentId),
+      db.from('teacher_feedback').select('task_db_id,comment').eq('school_id', T.school_id).eq('student_id', studentId)
     ]);
 
     const songs     = songsRes.data || [];
     const allTasks  = stRes.data    || [];
-    const progMap   = {}; (progRes.data || []).forEach(p => { progMap[p.task_db_id] = p.is_completed; });
+    const progMap   = {}; (progRes.data || []).forEach(p => { progMap[p.task_db_id] = p; });
+    const fbMap     = {}; (fbRes.data   || []).forEach(r => { fbMap[r.task_db_id]  = r.comment || ''; });
     const tasksBySong = {};
     allTasks.forEach(t => { (tasksBySong[t.song_id] = tasksBySong[t.song_id] || []).push(t); });
 
     const totalTasks = allTasks.length;
-    const doneTasks  = allTasks.filter(t => progMap[t.id]).length;
+    const doneTasks  = allTasks.filter(t => (progMap[t.id] || {}).is_completed).length;
 
     let html = `<div class="card p-4 mb-4">
       <div class="flex items-center gap-4">
@@ -1490,9 +1497,9 @@
     } else {
       songs.forEach(song => {
         const tasks    = (tasksBySong[song.id] || []).sort((a, b) => a.order_num - b.order_num);
-        const songDone = tasks.filter(t => progMap[t.id]).length;
+        const songDone = tasks.filter(t => (progMap[t.id] || {}).is_completed).length;
         html += `<div class="card p-4 mb-3">
-          <div class="flex items-center gap-2 mb-2">
+          <div class="flex items-center gap-2 mb-3">
             <i class="fas fa-music text-orange-400"></i>
             <span class="font-bold text-gray-800 text-sm">${escHtml(song.title)}</span>
             ${song.artist ? `<span class="text-xs text-gray-400">${escHtml(song.artist)}</span>` : ''}
@@ -1502,12 +1509,24 @@
           html += '<div class="text-xs text-gray-400 pl-6">課題がありません</div>';
         } else {
           tasks.forEach((t, i) => {
-            const done = !!progMap[t.id];
-            html += `<div class="flex items-center gap-2 py-1.5 border-b border-gray-50 last:border-0">
-              <div style="width:20px;height:20px;min-width:20px;border-radius:50%;background:${done ? '#10B981' : '#D1D5DB'};color:#fff;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700">${done ? '✓' : i + 1}</div>
-              <span class="text-sm flex-1 ${done ? 'text-green-700 font-semibold' : 'text-gray-700'}">${escHtml(t.title)}</span>
-              ${t.youtube_url ? `<a href="${escHtml(t.youtube_url)}" target="_blank" rel="noopener" class="text-xs text-blue-400 hover:underline flex-shrink-0"><i class="fab fa-youtube"></i></a>` : ''}
-              <span class="badge ${done ? 'badge-green' : 'badge-gray'} flex-shrink-0">${done ? '完了' : '未達成'}</span>
+            const prog = progMap[t.id] || {};
+            const done = !!prog.is_completed;
+            const memo = prog.memo || '';
+            html += `<div class="card p-3 mb-2${done ? ' border-2' : ''}" style="${done ? 'border-color:#A7F3D0;background:#F0FDF4' : ''}">
+              <div class="flex items-center gap-2 mb-1">
+                <div style="width:20px;height:20px;min-width:20px;border-radius:50%;background:${done ? '#10B981' : '#D1D5DB'};color:#fff;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700">${done ? '✓' : i + 1}</div>
+                <span class="text-sm flex-1 font-semibold ${done ? 'text-green-700' : 'text-gray-700'}">${escHtml(t.title)}</span>
+                ${t.youtube_url ? `<a href="${escHtml(t.youtube_url)}" target="_blank" rel="noopener" class="text-xs text-blue-400 hover:underline flex-shrink-0"><i class="fab fa-youtube"></i></a>` : ''}
+                <span class="badge ${done ? 'badge-green' : 'badge-gray'} flex-shrink-0">${done ? '完了' : '未達成'}</span>
+              </div>
+              ${memo ? `<div class="mt-1 mb-2 px-2 py-1.5 bg-blue-50 border border-blue-200 rounded-lg text-xs text-blue-800"><i class="fas fa-sticky-note mr-1 text-blue-400"></i><span class="font-semibold">生徒メモ：</span>${escHtml(memo)}</div>` : ''}
+              <div class="mt-2 pt-2 border-t border-gray-100">
+                <label class="block text-xs font-semibold mb-1" style="color:#B45309"><i class="fas fa-comment-dots mr-1"></i>先生コメント</label>
+                <div class="flex gap-2">
+                  <textarea class="inp resize-none text-xs flex-1" rows="2" id="fb-${t.id}" placeholder="生徒へのアドバイス・コメント...">${escHtml(fbMap[t.id] || '')}</textarea>
+                  <button class="btn-sm btn-edit flex-shrink-0 self-end" onclick="saveFeedback('${studentId}','${t.id}')"><i class="fas fa-save mr-1"></i>保存</button>
+                </div>
+              </div>
             </div>`;
           });
         }
@@ -1915,7 +1934,9 @@
     document.getElementById('edit-task-l1').value = data.level_1_text || '';
     document.getElementById('edit-task-l2').value = data.level_2_text || '';
     document.getElementById('edit-task-l3').value = data.level_3_text || '';
-    document.getElementById('edit-task-yt').value  = data.youtube_url  || '';
+    document.getElementById('edit-task-yt').value     = data.youtube_url || '';
+    document.getElementById('edit-task-image').value  = data.image_url   || '';
+    document.getElementById('edit-task-image-wrap').classList.toggle('hidden', taskType !== 'song');
     document.getElementById('edit-level-fields').classList.toggle('hidden', lc < 2);
     document.getElementById('edit-task-l3').classList.toggle('hidden', lc < 3);
     document.getElementById('edit-task-modal').classList.remove('hidden');
@@ -1934,6 +1955,7 @@
       level_2_text: document.getElementById('edit-task-l2').value.trim(),
       level_3_text: document.getElementById('edit-task-l3').value.trim(),
       youtube_url:  document.getElementById('edit-task-yt').value.trim(),
+      ...(taskType === 'song' ? { image_url: document.getElementById('edit-task-image').value.trim() } : {})
     };
     const table = (taskType === 'song') ? 'song_tasks' : 'koto_tasks';
     const { error } = await db.from(table).update(payload).eq('id', id);
