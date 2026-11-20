@@ -266,7 +266,8 @@
         progressMap[r.task_db_id] = {
           is_completed: r.is_completed, memo: r.memo || '',
           completed_level: r.completed_level || 0, yt_speed: r.yt_speed || '1.0',
-          teacher_message: r.teacher_message || ''
+          teacher_message: r.teacher_message || '',
+          video_url: r.video_url || ''
         };
       });
     }
@@ -409,7 +410,7 @@
       }
 
       const container = document.getElementById('grade-tasks');
-      kotoTasks.forEach((t, i) => container.appendChild(makeCard(t, i + 1)));
+      kotoTasks.forEach((t, i) => container.appendChild(makeCard(t, i + 1, 'koto')));
       container.classList.remove('hidden');
       initLazyYt();
       renderBadges(); // タスク数が確定したのでバッジ再計算
@@ -492,15 +493,15 @@
         return;
       }
 
-      tasks.forEach((t, i) => area.appendChild(makeCard(t, i + 1)));
+      tasks.forEach((t, i) => area.appendChild(makeCard(t, i + 1, 'song')));
       initLazyYt();
     }
 
     // ---- TASK CARD ----
 
-    function makeCard(task, num) {
+    function makeCard(task, num, taskType = 'koto') {
       const taskId = task.id;
-      const prog   = progressMap[taskId] || { is_completed: false, memo: '', completed_level: 0 };
+      const prog   = progressMap[taskId] || { is_completed: false, memo: '', completed_level: 0, video_url: '' };
       const lc     = task.level_count || 1;
       const isDone = prog.is_completed;
       const cl     = prog.completed_level || 0;
@@ -591,6 +592,35 @@
         ${imgHtml}
         ${descriptiveHtml}
         ${!task.is_descriptive ? speedHtml : ''}
+        ${taskType === 'song' ? `<div class="mt-3 pt-2 border-t border-gray-100">
+          <button class="flex items-center gap-1.5 w-full text-xs font-semibold text-rose-600 hover:text-rose-700" id="video-toggle-${taskId}">
+            <i class="fas fa-video"></i>
+            <span id="video-toggle-label-${taskId}">${prog.video_url ? '動画提出済み（再提出）' : '動画を提出する'}</span>
+            <i class="fas fa-chevron-down text-xs ml-auto" id="video-toggle-icon-${taskId}"></i>
+          </button>
+          <div id="video-section-${taskId}" class="hidden mt-2">
+            <div id="video-submitted-${taskId}" class="${prog.video_url ? '' : 'hidden'}">
+              <video src="${escH(prog.video_url || '')}" controls playsinline class="w-full rounded-xl border border-gray-200 mb-2 bg-black" style="max-height:220px"></video>
+              <button class="w-full py-1.5 rounded-xl text-xs font-semibold text-rose-700 border border-rose-200 bg-rose-50" id="video-retake-btn-${taskId}"><i class="fas fa-redo mr-1"></i>撮り直す</button>
+            </div>
+            <div id="video-rec-${taskId}" class="${prog.video_url ? 'hidden' : ''}">
+              <div id="video-live-wrap-${taskId}" class="hidden mb-2 relative">
+                <video id="video-live-${taskId}" autoplay muted playsinline class="w-full rounded-xl border border-gray-200 bg-black" style="max-height:220px"></video>
+                <div class="absolute top-2 left-2 flex items-center gap-1.5 bg-black/60 text-white text-xs px-2 py-1 rounded-full">
+                  <span class="w-2 h-2 rounded-full bg-red-500 animate-pulse inline-block"></span>
+                  <span id="video-timer-${taskId}">録画中</span>
+                </div>
+              </div>
+              <div id="video-review-wrap-${taskId}" class="hidden mb-2">
+                <video id="video-review-${taskId}" controls playsinline class="w-full rounded-xl border border-gray-200 bg-black" style="max-height:220px"></video>
+              </div>
+              <p id="video-status-${taskId}" class="hidden text-xs text-center text-gray-500 my-1"></p>
+              <div id="video-btn-wrap-${taskId}">
+                <button class="w-full py-2 rounded-xl text-xs font-semibold bg-rose-500 text-white" id="video-start-btn-${taskId}"><i class="fas fa-circle mr-1"></i>録画を開始する</button>
+              </div>
+            </div>
+          </div>
+        </div>` : ''}
       `;
 
       if (!task.is_descriptive) {
@@ -635,6 +665,22 @@
             tmsgBtn.style.background = '#CCFBF1'; tmsgBtn.style.color = '#0F766E';
             tmsgBtn.innerHTML = '<i class="fas fa-paper-plane mr-1"></i>返信を送る';
           };
+        });
+      }
+      if (taskType === 'song') {
+        el.querySelector(`#video-toggle-${taskId}`).addEventListener('click', () => {
+          const sec = document.getElementById(`video-section-${taskId}`);
+          const icon = document.getElementById(`video-toggle-icon-${taskId}`);
+          sec.classList.toggle('hidden');
+          icon.classList.toggle('fa-chevron-down');
+          icon.classList.toggle('fa-chevron-up');
+        });
+        el.querySelector(`#video-start-btn-${taskId}`).addEventListener('click', () => startRecording(taskId));
+        const retakeBtn = el.querySelector(`#video-retake-btn-${taskId}`);
+        if (retakeBtn) retakeBtn.addEventListener('click', () => {
+          document.getElementById(`video-submitted-${taskId}`).classList.add('hidden');
+          document.getElementById(`video-rec-${taskId}`).classList.remove('hidden');
+          resetVideoRec(taskId);
         });
       }
       el.querySelector(`#done-btn-${taskId}`).addEventListener('click', () => toggleTask(taskId, num, lc));
@@ -1000,6 +1046,156 @@
     // ---- STUDY (shared rendering) ----
 
     function escH(s) { return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+    // ---- CLOUDINARY 動画録画 ----
+    const CLOUDINARY_CLOUD  = 'f10qoyle';
+    const CLOUDINARY_PRESET = '20261120mumum';
+    const MAX_REC_SEC = 300; // 5分
+    const recState    = {};  // taskId → {recorder, stream, chunks, mimeType, blob}
+    const recTimerIds = {};
+
+    function getSupportedMimeType() {
+      const types = ['video/mp4;codecs=avc1','video/mp4','video/webm;codecs=vp9,opus','video/webm;codecs=vp8,opus','video/webm'];
+      return types.find(t => { try { return MediaRecorder.isTypeSupported(t); } catch(e){ return false; } }) || '';
+    }
+
+    async function startRecording(taskId) {
+      if (recState[taskId]?.stream) recState[taskId].stream.getTracks().forEach(t => t.stop());
+      const statusEl  = document.getElementById(`video-status-${taskId}`);
+      const btnWrap   = document.getElementById(`video-btn-wrap-${taskId}`);
+      const liveWrap  = document.getElementById(`video-live-wrap-${taskId}`);
+      const liveVideo = document.getElementById(`video-live-${taskId}`);
+      statusEl.textContent = 'カメラを起動中...';
+      statusEl.classList.remove('hidden');
+      btnWrap.classList.add('hidden');
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+        recState[taskId] = { stream, chunks: [] };
+        liveVideo.srcObject = stream;
+        liveWrap.classList.remove('hidden');
+        document.getElementById(`video-review-wrap-${taskId}`).classList.add('hidden');
+        statusEl.classList.add('hidden');
+        const mimeType = getSupportedMimeType();
+        const recorder = new MediaRecorder(stream, mimeType ? { mimeType } : {});
+        recState[taskId].recorder = recorder;
+        recState[taskId].mimeType = recorder.mimeType;
+        recorder.ondataavailable = e => { if (e.data.size > 0) recState[taskId].chunks.push(e.data); };
+        recorder.onstop = () => showVideoReview(taskId);
+        recorder.start(1000);
+        btnWrap.innerHTML = `<button class="w-full py-2 rounded-xl text-xs font-semibold bg-gray-700 text-white" id="video-stop-btn-${taskId}"><i class="fas fa-stop mr-1"></i>録画停止</button>`;
+        btnWrap.classList.remove('hidden');
+        document.getElementById(`video-stop-btn-${taskId}`).addEventListener('click', () => stopRecording(taskId));
+        startRecTimer(taskId);
+      } catch(err) {
+        statusEl.textContent = 'カメラにアクセスできませんでした。許可を確認してください。';
+        statusEl.classList.remove('hidden');
+        btnWrap.innerHTML = `<button class="w-full py-2 rounded-xl text-xs font-semibold bg-rose-500 text-white" id="video-start-btn-${taskId}"><i class="fas fa-circle mr-1"></i>録画を開始する</button>`;
+        btnWrap.classList.remove('hidden');
+        document.getElementById(`video-start-btn-${taskId}`).addEventListener('click', () => startRecording(taskId));
+      }
+    }
+
+    function stopRecording(taskId) {
+      clearRecTimer(taskId);
+      const s = recState[taskId];
+      if (!s) return;
+      if (s.recorder?.state !== 'inactive') s.recorder.stop();
+      s.stream.getTracks().forEach(t => t.stop());
+      document.getElementById(`video-live-${taskId}`).srcObject = null;
+      document.getElementById(`video-live-wrap-${taskId}`).classList.add('hidden');
+    }
+
+    function showVideoReview(taskId) {
+      const s = recState[taskId];
+      if (!s) return;
+      const blob = new Blob(s.chunks, { type: s.mimeType || 'video/webm' });
+      s.blob = blob;
+      const reviewVideo = document.getElementById(`video-review-${taskId}`);
+      reviewVideo.src = URL.createObjectURL(blob);
+      document.getElementById(`video-review-wrap-${taskId}`).classList.remove('hidden');
+      const btnWrap = document.getElementById(`video-btn-wrap-${taskId}`);
+      btnWrap.innerHTML = `
+        <button class="flex-1 py-2 rounded-xl text-xs font-semibold text-gray-700 border border-gray-200" id="video-redo-btn-${taskId}"><i class="fas fa-redo mr-1"></i>撮り直す</button>
+        <button class="flex-1 py-2 rounded-xl text-xs font-semibold bg-teal-500 text-white" id="video-submit-btn-${taskId}"><i class="fas fa-paper-plane mr-1"></i>提出する</button>`;
+      document.getElementById(`video-redo-btn-${taskId}`).addEventListener('click', () => resetVideoRec(taskId));
+      document.getElementById(`video-submit-btn-${taskId}`).addEventListener('click', () => submitVideo(taskId));
+    }
+
+    function resetVideoRec(taskId) {
+      clearRecTimer(taskId);
+      const rv = document.getElementById(`video-review-${taskId}`);
+      if (rv?.src) URL.revokeObjectURL(rv.src);
+      recState[taskId] = null;
+      document.getElementById(`video-review-wrap-${taskId}`).classList.add('hidden');
+      document.getElementById(`video-status-${taskId}`).classList.add('hidden');
+      const btnWrap = document.getElementById(`video-btn-wrap-${taskId}`);
+      btnWrap.innerHTML = `<button class="w-full py-2 rounded-xl text-xs font-semibold bg-rose-500 text-white" id="video-start-btn-${taskId}"><i class="fas fa-circle mr-1"></i>録画を開始する</button>`;
+      document.getElementById(`video-start-btn-${taskId}`).addEventListener('click', () => startRecording(taskId));
+    }
+
+    async function submitVideo(taskId) {
+      const s = recState[taskId];
+      if (!s?.blob) return;
+      const statusEl = document.getElementById(`video-status-${taskId}`);
+      const btnWrap  = document.getElementById(`video-btn-wrap-${taskId}`);
+      btnWrap.classList.add('hidden');
+      statusEl.textContent = 'アップロード中... 0%';
+      statusEl.classList.remove('hidden');
+      try {
+        const url = await uploadToCloudinary(s.blob, pct => { statusEl.textContent = `アップロード中... ${pct}%`; });
+        if (!progressMap[taskId]) progressMap[taskId] = {};
+        progressMap[taskId].video_url = url;
+        await db.rpc('upsert_student_progress', { p_token: sessionToken, p_task_db_id: taskId, p_video_url: url });
+        statusEl.classList.add('hidden');
+        document.getElementById(`video-rec-${taskId}`).classList.add('hidden');
+        const submittedDiv = document.getElementById(`video-submitted-${taskId}`);
+        submittedDiv.querySelector('video').src = url;
+        submittedDiv.classList.remove('hidden');
+        const lbl = document.getElementById(`video-toggle-label-${taskId}`);
+        if (lbl) lbl.textContent = '動画提出済み（再提出）';
+        const retakeBtn = document.getElementById(`video-retake-btn-${taskId}`);
+        if (retakeBtn) retakeBtn.onclick = () => {
+          submittedDiv.classList.add('hidden');
+          document.getElementById(`video-rec-${taskId}`).classList.remove('hidden');
+          resetVideoRec(taskId);
+        };
+      } catch(err) {
+        statusEl.textContent = 'アップロード失敗。もう一度試してください。';
+        btnWrap.classList.remove('hidden');
+      }
+    }
+
+    function uploadToCloudinary(blob, onProgress) {
+      return new Promise((resolve, reject) => {
+        const ext = blob.type.includes('mp4') ? 'mp4' : 'webm';
+        const fd = new FormData();
+        fd.append('file', blob, `video.${ext}`);
+        fd.append('upload_preset', CLOUDINARY_PRESET);
+        fd.append('resource_type', 'video');
+        const xhr = new XMLHttpRequest();
+        xhr.upload.onprogress = e => { if (e.lengthComputable && onProgress) onProgress(Math.round(e.loaded / e.total * 100)); };
+        xhr.onload = () => { try { const d = JSON.parse(xhr.responseText); d.secure_url ? resolve(d.secure_url) : reject(new Error(d.error?.message || 'Upload failed')); } catch(e) { reject(e); } };
+        xhr.onerror = () => reject(new Error('Network error'));
+        xhr.open('POST', `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD}/video/upload`);
+        xhr.send(fd);
+      });
+    }
+
+    function startRecTimer(taskId) {
+      let elapsed = 0;
+      const timerEl = document.getElementById(`video-timer-${taskId}`);
+      recTimerIds[taskId] = setInterval(() => {
+        elapsed++;
+        const rem = MAX_REC_SEC - elapsed;
+        const m = Math.floor(rem / 60), s = rem % 60;
+        if (timerEl) timerEl.textContent = `${m}:${s.toString().padStart(2,'0')} 残り`;
+        if (elapsed >= MAX_REC_SEC) stopRecording(taskId);
+      }, 1000);
+    }
+
+    function clearRecTimer(taskId) {
+      if (recTimerIds[taskId]) { clearInterval(recTimerIds[taskId]); delete recTimerIds[taskId]; }
+    }
 
     function makeMediaHtml(url, taskId) {
       if (!url) return '';
